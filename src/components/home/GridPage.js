@@ -1,38 +1,20 @@
 "use client";
 
-import { Grid, OrbitControls, Stats } from "@react-three/drei";
+import { Environment, Grid, OrbitControls, Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import React from "react";
+import CustomGrid from "./CustomGrid";
+import * as THREE from "three"
 
 const GridPage = () => {
   return (
-    <div style={{ width: "600px", height: "400px" }}>
+    <div className="w-full h-[600px]">
       <Canvas camera={{ position: [10, 10, 10], fov: 50 }}>
-        {/* نور */}
         <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} />
+        <directionalLight position={[5, 10, 7]} intensity={1} />
 
-        {/* کنترل چرخش دوربین */}
+        <CustomGrid /> {/* گرید سفارشی اینجاست */}
         <OrbitControls />
-
-        {/* شبکه مشبک شبیه به TinkerCAD */}
-        <Grid
-          position={[0, 0, 0]} // روی سطح زمین
-          args={[20, 20]} // اندازه کل گرید (عرض، طول)
-          cellSize={1}
-          cellThickness={0.4}
-          cellColor="rgba(255, 255, 255, 0.3)" // خطوط شفاف
-          sectionSize={5}
-          sectionThickness={1}
-          sectionColor="rgba(255, 0, 0, 0.4)" // خطوط ضخیم‌تر شفاف
-          fadeDistance={50} // محو شدن در فاصله
-          fadeStrength={0.3}
-          infiniteGrid={false}
-        />
-
-        {/* ابزار کمکی */}
-        {/* <axesHelper args={[5]} /> */}
-        <Stats />
       </Canvas>
     </div>
   );

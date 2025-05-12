@@ -11,7 +11,7 @@ module.exports = {
       colors: {
         // #5139da
         bgPrimaryTheme: "#ebebeb5e",
-        primaryThemeColor: "#dc2626",
+        primaryThemeColor: "#a600ff",
         // #f14a4a
         background: "var(--background)",
         foreground: "var(--foreground)",
