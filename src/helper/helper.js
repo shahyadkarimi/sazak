@@ -16,7 +16,12 @@ const toFarsiNumber = (num) => {
   }
 };
 
+const snapToGrid = (value, gridSize = 1) => {
+  return Math.round(value / gridSize) * gridSize;
+};
+
 export {
+  snapToGrid,
   toFarsiNumber,
   idGenerator,
 };

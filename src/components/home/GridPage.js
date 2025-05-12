@@ -12,7 +12,7 @@ import { Canvas } from "@react-three/fiber";
 import React from "react";
 import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
-import Model from "@/shared/Model";
+import Model from "@/components/shared/Model";
 
 const GridPage = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
