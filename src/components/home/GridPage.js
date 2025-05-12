@@ -4,7 +4,6 @@ import { Environment, Grid, OrbitControls, Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import React from "react";
 import CustomGrid from "./CustomGrid";
-import * as THREE from "three"
 
 const GridPage = () => {
   return (

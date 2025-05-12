@@ -7,10 +7,11 @@ const CustomGrid = () => {
   const { scene } = useThree();
 
   useEffect(() => {
-    const size = 100;
-    const divisions = 100;
-    const colorCenterLine = new THREE.Color("#ff0000"); // رنگ خط مرکزی
-    const colorGrid = new THREE.Color("#00ffff"); // رنگ خطوط معمولی
+    const size = 20;
+    const divisions = 20;
+
+    const colorCenterLine = new THREE.Color("#6b7280"); // رنگ خط مرکزی
+    const colorGrid = new THREE.Color("#6b7280"); // رنگ خطوط معمولی
 
     const gridHelper = new THREE.GridHelper(
       size,
