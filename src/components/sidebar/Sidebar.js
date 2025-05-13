@@ -5,7 +5,7 @@ import useModelStore from "@/store/useModelStore";
 import React, { useState } from "react";
 
 const Sidebar = () => {
-  const setSelectedModels = useModelStore((state) => state.setSelectedModels);
+  const setCurrentPlacingModel = useModelStore((state) => state.setCurrentPlacingModel);
 
   const modelsList = [
     { id: 1, path: "/models/element-1.glb" },
@@ -26,7 +26,7 @@ const Sidebar = () => {
       {modelsList.map((item, index) => (
         <button
           key={index}
-          onClick={() => setSelectedModels(item.path)}
+          onClick={() => setCurrentPlacingModel(item.path)}
           className="w-full h-32 border rounded-2xl text-sm text-gray-700 flex flex-col items-center justify-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
         >
           <span>المان {toFarsiNumber(index + 1)}</span>

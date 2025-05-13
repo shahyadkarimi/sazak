@@ -13,9 +13,11 @@ import React from "react";
 import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
 import Model from "@/components/shared/Model";
+import ModelPlacer from "../shared/ModelPlacer";
 
 const GridPage = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
+  const isAdjustingHeight = useModelStore((state) => state.isAdjustingHeight);
 
   return (
     <div className="w-full h-[600px]">
@@ -23,13 +25,23 @@ const GridPage = () => {
         <ambientLight intensity={1} />
         <directionalLight position={[10, 10, 10]} intensity={1.5} />
 
-        {selectedModels.map((models) => (
-          <Model path={models} />
+        {selectedModels.map((model, i) => (
+          <Model
+            key={model.id}
+            id={model.id}
+            path={model.path}
+            position={model.position}
+          />
         ))}
+
+        <ModelPlacer />
 
         <CustomGrid />
 
-        <OrbitControls />
+        <OrbitControls
+          enableRotate={!isAdjustingHeight} // غیرفعال کردن چرخش هنگام تنظیم ارتفاع
+          enablePan={!isAdjustingHeight}
+        />
       </Canvas>
     </div>
   );
