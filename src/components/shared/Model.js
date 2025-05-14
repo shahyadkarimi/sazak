@@ -19,6 +19,8 @@ const Model = ({ path, position, id, rotation }) => {
   // چک کردن path قبل از بارگذاری
   const scene = path ? useModelLoader(path) : null;
   const modelRef = useRef();
+  const selectedModels = useModelStore((s) => s.selectedModels);
+  const setSelectedModels = useModelStore((s) => s.setSelectedModels);
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
@@ -256,6 +258,12 @@ const Model = ({ path, position, id, rotation }) => {
     }
   }, [rotation, id, updateModelRotation]);
 
+  const deleteModelHandler = () => {
+    const newData = selectedModels.filter((item) => item.id !== id);
+    console.log(newData);
+    setSelectedModels(newData);
+  };
+
   return (
     <group ref={modelRef}>
       <primitive
@@ -328,6 +336,17 @@ const Model = ({ path, position, id, rotation }) => {
               title="چرخش حول محور X (محدود)"
             >
               X↻
+            </button>
+            <button
+              style={{
+                padding: "5px 10px",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+              onClick={deleteModelHandler}
+              title="چرخش حول محور X (محدود)"
+            >
+              D
             </button>
           </div>
         </Html>
