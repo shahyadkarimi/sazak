@@ -5,9 +5,12 @@ const useModelStore = create((set) => ({
   currentPlacingModel: null,
   selectedModelId: null,
   isAdjustingHeight: false,
+  isBelowGrid: false, // پرچم جدید برای خطا
 
   setSelectedModels: (modelPath) =>
     set((state) => ({ selectedModels: [...state.selectedModels, modelPath] })),
+
+  setBelowGrid: (value) => set({ isBelowGrid: value }),
 
   setCurrentPlacingModel: (modelPath) =>
     set({ currentPlacingModel: modelPath }),
