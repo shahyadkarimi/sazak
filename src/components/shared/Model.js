@@ -10,21 +10,26 @@ const snapToGrid = (value, step = 1) => {
   return Math.round(value / step) * step;
 };
 
-const Model = ({ path, position, id }) => {
+// تابع نرمال‌سازی زاویه بین 0 تا 2π
+const normalizeAngle = (angle) => {
+  return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+};
+
+const Model = ({ path, position, id, rotation }) => {
   // چک کردن path قبل از بارگذاری
   const scene = path ? useModelLoader(path) : null;
   const modelRef = useRef();
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
+  const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
 
-  // state برای مدیریت تنظیم ارتفاع و جابجایی
+  // state برای مدیریت تنظیم ارتفاع، جابجایی و چرخش
   const [isAdjustingHeight, setIsAdjustingHeightLocal] = useState(false);
   const [isMoving, setIsMovingLocal] = useState(false);
-  const [lastMouse, setLastMouse] = useState({ x: null, y: null });
+  const [lastMouse, setLastMouse] = useState({ x: null, y: null, z: null });
   const [mouseAccumulated, setMouseAccumulated] = useState({ y: 0 });
-  // اضافه کردن state برای نگهداری موقعیت اولیه در زمان شروع حرکت
   const [dragStartPosition, setDragStartPosition] = useState(null);
 
   // دسترسی به Three.js
@@ -41,9 +46,10 @@ const Model = ({ path, position, id }) => {
     return clonedScene;
   }, [scene]);
 
+  // دیباگ path و scene
+
   // اگر path یا scene نامعتبر باشه، رندر رو متوقف کن
   if (!path || !adjustedScene) {
-    console.warn(`Invalid path for model ID: ${id}, path: ${path}`);
     return null;
   }
 
@@ -58,7 +64,7 @@ const Model = ({ path, position, id }) => {
     event.preventDefault();
     setIsAdjustingHeightLocal(true);
     setIsAdjustingHeight(true);
-    setLastMouse({ x: null, y: event.clientY });
+    setLastMouse({ x: null, y: event.clientY, z: null });
     setMouseAccumulated({ y: 0 });
   };
 
@@ -67,34 +73,23 @@ const Model = ({ path, position, id }) => {
     event.stopPropagation();
     setIsAdjustingHeightLocal(false);
     setIsAdjustingHeight(false);
-    setLastMouse({ x: null, y: null });
+    setLastMouse({ x: null, y: null, z: null });
     setMouseAccumulated({ y: 0 });
   };
 
-  // شروع جابجایی - با ثبت موقعیت اولیه مدل و ماوس
+  // شروع جابجایی
   const startMoving = (event) => {
     event.stopPropagation();
     event.preventDefault();
     setIsMovingLocal(true);
-
-    // ذخیره موقعیت اولیه مدل در زمان شروع درگ
     setDragStartPosition([...position]);
-
-    // ذخیره موقعیت اولیه ماوس
     const mouse = new THREE.Vector2();
     mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
     mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
-
-    // راه‌اندازی raycaster برای محاسبه نقطه شروع روی صفحه
     raycaster.setFromCamera(mouse, camera);
-
-    // ایجاد یک صفحه موقت در موقعیت فعلی مدل برای raycasting
     const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
     const initialIntersection = new THREE.Vector3();
-
     raycaster.ray.intersectPlane(tempPlane, initialIntersection);
-
-    // ذخیره نقطه شروع به عنوان آخرین موقعیت ماوس
     setLastMouse({
       x: initialIntersection.x,
       y: null,
@@ -111,6 +106,41 @@ const Model = ({ path, position, id }) => {
     setLastMouse({ x: null, y: null, z: null });
     setDragStartPosition(null);
     setIsAdjustingHeight(false);
+  };
+
+  // چرخش مدل حول محور Y (با محدودیت)
+  const rotateModelY = (event) => {
+    event.stopPropagation();
+
+    // چرخش ۹۰ درجه حول محور Y
+    let newRotation = [...rotation];
+    newRotation[1] = (newRotation[1] + Math.PI / 2) % (Math.PI * 2);
+
+    // اطمینان از اینکه مدل زیر گرید قرار نمی‌گیرد با حفظ چرخش Y
+    updateModelRotation(id, newRotation);
+  };
+
+  // چرخش مدل حول محور X (با محدودیت)
+  const rotateModelX = (event) => {
+    event.stopPropagation();
+
+    // نرمال‌سازی زاویه فعلی بین 0 تا 2π
+    let currentX = normalizeAngle(rotation[0]);
+
+    // محاسبه زاویه جدید با افزودن 90 درجه
+    let newX = normalizeAngle(currentX + Math.PI / 2);
+
+    // محدود کردن زاویه X برای جلوگیری از رفتن مدل زیر گرید
+    // زاویه مجاز: 0 تا π/2 (0 تا 90 درجه) و 3π/2 تا 2π (270 تا 360 درجه)
+    if (newX > Math.PI / 2 && newX < (3 * Math.PI) / 2) {
+      // اگر زاویه جدید به محدوده غیرمجاز می‌رسد، به مرز بعدی برو
+      newX = newX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+    }
+
+    let newRotation = [...rotation];
+    newRotation[0] = newX;
+
+    updateModelRotation(id, newRotation);
   };
 
   // مدیریت حرکت ماوس برای تنظیم ارتفاع
@@ -153,39 +183,28 @@ const Model = ({ path, position, id }) => {
     updateModelPosition,
   ]);
 
-  // مدیریت حرکت ماوس برای جابجایی - اصلاح شده
+  // مدیریت حرکت ماوس برای جابجایی
   useEffect(() => {
     if (!isMoving || !lastMouse.x || !dragStartPosition) return;
 
     const handleMouseMove = (event) => {
       event.stopPropagation();
       event.preventDefault();
-
-      // محاسبه موقعیت ماوس در فضای نرمالایز شده
       const mouse = new THREE.Vector2();
       mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
       mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
-
-      // ایجاد یک صفحه در ارتفاع فعلی مدل
       const dragPlane = new THREE.Plane(
         new THREE.Vector3(0, 1, 0),
         -position[1]
       );
       const currentIntersection = new THREE.Vector3();
-
-      // تنظیم راستای دید و محاسبه تقاطع با صفحه
       raycaster.setFromCamera(mouse, camera);
       raycaster.ray.intersectPlane(dragPlane, currentIntersection);
-
       if (currentIntersection) {
-        // محاسبه تفاوت بین موقعیت فعلی و موقعیت اولیه
         const deltaX = currentIntersection.x - lastMouse.x;
         const deltaZ = currentIntersection.z - lastMouse.z;
-
-        // اعمال تغییرات به موقعیت اولیه مدل در زمان شروع درگ
         const newX = snapToGrid(dragStartPosition[0] + deltaX, 1);
         const newZ = snapToGrid(dragStartPosition[2] + deltaZ, 1);
-
         updateModelPosition(id, [newX, position[1], newZ]);
       }
     };
@@ -215,12 +234,35 @@ const Model = ({ path, position, id }) => {
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
   }, [isAdjustingHeight, isMoving]);
 
+  // تنظیم وضعیت مدل برای جلوگیری از رفتن زیر گرید
+  useEffect(() => {
+    // این تابع بعد از هر بار تغییر چرخش اجرا می‌شود تا مطمئن شویم مدل زیر گرید نمی‌رود
+    let currentRotation = [...rotation];
+    let needsUpdate = false;
+
+    // نرمال‌سازی زاویه X
+    let normalizedX = normalizeAngle(currentRotation[0]);
+
+    // محدود کردن زاویه X به محدوده مجاز
+    if (normalizedX > Math.PI / 2 && normalizedX < (3 * Math.PI) / 2) {
+      normalizedX = normalizedX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+      currentRotation[0] = normalizedX;
+      needsUpdate = true;
+    }
+
+    // اگر نیاز به بروزرسانی باشد، چرخش را اصلاح کن
+    if (needsUpdate) {
+      updateModelRotation(id, currentRotation);
+    }
+  }, [rotation, id, updateModelRotation]);
+
   return (
     <group ref={modelRef}>
       <primitive
         object={adjustedScene}
-        scale={100} // حفظ مقیاس 100 مطابق با کد اصلی
+        scale={100} // حفظ مقیاس اصلی
         position={position}
+        rotation={rotation} // اعمال چرخش
         onClick={handleClick}
       />
       {selectedModelId === id && (
@@ -262,6 +304,30 @@ const Model = ({ path, position, id }) => {
               onMouseUp={stopMoving}
             >
               ↔
+            </button>
+            {/* دکمه چرخش حول محور Y */}
+            <button
+              style={{
+                padding: "5px 10px",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+              onClick={rotateModelY}
+              title="چرخش حول محور Y"
+            >
+              Y↻
+            </button>
+            {/* دکمه چرخش حول محور X */}
+            <button
+              style={{
+                padding: "5px 10px",
+                cursor: "pointer",
+                fontSize: "16px",
+              }}
+              onClick={rotateModelX}
+              title="چرخش حول محور X (محدود)"
+            >
+              X↻
             </button>
           </div>
         </Html>
