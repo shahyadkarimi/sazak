@@ -31,6 +31,7 @@ const GridPage = () => {
             id={model.id}
             path={model.path}
             position={model.position}
+            rotation={model.rotation}
           />
         ))}
 

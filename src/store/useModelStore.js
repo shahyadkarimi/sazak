@@ -21,6 +21,13 @@ const useModelStore = create((set) => ({
       ),
     })),
 
+  updateModelRotation: (id, newRotation) =>
+    set((state) => ({
+      selectedModels: state.selectedModels.map((model) =>
+        model.id === id ? { ...model, rotation: newRotation } : model
+      ),
+    })),
+
   setIsAdjustingHeight: (value) => set({ isAdjustingHeight: value }),
 }));
 

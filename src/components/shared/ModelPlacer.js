@@ -36,10 +36,12 @@ const ModelPlacer = () => {
 
     const clonedScene = originalScene.clone();
 
-    // محاسبه مرکز و تنظیم موقعیت
+    // محاسبه باندینگ باکس برای تنظیم موقعیت
     const box = new THREE.Box3().setFromObject(clonedScene);
     const center = new THREE.Vector3();
     box.getCenter(center);
+
+    // موقعیت را بر اساس مرکز باندینگ باکس تنظیم می‌کنیم
     clonedScene.position.sub(center);
 
     return clonedScene;
@@ -76,6 +78,7 @@ const ModelPlacer = () => {
         id: Date.now(),
         path: currentPlacingModel,
         position: hoverPos,
+        rotation: [0, 0, 0],
       });
       setCurrentPlacingModel(null);
     } else {
@@ -152,11 +155,9 @@ const ModelPlacer = () => {
 
       {/* پیش‌نمایش مدل زیر موس */}
       {hoverPos && previewModel && (
-        <primitive
-          object={previewModel}
-          position={new THREE.Vector3(...hoverPos)}
-          scale={100}
-        />
+        <group position={new THREE.Vector3(...hoverPos)}>
+          <primitive object={previewModel} scale={100} />
+        </group>
       )}
     </>
   );
