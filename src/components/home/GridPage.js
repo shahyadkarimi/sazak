@@ -34,7 +34,7 @@ const GridPage = () => {
             onClick={() => setMode("translate")}
             className={`flex items-center gap-1 ${
               mode === "translate" ? "text-primaryThemeColor" : ""
-            }`}
+            } hover:text-primaryThemeColor transition-all duration-300`}
           >
             <MoveIcon />
             <span>حرکت</span>
@@ -43,21 +43,22 @@ const GridPage = () => {
             onClick={() => setMode("rotate")}
             className={`flex items-center gap-1 ${
               mode === "rotate" ? "text-primaryThemeColor" : ""
-            }`}
+            } hover:text-primaryThemeColor transition-all duration-300`}
           >
             <RotateIcon />
 
             <span>چرخش</span>
           </button>
           <button
+            disabled
             onClick={() => setMode("scale")}
-            className={`flex items-center gap-1 ${
+            className={`flex items-center gap-1 disabled:opacity-75 ${
               mode === "scale" ? "text-primaryThemeColor" : ""
             }`}
           >
             <SizeIcon />
 
-            <span>بزرگ‌نمایی</span>
+            <span>بزرگ نمایی</span>
           </button>
         </div>
       )}
