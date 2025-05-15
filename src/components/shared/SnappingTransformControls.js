@@ -15,7 +15,6 @@ const SnappingTransformControls = ({
   onEnd = () => {},
 }) => {
   const controlsRef = useRef();
-  const setBelowGrid = useModelStore((state) => state.setBelowGrid);
 
   useFrame(() => {
     if (controlsRef.current?.dragging && object) {
@@ -37,14 +36,6 @@ const SnappingTransformControls = ({
         rot.z =
           Math.round(rot.z / (rotateSnap * (Math.PI / 180))) *
           (rotateSnap * (Math.PI / 180));
-
-        // بررسی اینکه آیا مدل زیر گرید است
-        const box = new THREE.Box3().setFromObject(object);
-        if (box.min.y < 0) {
-          setBelowGrid(true); // تنظیم پرچم خطا
-        } else {
-          setBelowGrid(false); // ریست پرچم خطا
-        }
       }
     }
   });
@@ -60,30 +51,7 @@ const SnappingTransformControls = ({
         }
       });
     }
-
-    // در زمان پایان drag، بررسی نهایی انجام شود
-    return () => {
-      if (object) {
-        if (controlsRef.current) {
-          const gizmo = controlsRef.current;
-          gizmo.traverse((child) => {
-            if (child.material) {
-              // تغییر رنگ همه متریال‌ها
-              child.material.color.set(color);
-              child.material.needsUpdate = true;
-            }
-          });
-        }
-
-        const box = new THREE.Box3().setFromObject(object);
-        if (box.min.y < 0) {
-          setBelowGrid(true);
-        } else {
-          setBelowGrid(false);
-        }
-      }
-    };
-  }, [color, object, setBelowGrid]);
+  }, [color, object]);
 
   return (
     <TransformControls

@@ -1,22 +1,22 @@
 "use client";
 
 import { OrbitControls, TransformControls, Html } from "@react-three/drei";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import React, { useRef, useState } from "react";
 import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
 import Model from "@/components/shared/Model";
 import ModelPlacer from "../shared/ModelPlacer";
 import * as THREE from "three";
-import SnappingTransformControls from "../shared/SnappingTransformControls ";
+import SnappingTransformControls from "../shared/SnappingTransformControls";
 import MoveIcon from "../icons/MoveIcon";
 import RotateIcon from "../icons/RotateIcon";
 import SizeIcon from "../icons/SizeIcon";
+import DuplicateIcon from "../icons/DuplicateIcon";
 
 const GridPage = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const isAdjustingHeight = useModelStore((state) => state.isAdjustingHeight);
-  const isBelowGrid = useModelStore((state) => state.isBelowGrid);
   const [activeModelId, setActiveModelId] = useState(null);
   const [mode, setMode] = useState("translate");
   const modelRefs = useRef({});
@@ -25,9 +25,34 @@ const GridPage = () => {
     setActiveModelId(null);
   };
 
+  const duplicateModelHandler = () => {
+    const currentModel = selectedModels.find((m) => m.id === activeModelId);
+    if (!currentModel) {
+      return;
+    }
+
+    const newId = Date.now();
+
+    const newModel = {
+      ...currentModel,
+      id: newId,
+      position: [
+        currentModel.position[0],
+        currentModel.position[1],
+        currentModel.position[2] + 2,
+      ],
+      rotation: [...(currentModel.rotation || [0, 0, 0])],
+    };
+
+    useModelStore.setState((state) => ({
+      selectedModels: [...state.selectedModels, newModel],
+    }));
+
+    setActiveModelId(newId);
+  };
+
   return (
     <div className="w-full h-[600px] relative">
-      {/* دکمه‌های حالت کنترل */}
       {activeModelId && (
         <div className="min-w-fit absolute top-2 text-sm left-2 z-10 flex gap-5 bg-white py-3 px-4 rounded-2xl shadow-lg shadow-gray-200">
           <button
@@ -46,8 +71,14 @@ const GridPage = () => {
             } hover:text-primaryThemeColor transition-all duration-300`}
           >
             <RotateIcon />
-
             <span>چرخش</span>
+          </button>
+          <button
+            onClick={duplicateModelHandler}
+            className="flex items-center gap-1 hover:text-primaryThemeColor transition-all duration-300"
+          >
+            <DuplicateIcon />
+            <span>کپی</span>
           </button>
           <button
             disabled
@@ -57,8 +88,7 @@ const GridPage = () => {
             }`}
           >
             <SizeIcon />
-
-            <span>بزرگ نمایی</span>
+            <span>بزرگ‌نمایی</span>
           </button>
         </div>
       )}
@@ -71,12 +101,13 @@ const GridPage = () => {
         <directionalLight position={[10, 10, 10]} intensity={1.5} />
 
         {/* مدل‌ها */}
-        {selectedModels.map((model) => (
+        {selectedModels.map((model, index) => (
           <group
             key={model.id}
             onClick={(e) => {
               e.stopPropagation();
               setActiveModelId(model.id);
+              console.log(`Model clicked: ${model.id}`);
             }}
           >
             <Model
@@ -84,24 +115,15 @@ const GridPage = () => {
               path={model.path}
               position={model.position}
               rotation={model.rotation}
-              ref={(ref) => (modelRefs.current[model.id] = ref)}
+              ref={(ref) => {
+                modelRefs.current[model.id] = ref;
+                console.log(`Model ref set for ${model.id}:`, ref);
+              }}
             />
-            {/* نمایش پیام خطا بالای مدل وقتی زیر گرید است و مدل انتخاب شده */}
-            {isBelowGrid && activeModelId === model.id && (
-              <Html
-                position={[0, 2, 0]} // موقعیت نسبی بالای مدل (2 واحد بالاتر)
-                center
-                distanceFactor={10}
-              >
-                <div className="bg-red-500 text-white py-1 px-2 rounded-lg text-sm shadow-lg">
-                  خطا: مدل زیر سطح گرید است!
-                </div>
-              </Html>
-            )}
           </group>
         ))}
 
-        {/* TransformControls فقط برای مدل انتخاب‌شده */}
+        {/* TransformControls */}
         {activeModelId && modelRefs.current[activeModelId] && (
           <SnappingTransformControls
             object={modelRefs.current[activeModelId]}
@@ -115,7 +137,6 @@ const GridPage = () => {
 
         <ModelPlacer />
         <CustomGrid />
-
         <OrbitControls
           enableRotate={!isAdjustingHeight}
           enablePan={!isAdjustingHeight}
