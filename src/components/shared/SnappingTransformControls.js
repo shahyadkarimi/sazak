@@ -8,11 +8,12 @@ const SnappingTransformControls = ({
   object,
   mode = "translate",
   snap = 1,
-  rotateSnap = 90,
+  rotateSnap = 45,
   minY = 0,
   color = "#a600ff",
   onStart = () => {},
   onEnd = () => {},
+  onObjectChange = () => {}, 
 }) => {
   const controlsRef = useRef();
 
@@ -60,6 +61,7 @@ const SnappingTransformControls = ({
       mode={mode}
       onMouseDown={onStart}
       onMouseUp={onEnd}
+      onObjectChange={onObjectChange}
     />
   );
 };

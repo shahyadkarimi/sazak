@@ -111,17 +111,17 @@ export default Sidebar;
 const getColorHex = (color) => {
   switch (color) {
     case "سبز":
-      return "#4CAF50";
+      return "#22c55e";
     case "زرد":
-      return "#FFEB3B";
+      return "#facc15";
     case "نارنجی":
-      return "#FF9800";
+      return "#ea580c";
     case "صورتی":
-      return "#E91E63";
+      return "#db2777";
     case "قرمز":
-      return "#F44336";
+      return "#dc2626";
     case "آبی":
-      return "#2196F3";
+      return "#3b82f6";
     default:
       return "#ccc";
   }
