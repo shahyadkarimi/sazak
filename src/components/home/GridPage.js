@@ -9,12 +9,6 @@ import Model from "@/components/shared/Model";
 import ModelPlacer from "../shared/ModelPlacer";
 import * as THREE from "three";
 import SnappingTransformControls from "../shared/SnappingTransformControls";
-import MoveIcon from "../icons/MoveIcon";
-import RotateIcon from "../icons/RotateIcon";
-import SizeIcon from "../icons/SizeIcon";
-import DuplicateIcon from "../icons/DuplicateIcon";
-import { toFarsiNumber } from "@/helper/helper";
-import DeleteIcon from "../icons/DeleteIcon";
 import ModelToolbar from "../shared/ModelToolbar";
 
 const GridPage = () => {
