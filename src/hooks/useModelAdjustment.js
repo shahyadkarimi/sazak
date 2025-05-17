@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 
-// توابع کمکی
+// توابع کمکی (بدون تغییر)
 export const snapToGrid = (value, step = 1) => {
   return Math.round(value / step) * step;
 };
@@ -11,12 +11,10 @@ export const normalizeAngle = (angle) => {
   return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 };
 
-// تابع کمکی برای تبدیل رادیان به درجه
 export const radToDeg = (rad) => {
   return rad * (180 / Math.PI);
 };
 
-// تابع کمکی برای تبدیل درجه به رادیان
 export const degToRad = (deg) => {
   return deg * (Math.PI / 180);
 };
@@ -27,18 +25,17 @@ export const useModelAdjustment = (
   rotation,
   updateModelPosition,
   updateModelRotation,
-  // پارامترهای جدید برای کنترل مقدار اسنپ
   {
-    positionSnapStep = 1, // مقدار پله برای جابجایی (واحد متر)
-    heightSnapStep = 1, // مقدار پله برای ارتفاع (واحد متر)
-    rotationSnapDegrees = 45, // مقدار پله برای چرخش (واحد درجه)
-    mouseSensitivity = 1, // حساسیت موس برای چرخش (مقدار پایین = حساسیت کمتر)
+    positionSnapStep = 1,
+    heightSnapStep = 1,
+    rotationSnapDegrees = 45,
+    mouseSensitivity = 1,
   } = {}
 ) => {
   const [isAdjustingHeight, setIsAdjustingHeight] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
-  const [isRotatingY, setIsRotatingY] = useState(false); // حالت چرخش Y
-  const [isRotatingX, setIsRotatingX] = useState(false); // حالت چرخش X
+  const [isRotatingY, setIsRotatingY] = useState(false);
+  const [isRotatingX, setIsRotatingX] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: null, y: null, z: null });
   const [mouseAccumulated, setMouseAccumulated] = useState({ y: 0 });
   const [dragStartPosition, setDragStartPosition] = useState(null);
@@ -46,22 +43,21 @@ export const useModelAdjustment = (
   const [rotationStartMouse, setRotationStartMouse] = useState(null);
   const [lastRotation, setLastRotation] = useState({ x: null, y: null });
 
-  // تبدیل درجه به رادیان برای استفاده در اسنپ چرخش
   const rotationSnapRadians = degToRad(rotationSnapDegrees);
-
   const { raycaster, camera, gl } = useThree();
 
   // مدیریت تنظیم ارتفاع
   const startAdjustHeight = (event) => {
-    event.stopPropagation();
-    event.preventDefault();
+    // برای رویدادهای سه‌بعدی، event ممکنه clientX/Y نداشته باشه
+    const clientY = event
+      ? event.clientY || event.intersections[0]?.point.y
+      : 0;
     setIsAdjustingHeight(true);
-    setLastMouse({ x: null, y: event.clientY, z: null });
+    setLastMouse({ x: null, y: clientY, z: null });
     setMouseAccumulated({ y: 0 });
   };
 
-  const stopAdjustHeight = (event) => {
-    event.stopPropagation();
+  const stopAdjustHeight = () => {
     setIsAdjustingHeight(false);
     setLastMouse({ x: null, y: null, z: null });
     setMouseAccumulated({ y: 0 });
@@ -69,14 +65,18 @@ export const useModelAdjustment = (
 
   // مدیریت جابجایی
   const startMoving = (event) => {
-    event.stopPropagation();
-    event.preventDefault();
+    const clientX = event
+      ? event.clientX || event.intersections[0]?.point.x
+      : 0;
+    const clientY = event
+      ? event.clientY || event.intersections[0]?.point.y
+      : 0;
     setIsMoving(true);
     setDragStartPosition([...position]);
 
     const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
-    mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
+    mouse.x = (clientX / gl.domElement.clientWidth) * 2 - 1;
+    mouse.y = -(clientY / gl.domElement.clientHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
     const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
@@ -90,31 +90,29 @@ export const useModelAdjustment = (
     });
   };
 
-  const stopMoving = (event) => {
-    event.stopPropagation();
+  const stopMoving = () => {
     setIsMoving(false);
     setLastMouse({ x: null, y: null, z: null });
     setDragStartPosition(null);
   };
 
-  // مدیریت چرخش با کشیدن موس - محور Y
+  // مدیریت چرخش Y
   const startRotatingY = (event) => {
-    event.stopPropagation();
-    event.preventDefault();
+    const clientX = event
+      ? event.clientX || event.intersections[0]?.point.x
+      : 0;
+    const clientY = event
+      ? event.clientY || event.intersections[0]?.point.y
+      : 0;
     setIsRotatingY(true);
     setRotationStartAngles([...rotation]);
-    setRotationStartMouse({
-      x: event.clientX,
-      y: event.clientY,
-    });
-    // ذخیره آخرین چرخش Y برای داشتن نقطه مرجع
+    setRotationStartMouse({ x: clientX, y: clientY });
     setLastRotation((prev) => ({ ...prev, y: rotation[1] }));
 
     setIsAdjustingHeight(true);
   };
 
-  const stopRotatingY = (event) => {
-    event.stopPropagation();
+  const stopRotatingY = () => {
     setIsRotatingY(false);
     setRotationStartAngles(null);
     setRotationStartMouse(null);
@@ -122,24 +120,23 @@ export const useModelAdjustment = (
     setIsAdjustingHeight(false);
   };
 
-  // مدیریت چرخش با کشیدن موس - محور X
+  // مدیریت چرخش X
   const startRotatingX = (event) => {
-    event.stopPropagation();
-    event.preventDefault();
+    const clientX = event
+      ? event.clientX || event.intersections[0]?.point.x
+      : 0;
+    const clientY = event
+      ? event.clientY || event.intersections[0]?.point.y
+      : 0;
     setIsRotatingX(true);
     setRotationStartAngles([...rotation]);
-    setRotationStartMouse({
-      x: event.clientX,
-      y: event.clientY,
-    });
-    // ذخیره آخرین چرخش X برای داشتن نقطه مرجع
+    setRotationStartMouse({ x: clientX, y: clientY });
     setLastRotation((prev) => ({ ...prev, x: rotation[0] }));
 
     setIsAdjustingHeight(true);
   };
 
-  const stopRotatingX = (event) => {
-    event.stopPropagation();
+  const stopRotatingX = () => {
     setIsRotatingX(false);
     setRotationStartAngles(null);
     setRotationStartMouse(null);
@@ -147,25 +144,20 @@ export const useModelAdjustment = (
     setIsAdjustingHeight(false);
   };
 
-  // دکمه‌های چرخش سریع (با اسنپ جدید)
-  const rotateModelY = (event) => {
-    event.stopPropagation();
+  // دکمه‌های چرخش سریع
+  const rotateModelY = () => {
     let currentY = normalizeAngle(rotation[1]);
-    // چرخش به اندازه 90 درجه و سپس اسنپ به نزدیکترین مقدار اسنپ
     let newY = snapToGrid(currentY + Math.PI / 2, rotationSnapRadians);
     let newRotation = [...rotation];
     newRotation[1] = normalizeAngle(newY);
     updateModelRotation(id, newRotation);
   };
 
-  const rotateModelX = (event) => {
-    event.stopPropagation();
+  const rotateModelX = () => {
     let currentX = normalizeAngle(rotation[0]);
-    // چرخش به اندازه 90 درجه و سپس اسنپ به نزدیکترین مقدار اسنپ
     let newX = snapToGrid(currentX + Math.PI / 2, rotationSnapRadians);
     newX = normalizeAngle(newX);
 
-    // محدود کردن زاویه X
     if (newX > Math.PI / 2 && newX < (3 * Math.PI) / 2) {
       newX = newX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
     }
@@ -175,12 +167,11 @@ export const useModelAdjustment = (
     updateModelRotation(id, newRotation);
   };
 
-  // Effect برای تنظیم ارتفاع با اسنپ
+  // Effect برای تنظیم ارتفاع
   useEffect(() => {
     if (!isAdjustingHeight || lastMouse.y === null) return;
 
     const handleMouseMove = (event) => {
-      event.stopPropagation();
       const currentMouseY = event.clientY;
       const deltaY = lastMouse.y - currentMouseY;
       const adjustedDeltaY = deltaY < 0 ? deltaY * 1 : deltaY;
@@ -219,14 +210,11 @@ export const useModelAdjustment = (
     heightSnapStep,
   ]);
 
-  // Effect برای جابجایی با اسنپ
+  // Effect برای جابجایی
   useEffect(() => {
     if (!isMoving || !lastMouse.x || !dragStartPosition) return;
 
     const handleMouseMove = (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-
       const mouse = new THREE.Vector2();
       mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
       mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
@@ -235,7 +223,6 @@ export const useModelAdjustment = (
         new THREE.Vector3(0, 1, 0),
         -position[1]
       );
-
       const currentIntersection = new THREE.Vector3();
       raycaster.setFromCamera(mouse, camera);
       raycaster.ray.intersectPlane(dragPlane, currentIntersection);
@@ -244,7 +231,6 @@ export const useModelAdjustment = (
         const deltaX = currentIntersection.x - lastMouse.x;
         const deltaZ = currentIntersection.z - lastMouse.z;
 
-        // استفاده از مقدار اسنپ برای جابجایی
         const newX = snapToGrid(
           dragStartPosition[0] + deltaX,
           positionSnapStep
@@ -272,33 +258,17 @@ export const useModelAdjustment = (
     positionSnapStep,
   ]);
 
-  // Effect برای چرخش حول محور Y با موس - با اسنپ
+  // Effect برای چرخش Y
   useEffect(() => {
     if (!isRotatingY || !rotationStartMouse || !rotationStartAngles) return;
 
     const handleMouseMove = (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-
-      // محاسبه میزان جابجایی موس در محور X نسبت به نقطه شروع
       const deltaX = event.clientX - rotationStartMouse.x;
-
-      // تبدیل پیکسل به رادیان (با کاهش حساسیت)
-      // هر 200 پیکسل جابجایی = 90 درجه (π/2) چرخش
-      // ضریب mouseSensitivity برای کنترل دقیق‌تر حساسیت موس
       const rotationDelta = (deltaX / 200) * (Math.PI / 2) * mouseSensitivity;
-
-      // محاسبه مقدار کل چرخش بدون اسنپ
       const totalRotation = rotationStartAngles[1] + rotationDelta;
-
-      // اسنپ به نزدیکترین مقدار با استفاده از rotationSnapRadians
       const snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
-
-      // اعمال چرخش اسنپ شده
       let newRotation = [...rotationStartAngles];
       newRotation[1] = normalizeAngle(snappedRotation);
-
-      // بروزرسانی چرخش
       updateModelRotation(id, newRotation);
     };
 
@@ -308,36 +278,23 @@ export const useModelAdjustment = (
     isRotatingY,
     rotationStartMouse,
     rotationStartAngles,
-    mouseAccumulated,
     id,
     updateModelRotation,
     rotationSnapRadians,
+    mouseSensitivity,
   ]);
 
-  // Effect برای چرخش حول محور X با موس - با اسنپ
+  // Effect برای چرخش X
   useEffect(() => {
     if (!isRotatingX || !rotationStartMouse || !rotationStartAngles) return;
 
     const handleMouseMove = (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-
-      // محاسبه میزان جابجایی موس در محور Y نسبت به نقطه شروع
       const deltaY = event.clientY - rotationStartMouse.y;
-
-      // تبدیل پیکسل به رادیان (با کاهش حساسیت)
-      // جابجایی منفی در Y باعث چرخش مثبت در X می‌شود
-      // ضریب mouseSensitivity برای کنترل دقیق‌تر حساسیت موس
       const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
-
-      // محاسبه مقدار کل چرخش بدون اسنپ
       const totalRotation = rotationStartAngles[0] + rotationDelta;
-
-      // اسنپ به نزدیکترین مقدار با استفاده از rotationSnapRadians
       let snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
       snappedRotation = normalizeAngle(snappedRotation);
 
-      // محدود کردن زاویه X
       if (
         snappedRotation > Math.PI / 2 &&
         snappedRotation < (3 * Math.PI) / 2
@@ -348,8 +305,6 @@ export const useModelAdjustment = (
 
       let newRotation = [...rotationStartAngles];
       newRotation[0] = snappedRotation;
-
-      // بروزرسانی چرخش
       updateModelRotation(id, newRotation);
     };
 
@@ -359,19 +314,19 @@ export const useModelAdjustment = (
     isRotatingX,
     rotationStartMouse,
     rotationStartAngles,
-    mouseAccumulated,
     id,
     updateModelRotation,
     rotationSnapRadians,
+    mouseSensitivity,
   ]);
 
-  // Effect برای توقف تنظیمات با رها کردن ماوس
+  // Effect برای توقف با رها کردن موس
   useEffect(() => {
-    const handleGlobalMouseUp = (event) => {
-      if (isAdjustingHeight) stopAdjustHeight(event);
-      if (isMoving) stopMoving(event);
-      if (isRotatingY) stopRotatingY(event);
-      if (isRotatingX) stopRotatingX(event);
+    const handleGlobalMouseUp = () => {
+      if (isAdjustingHeight) stopAdjustHeight();
+      if (isMoving) stopMoving();
+      if (isRotatingY) stopRotatingY();
+      if (isRotatingX) stopRotatingX();
     };
 
     window.addEventListener("mouseup", handleGlobalMouseUp);
