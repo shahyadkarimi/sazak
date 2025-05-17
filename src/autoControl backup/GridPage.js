@@ -5,7 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import React, { useRef, useState } from "react";
 import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
-import Model from "@/components/shared/Model";
+import Model from "@/components/Model/Model";
 import ModelPlacer from "../shared/ModelPlacer";
 import * as THREE from "three";
 import SnappingTransformControls from "../shared/SnappingTransformControls";

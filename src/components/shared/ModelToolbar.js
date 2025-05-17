@@ -61,6 +61,7 @@ const ModelToolbar = ({
         (model) => model.id !== activeModelId
       ),
     }));
+    
     setActiveModelId(null);
   };
 
