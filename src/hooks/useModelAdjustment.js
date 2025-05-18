@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 
-// توابع کمکی (بدون تغییر)
+// توابع کمکی
 export const snapToGrid = (value, step = 1) => {
   return Math.round(value / step) * step;
 };
@@ -19,12 +19,55 @@ export const degToRad = (deg) => {
   return deg * (Math.PI / 180);
 };
 
+// تابع بررسی و اصلاح برخورد
+const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1) => {
+  let adjustedPos = new THREE.Vector3(...newPos);
+
+  for (const model of models) {
+    if (model.id === currentId) continue; // مدل خودش را بررسی نکن
+
+    const modelPos = new THREE.Vector3(...model.position);
+    // فرض می‌کنیم ابعاد مدل‌ها 1x1x1 است (برای دقت بیشتر، از Box3 واقعی مدل استفاده کنید)
+    const modelBox = new THREE.Box3().setFromCenterAndSize(
+      modelPos,
+      new THREE.Vector3(step, step, step)
+    );
+
+    const newBox = new THREE.Box3().setFromCenterAndSize(
+      adjustedPos,
+      new THREE.Vector3(step, step, step)
+    );
+
+    if (modelBox.intersectsBox(newBox)) {
+      // اگر برخورد وجود دارد، موقعیت را اصلاح می‌کنیم
+      if (adjustedPos.x < modelPos.x) {
+        adjustedPos.x = modelBox.min.x - step / 2;
+      } else {
+        adjustedPos.x = modelBox.max.x + step / 2;
+      }
+
+      if (Math.abs(adjustedPos.z - modelPos.z) < step) {
+        if (adjustedPos.z < modelPos.z) {
+          adjustedPos.z = modelBox.min.z - step / 2;
+        } else {
+          adjustedPos.z = modelBox.max.z + step / 2;
+        }
+      }
+
+      adjustedPos.y = newPos[1]; // ارتفاع را حفظ می‌کنیم
+    }
+  }
+
+  return [adjustedPos.x, adjustedPos.y, adjustedPos.z];
+};
+
 export const useModelAdjustment = (
   id,
   position,
   rotation,
   updateModelPosition,
   updateModelRotation,
+  existingModels = [], // آرایه مدل‌های موجود
   {
     positionSnapStep = 1,
     heightSnapStep = 1,
@@ -48,9 +91,8 @@ export const useModelAdjustment = (
 
   // مدیریت تنظیم ارتفاع
   const startAdjustHeight = (event) => {
-    // برای رویدادهای سه‌بعدی، event ممکنه clientX/Y نداشته باشه
     const clientY = event
-      ? event.clientY || event.intersections[0]?.point.y
+      ? event.clientY || event.intersections?.[0]?.point.y
       : 0;
     setIsAdjustingHeight(true);
     setLastMouse({ x: null, y: clientY, z: null });
@@ -66,10 +108,10 @@ export const useModelAdjustment = (
   // مدیریت جابجایی
   const startMoving = (event) => {
     const clientX = event
-      ? event.clientX || event.intersections[0]?.point.x
+      ? event.clientX || event.intersections?.[0]?.point.x
       : 0;
     const clientY = event
-      ? event.clientY || event.intersections[0]?.point.y
+      ? event.clientY || event.intersections?.[0]?.point.y
       : 0;
     setIsMoving(true);
     setDragStartPosition([...position]);
@@ -99,10 +141,10 @@ export const useModelAdjustment = (
   // مدیریت چرخش Y
   const startRotatingY = (event) => {
     const clientX = event
-      ? event.clientX || event.intersections[0]?.point.x
+      ? event.clientX || event.intersections?.[0]?.point.x
       : 0;
     const clientY = event
-      ? event.clientY || event.intersections[0]?.point.y
+      ? event.clientY || event.intersections?.[0]?.point.y
       : 0;
     setIsRotatingY(true);
     setRotationStartAngles([...rotation]);
@@ -123,10 +165,10 @@ export const useModelAdjustment = (
   // مدیریت چرخش X
   const startRotatingX = (event) => {
     const clientX = event
-      ? event.clientX || event.intersections[0]?.point.x
+      ? event.clientX || event.intersections?.[0]?.point.x
       : 0;
     const clientY = event
-      ? event.clientY || event.intersections[0]?.point.y
+      ? event.clientY || event.intersections?.[0]?.point.y
       : 0;
     setIsRotatingX(true);
     setRotationStartAngles([...rotation]);
@@ -187,8 +229,21 @@ export const useModelAdjustment = (
           position[1] + heightChange,
           heightSnapStep
         );
-        const newPosition = [position[0], Math.max(0, newHeight), position[2]];
-        updateModelPosition(id, newPosition);
+        const proposedPosition = [
+          position[0],
+          Math.max(0, newHeight),
+          position[2],
+        ];
+
+        // بررسی برخورد و اصلاح موقعیت
+        const adjustedPosition = adjustPositionToAvoidOverlap(
+          proposedPosition,
+          id,
+          existingModels,
+          positionSnapStep
+        );
+
+        updateModelPosition(id, adjustedPosition);
         setMouseAccumulated((prev) => ({
           ...prev,
           y: newAccumulated % threshold,
@@ -208,6 +263,7 @@ export const useModelAdjustment = (
     id,
     updateModelPosition,
     heightSnapStep,
+    existingModels,
   ]);
 
   // Effect برای جابجایی
@@ -239,7 +295,17 @@ export const useModelAdjustment = (
           dragStartPosition[2] + deltaZ,
           positionSnapStep
         );
-        updateModelPosition(id, [newX, position[1], newZ]);
+        const proposedPosition = [newX, position[1], newZ];
+
+        // بررسی برخورد و اصلاح موقعیت
+        const adjustedPosition = adjustPositionToAvoidOverlap(
+          proposedPosition,
+          id,
+          existingModels,
+          positionSnapStep
+        );
+
+        updateModelPosition(id, adjustedPosition);
       }
     };
 
@@ -256,6 +322,7 @@ export const useModelAdjustment = (
     camera,
     gl,
     positionSnapStep,
+    existingModels,
   ]);
 
   // Effect برای چرخش Y

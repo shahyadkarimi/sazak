@@ -13,7 +13,15 @@ const Model = ({ path, position, id, rotation }) => {
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
   const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
-  const modelControls = useModelAdjustment(id, position, rotation, updateModelPosition, updateModelRotation);
+  const existingModels = useModelStore((s) => s.selectedModels);
+  const modelControls = useModelAdjustment(
+    id,
+    position,
+    rotation,
+    updateModelPosition,
+    updateModelRotation,
+    existingModels
+  );
 
   if (!isValid) {
     return null;
@@ -38,10 +46,12 @@ const Model = ({ path, position, id, rotation }) => {
   const isSelected = selectedModelId === id;
 
   useEffect(() => {
-    setIsAdjustingHeight(modelControls.isAdjustingHeight || modelControls.isMoving);
+    setIsAdjustingHeight(
+      modelControls.isAdjustingHeight || modelControls.isMoving
+    );
   }, [modelControls.isAdjustingHeight, modelControls.isMoving]);
 
-    // تغییر متریال مدل انتخاب‌شده یا افزودن حاشیه
+  // تغییر متریال مدل انتخاب‌شده یا افزودن حاشیه
   useEffect(() => {
     if (adjustedScene) {
       adjustedScene.traverse((child) => {
