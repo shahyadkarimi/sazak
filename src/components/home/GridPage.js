@@ -36,6 +36,21 @@ const GridPage = () => {
         ))}
 
         <ModelPlacer />
+        
+        {/*         
+        <Grid
+          position={[0, 0, 0]} // روی سطح زمین
+          args={[20, 20]} // اندازه کل گرید (عرض، طول)
+          cellSize={1}
+          cellThickness={0.4}
+          cellColor="#6b7280" // خطوط شفاف
+          sectionSize={5}
+          sectionThickness={1}
+          sectionColor="#6b7280" // خطوط ضخیم‌تر شفاف
+          fadeDistance={50} // محو شدن در فاصله
+          fadeStrength={0.3}
+          infiniteGrid={false}
+        /> */}
 
         <CustomGrid />
 

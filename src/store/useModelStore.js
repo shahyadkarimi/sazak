@@ -5,6 +5,7 @@ const useModelStore = create((set) => ({
   currentPlacingModel: null,
   selectedModelId: null,
   isAdjustingHeight: false,
+  boundingBoxes: {},
 
   setSelectedModels: (modelPath) =>
     set((state) => ({ selectedModels: [...state.selectedModels, modelPath] })),
@@ -29,6 +30,11 @@ const useModelStore = create((set) => ({
     })),
 
   setIsAdjustingHeight: (value) => set({ isAdjustingHeight: value }),
+
+  setBoundingBoxes: (newBoxes) =>
+    set((state) => ({
+      boundingBoxes: { ...state.boundingBoxes, ...newBoxes },
+    })),
 }));
 
 export default useModelStore;

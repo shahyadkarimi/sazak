@@ -10,70 +10,121 @@ const snapToGrid = ([x, y, z], step = 1) => {
   return [Math.round(x / step) * step, y, Math.round(z / step) * step];
 };
 
+// تابع بررسی برخورد مدل جدید با مدل‌های قبلی و اصلاح موقعیت برای نچسبیدن به هم
+const adjustPositionToAvoidOverlap = (pos, models) => {
+  const step = 1;
+  let adjustedPos = new THREE.Vector3(...pos);
+
+  for (const model of models) {
+    const modelPos = new THREE.Vector3(...model.position);
+
+    // فرض می‌گیریم سایز واقعی مدل را با Box3 از مدل بارگذاری شده بگیریم:
+    // برای این منظور باید مدل هر آبجکت رو لود کنیم یا ابعادش را داشته باشیم.
+    // اینجا یک نمونه ساده با اندازه 1x1x1 فرض می‌کنیم و به عنوان نمونه جایگزینش کن:
+
+    const modelBox = new THREE.Box3().setFromCenterAndSize(
+      modelPos,
+      new THREE.Vector3(step, step, step)
+    );
+
+    // جعبه مدل جدید روی موقعیت پیشنهادی
+    let newBox = new THREE.Box3().setFromCenterAndSize(
+      adjustedPos,
+      new THREE.Vector3(step, step, step)
+    );
+
+    if (modelBox.intersectsBox(newBox)) {
+      // وقتی برخورد داریم، مدل جدید را دقیقاً کنار مدل قبلی می‌چسبانیم
+
+      // فاصله لازم برای چسبیدن روی محور x,z (برای فرض گرید دوبعدی)
+      // اینجا فرض می‌کنیم مدل‌ها در محور y روی زمین هستند (y=0)
+      // و می‌خواهیم مدل جدید را دقیقاً کنار مدل قبلی بدون فاصله قرار دهیم.
+
+      // به صورت ساده می‌تونیم مدل جدید رو روی محور x یا z جابجا کنیم تا نچسبه به قبلی
+      // مثلا اگر مدل جدید وسطش روی x کمتره، بذاریم کنارش روی x جابجا بشه:
+
+      if (adjustedPos.x < modelPos.x) {
+        adjustedPos.x = modelBox.min.x - step / 2;
+      } else {
+        adjustedPos.x = modelBox.max.x + step / 2;
+      }
+
+      // همچنین اگر روی محور z نزدیک هستیم، این کار رو انجام بدیم
+      if (Math.abs(adjustedPos.z - modelPos.z) < step) {
+        if (adjustedPos.z < modelPos.z) {
+          adjustedPos.z = modelBox.min.z - step / 2;
+        } else {
+          adjustedPos.z = modelBox.max.z + step / 2;
+        }
+      }
+
+      // فرض می‌کنیم مدل‌ها روی زمین هستن و ارتفاع y ثابت است
+      adjustedPos.y = modelPos.y;
+    }
+  }
+
+  return [adjustedPos.x, adjustedPos.y, adjustedPos.z];
+};
+
 const ModelPlacer = () => {
-  // هوک‌های Three.js
   const { raycaster, camera, gl, scene } = useThree();
 
-  // مقادیر state
   const [hoverPos, setHoverPos] = useState(null);
   const planeRef = useRef();
 
-  // دسترسی به store مدل‌ها
   const selectedModels = useModelStore((s) => s.selectedModels);
   const currentPlacingModel = useModelStore((s) => s.currentPlacingModel);
   const setCurrentPlacingModel = useModelStore((s) => s.setCurrentPlacingModel);
   const setSelectedModels = useModelStore((s) => s.setSelectedModels);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
 
-  // بارگذاری مدل با بررسی وجود مسیر
   const { scene: originalScene } = currentPlacingModel
     ? useGLTF(currentPlacingModel, true)
     : { scene: null };
 
-  // کلون کردن مدل برای پیش‌نمایش
   const previewModel = useMemo(() => {
     if (!originalScene) return null;
 
     const clonedScene = originalScene.clone();
 
-    // محاسبه باندینگ باکس برای تنظیم موقعیت
     const box = new THREE.Box3().setFromObject(clonedScene);
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    // موقعیت را بر اساس مرکز باندینگ باکس تنظیم می‌کنیم
     clonedScene.position.sub(center);
 
     return clonedScene;
   }, [originalScene]);
 
-  // به‌روزرسانی موقعیت هاور در هر فریم
   useFrame(() => {
     if (!currentPlacingModel || !planeRef.current) return;
 
-    // ایجاد نقطه موس در فضای نرمالایز شده
     const mouse = new THREE.Vector2();
     if (gl && gl.domElement) {
       mouse.x = (gl.domElement.mouseX / gl.domElement.clientWidth) * 2 - 1;
       mouse.y = -(gl.domElement.mouseY / gl.domElement.clientHeight) * 2 + 1;
     }
 
-    // محاسبه تقاطع اشعه با صفحه
     raycaster.setFromCamera(mouse, camera);
     raycaster.layers.set(0);
     const intersects = raycaster.intersectObject(planeRef.current);
 
     if (intersects.length > 0) {
       const point = intersects[0].point;
-      const snapped = snapToGrid([point.x, 0, point.z], 1);
-      setHoverPos(snapped);
+      const baseSnapped = snapToGrid([point.x, 0, point.z], 1);
+
+      // اصلاح موقعیت با چک برخورد با مدل‌های قبلی
+      const adjusted = adjustPositionToAvoidOverlap(
+        baseSnapped,
+        selectedModels
+      );
+
+      setHoverPos(adjusted);
     }
   });
 
-  // مدیریت کلیک برای قرار دادن مدل یا لغو انتخاب
   const handleClick = () => {
     if (hoverPos && currentPlacingModel) {
-      // قرار دادن مدل جدید
       setSelectedModels({
         id: Date.now(),
         path: currentPlacingModel,
@@ -82,7 +133,6 @@ const ModelPlacer = () => {
       });
       setCurrentPlacingModel(null);
     } else {
-      // لغو انتخاب مدل
       raycaster.layers.set(0);
       raycaster.setFromCamera(
         {
@@ -109,21 +159,17 @@ const ModelPlacer = () => {
     }
   };
 
-  // افزودن event listener‌ها
   useEffect(() => {
     if (!gl || !gl.domElement) return;
 
-    // ذخیره موقعیت موس در سطح DOM
     const updateMousePosition = (event) => {
       gl.domElement.mouseX = event.clientX;
       gl.domElement.mouseY = event.clientY;
     };
 
-    // اضافه کردن event listener‌ها
     gl.domElement.addEventListener("mousemove", updateMousePosition);
     gl.domElement.addEventListener("click", handleClick);
 
-    // پاکسازی event listener‌ها هنگام unmount
     return () => {
       gl.domElement.removeEventListener("mousemove", updateMousePosition);
       gl.domElement.removeEventListener("click", handleClick);
@@ -141,7 +187,6 @@ const ModelPlacer = () => {
 
   return (
     <>
-      {/* صفحه نامرئی برای raycast */}
       <mesh
         ref={planeRef}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -153,7 +198,6 @@ const ModelPlacer = () => {
         <meshBasicMaterial transparent opacity={0} />
       </mesh>
 
-      {/* پیش‌نمایش مدل زیر موس */}
       {hoverPos && previewModel && (
         <group position={new THREE.Vector3(...hoverPos)}>
           <primitive object={previewModel} scale={100} />

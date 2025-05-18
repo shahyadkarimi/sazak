@@ -3,65 +3,62 @@ import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
 import { useModelAdjustment } from "@/hooks/useModelAdjustment";
 import ModelControls from "./ModelControls";
+import * as THREE from "three"; // اضافه کردن THREE برای متریال
 
 const Model = ({ path, position, id, rotation }) => {
   const modelRef = useRef();
-
-  // استفاده از کاستوم هوک برای لود و تنظیم سین مدل
   const { scene: adjustedScene, isValid } = useModelScene(path);
-
-  // دریافت state و اکشن‌های مورد نیاز از استور
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
   const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
+  const modelControls = useModelAdjustment(id, position, rotation, updateModelPosition, updateModelRotation);
 
-  // استفاده از کاستوم هوک برای مدیریت تنظیمات مدل
-  const modelControls = useModelAdjustment(
-    id,
-    position,
-    rotation,
-    updateModelPosition,
-    updateModelRotation
-  );
-
-  // اگر path یا scene نامعتبر باشه، رندر رو متوقف می‌کنیم
   if (!isValid) {
     return null;
   }
 
-  // انتخاب مدل
   const handleClick = (event) => {
     event.stopPropagation();
     setSelectedModelId(id);
   };
 
-  // حذف مدل
   const deleteModelHandler = () => {
     useModelStore.setState((state) => ({
       selectedModels: state.selectedModels.filter((model) => model.id !== id),
     }));
   };
 
-  // اضافه کردن دستگیره حذف به کنترل‌ها
   const controlsWithDelete = {
     ...modelControls,
     deleteModel: deleteModelHandler,
   };
 
-  // چک کردن آیا این مدل انتخاب شده است
   const isSelected = selectedModelId === id;
 
-  // Effect برای مدیریت وضعیت جهانی تنظیم ارتفاع
-  // این مورد را می‌توان به داخل کاستوم هوک useModelAdjustment منتقل کرد
-  // اما به دلیل وابستگی به استور، اینجا نگه داشتیم
-  const { isAdjustingHeight, isMoving } = modelControls;
-
-  // تنظیم وضعیت در استور (این می‌تواند به useEffect منتقل شود)
   useEffect(() => {
-    setIsAdjustingHeight(isAdjustingHeight || isMoving);
-  }, [isAdjustingHeight, isMoving]);
+    setIsAdjustingHeight(modelControls.isAdjustingHeight || modelControls.isMoving);
+  }, [modelControls.isAdjustingHeight, modelControls.isMoving]);
+
+    // تغییر متریال مدل انتخاب‌شده یا افزودن حاشیه
+  useEffect(() => {
+    if (adjustedScene) {
+      adjustedScene.traverse((child) => {
+        if (child.isMesh) {
+          if (isSelected) {
+            // تغییر متریال برای مدل انتخاب‌شده
+            child.material.emissive = new THREE.Color(0xffff00); // رنگ درخشان زرد
+            child.material.emissiveIntensity = 0.3;
+          } else {
+            // بازگرداندن متریال به حالت اولیه
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0;
+          }
+        }
+      });
+    }
+  }, [isSelected, adjustedScene]);
 
   return (
     <group ref={modelRef}>
@@ -72,7 +69,17 @@ const Model = ({ path, position, id, rotation }) => {
         rotation={rotation}
         onClick={handleClick}
       />
-
+      {/* افزودن حاشیه زرد برای مدل انتخاب‌شده */}
+      {isSelected && (
+        <mesh>
+          <primitive object={adjustedScene.clone()} />
+          <meshBasicMaterial
+            color={0xffff00} // رنگ زرد
+            wireframe
+            side={THREE.BackSide} // حاشیه دور مدل
+          />
+        </mesh>
+      )}
       <ModelControls
         position={position}
         isSelected={isSelected}
