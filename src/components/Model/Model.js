@@ -7,6 +7,7 @@ import * as THREE from "three"; // اضافه کردن THREE برای متریا
 
 const Model = ({ path, position, id, rotation }) => {
   const modelRef = useRef();
+
   const { scene: adjustedScene, isValid } = useModelScene(path);
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
@@ -14,13 +15,24 @@ const Model = ({ path, position, id, rotation }) => {
   const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
   const existingModels = useModelStore((s) => s.selectedModels);
+  const modelOptions = useModelStore((s) => s.modelOptions);
+  const modelsRef = useModelStore((s) => s.modelsRef);
+  const setModelsRef = useModelStore((s) => s.setModelsRef);
+
   const modelControls = useModelAdjustment(
     id,
     position,
     rotation,
     updateModelPosition,
     updateModelRotation,
-    existingModels
+    existingModels,
+    {
+      positionSnapStep: modelOptions.snapSize,
+      heightSnapStep: modelOptions.snapSize,
+      rotationSnapDegrees: modelOptions.rotationDeg,
+      mouseSensitivityY:
+        modelOptions.snapSize === 0.1 || modelOptions.snapSize === 0.5 ? 3 : 3,
+    }
   );
 
   if (!isValid) {
@@ -54,6 +66,8 @@ const Model = ({ path, position, id, rotation }) => {
   // تغییر متریال مدل انتخاب‌شده یا افزودن حاشیه
   useEffect(() => {
     if (adjustedScene) {
+      setModelsRef(modelRef);
+
       adjustedScene.traverse((child) => {
         if (child.isMesh) {
           if (isSelected) {
@@ -90,6 +104,7 @@ const Model = ({ path, position, id, rotation }) => {
           />
         </mesh>
       )}
+      
       <ModelControls
         position={position}
         isSelected={isSelected}

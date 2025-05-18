@@ -5,7 +5,11 @@ const useModelStore = create((set) => ({
   currentPlacingModel: null,
   selectedModelId: null,
   isAdjustingHeight: false,
-  boundingBoxes: {},
+  modelOptions: {
+    snapSize: 1,
+    rotationDeg: 45,
+  },
+  modelsRef: {},
 
   setSelectedModels: (modelPath) =>
     set((state) => ({ selectedModels: [...state.selectedModels, modelPath] })),
@@ -31,9 +35,14 @@ const useModelStore = create((set) => ({
 
   setIsAdjustingHeight: (value) => set({ isAdjustingHeight: value }),
 
-  setBoundingBoxes: (newBoxes) =>
+  setModelOptions: (option) =>
     set((state) => ({
-      boundingBoxes: { ...state.boundingBoxes, ...newBoxes },
+      modelOptions: { ...state.modelOptions, ...option },
+    })),
+
+  setModelsRef: (option) =>
+    set((state) => ({
+      modelsRef: { ...state.modelOptions, ...option },
     })),
 }));
 

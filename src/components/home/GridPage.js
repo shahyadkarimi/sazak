@@ -14,6 +14,7 @@ import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
 import Model from "@/components/Model/Model";
 import ModelPlacer from "../Model/ModelPlacer";
+import Settings from "./Settings";
 
 const GridPage = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
@@ -21,6 +22,8 @@ const GridPage = () => {
 
   return (
     <div className="w-full h-[600px]">
+      <Settings />
+
       <Canvas camera={{ position: [10, 10, 10], fov: 50 }}>
         <ambientLight intensity={1} />
         <directionalLight position={[10, 10, 10]} intensity={1.5} />
@@ -36,7 +39,7 @@ const GridPage = () => {
         ))}
 
         <ModelPlacer />
-        
+
         {/*         
         <Grid
           position={[0, 0, 0]} // روی سطح زمین

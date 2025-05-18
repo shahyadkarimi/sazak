@@ -73,6 +73,7 @@ body {
   font-family: YekanBakh, sans-serif;
   background: #fff;
   scrollbar-width: none;
+  overflow-x: hidden;
 }
 
 .scroll-bar::-webkit-scrollbar {
