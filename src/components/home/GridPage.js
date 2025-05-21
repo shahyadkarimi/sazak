@@ -1,34 +1,57 @@
 "use client";
 
-import {
-  Center,
-  Environment,
-  Grid,
-  OrbitControls,
-  Stats,
-  useGLTF,
-} from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import React from "react";
+import { OrbitControls } from "@react-three/drei";
+import { Canvas, useThree } from "@react-three/fiber";
+import React, { useEffect, useRef, useState } from "react";
 import CustomGrid from "./CustomGrid";
 import useModelStore from "@/store/useModelStore";
 import Model from "@/components/Model/Model";
 import ModelPlacer from "../Model/ModelPlacer";
 import Settings from "./Settings";
+import ViewCube from "./ViewCube";
 
+const CameraUpdater = ({ position, fov = 50 }) => {
+  const { camera } = useThree();
+  const cameraRef = useRef();
+
+  camera.position.set(...position);
+  camera.fov = fov;
+  camera.updateProjectionMatrix();
+  camera.lookAt(0, 0, 0);
+  // useEffect(() => {
+  // }, [position, fov, camera]);
+
+  return null;
+};
+
+// ✅ ۳. صفحه اصلی
 const GridPage = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const isAdjustingHeight = useModelStore((state) => state.isAdjustingHeight);
 
-  return (
-    <div className="w-full h-[600px]">
-      <Settings />
+  const [cameraPosition, setCameraPosition] = useState({
+    camera: [10, 10, 10],
+    fov: 50,
+  });
 
-      <Canvas camera={{ position: [10, 10, 10], fov: 50 }}>
+  return (
+    <div className="w-full h-[600px] relative">
+      <Settings />
+      {/* <ViewControlPanel onViewChange={setCameraPosition} /> */}
+
+      <Canvas camera={{ position: cameraPosition.camera, fov: 50 }}>
+        {/* نورپردازی */}
         <ambientLight intensity={1} />
         <directionalLight position={[10, 10, 10]} intensity={1.5} />
 
-        {selectedModels.map((model, i) => (
+        {/* موقعیت دوربین */}
+        <CameraUpdater
+          position={cameraPosition.camera}
+          fov={cameraPosition.fov}
+        />
+
+        {/* مدل‌ها */}
+        {selectedModels.map((model) => (
           <Model
             key={model.id}
             id={model.id}
@@ -38,30 +61,20 @@ const GridPage = () => {
           />
         ))}
 
+        {/* قابلیت انتخاب مکان مدل */}
         <ModelPlacer />
 
-        {/*         
-        <Grid
-          position={[0, 0, 0]} // روی سطح زمین
-          args={[20, 20]} // اندازه کل گرید (عرض، طول)
-          cellSize={1}
-          cellThickness={0.4}
-          cellColor="#6b7280" // خطوط شفاف
-          sectionSize={5}
-          sectionThickness={1}
-          sectionColor="#6b7280" // خطوط ضخیم‌تر شفاف
-          fadeDistance={50} // محو شدن در فاصله
-          fadeStrength={0.3}
-          infiniteGrid={false}
-        /> */}
-
+        {/* گرید سفارشی */}
         <CustomGrid />
 
+        {/* کنترل چرخش و جابه‌جایی */}
         <OrbitControls
-          enableRotate={!isAdjustingHeight} // غیرفعال کردن چرخش هنگام تنظیم ارتفاع
+          enableRotate={!isAdjustingHeight}
           enablePan={!isAdjustingHeight}
         />
       </Canvas>
+
+      <ViewCube onViewChange={setCameraPosition} />
     </div>
   );
 };

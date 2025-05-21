@@ -1,14 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
 import { useModelAdjustment } from "@/hooks/useModelAdjustment";
 import ModelControls from "./ModelControls";
-import * as THREE from "three"; // اضافه کردن THREE برای متریال
+import * as THREE from "three";
 
 const Model = ({ path, position, id, rotation }) => {
   const modelRef = useRef();
 
   const { scene: adjustedScene, isValid } = useModelScene(path);
+
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
@@ -16,7 +17,6 @@ const Model = ({ path, position, id, rotation }) => {
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
   const existingModels = useModelStore((s) => s.selectedModels);
   const modelOptions = useModelStore((s) => s.modelOptions);
-  const modelsRef = useModelStore((s) => s.modelsRef);
   const setModelsRef = useModelStore((s) => s.setModelsRef);
 
   const modelControls = useModelAdjustment(
@@ -35,15 +35,56 @@ const Model = ({ path, position, id, rotation }) => {
     }
   );
 
-  if (!isValid) {
-    return null;
-  }
+  const isSelected = selectedModelId === id;
+  const [clonedSceneState, setClonedSceneState] = useState(null);
+  useEffect(() => {
+    if (adjustedScene) {
+      const clone = adjustedScene.clone(true);
+      clone.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material = child.material.clone();
+        }
+      });
+      setClonedSceneState(clone);
+    }
+  }, [adjustedScene]);
 
+  // تغییر رنگ فقط وقتی مدل سلکت شده
+  useEffect(() => {
+    if (!clonedSceneState) return;
+    setModelsRef(modelRef);
+
+    clonedSceneState.traverse((child) => {
+      if (child.isMesh && child.material) {
+        if (isSelected) {
+          if (child.material.emissive) {
+            child.material.emissive = new THREE.Color(0xffff00); // رنگ درخشان زرد
+            child.material.emissiveIntensity = 0.3; // نوردهی ملایم
+          }
+        } else {
+          if (child.material.emissive) {
+            child.material.emissive = new THREE.Color(0x000000);
+            child.material.emissiveIntensity = 0; // نوردهی ملایم
+          }
+        }
+      }
+    });
+  }, [isSelected, clonedSceneState]);
+
+  // اطلاع به استور درباره درحال تنظیم بودن مدل
+  useEffect(() => {
+    setIsAdjustingHeight(
+      modelControls.isAdjustingHeight || modelControls.isMoving
+    );
+  }, [modelControls.isAdjustingHeight, modelControls.isMoving]);
+
+  // هندل انتخاب مدل
   const handleClick = (event) => {
     event.stopPropagation();
     setSelectedModelId(id);
   };
 
+  // حذف مدل
   const deleteModelHandler = () => {
     useModelStore.setState((state) => ({
       selectedModels: state.selectedModels.filter((model) => model.id !== id),
@@ -55,56 +96,18 @@ const Model = ({ path, position, id, rotation }) => {
     deleteModel: deleteModelHandler,
   };
 
-  const isSelected = selectedModelId === id;
-
-  useEffect(() => {
-    setIsAdjustingHeight(
-      modelControls.isAdjustingHeight || modelControls.isMoving
-    );
-  }, [modelControls.isAdjustingHeight, modelControls.isMoving]);
-
-  // تغییر متریال مدل انتخاب‌شده یا افزودن حاشیه
-  useEffect(() => {
-    if (adjustedScene) {
-      setModelsRef(modelRef);
-
-      adjustedScene.traverse((child) => {
-        if (child.isMesh) {
-          if (isSelected) {
-            // تغییر متریال برای مدل انتخاب‌شده
-            child.material.emissive = new THREE.Color(0xffff00); // رنگ درخشان زرد
-            child.material.emissiveIntensity = 0.3;
-          } else {
-            // بازگرداندن متریال به حالت اولیه
-            child.material.emissive = new THREE.Color(0x000000);
-            child.material.emissiveIntensity = 0;
-          }
-        }
-      });
-    }
-  }, [isSelected, adjustedScene]);
+  if (!isValid || !clonedSceneState) return null;
 
   return (
     <group ref={modelRef}>
       <primitive
-        object={adjustedScene}
+        object={clonedSceneState}
         scale={100}
         position={position}
         rotation={rotation}
         onClick={handleClick}
       />
-      {/* افزودن حاشیه زرد برای مدل انتخاب‌شده */}
-      {isSelected && (
-        <mesh>
-          <primitive object={adjustedScene.clone()} />
-          <meshBasicMaterial
-            color={0xffff00} // رنگ زرد
-            wireframe
-            side={THREE.BackSide} // حاشیه دور مدل
-          />
-        </mesh>
-      )}
-      
+
       <ModelControls
         position={position}
         isSelected={isSelected}

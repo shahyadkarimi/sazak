@@ -42,14 +42,14 @@ const Settings = () => {
       ...currentModel,
       id: newId,
       position: [
-        object.position.x, // استفاده از موقعیت فعلی در صحنه
-        object.position.y,
-        object.position.z + 1,
+        currentModel.position[0],
+        currentModel.position[1],
+        currentModel.position[2] + 2,
       ],
       rotation: [
-        object.rotation.x, // استفاده از چرخش فعلی در صحنه
-        object.rotation.y,
-        object.rotation.z,
+        currentModel.rotation[0],
+        currentModel.rotation[1],
+        currentModel.rotation[2],
       ],
     };
 
@@ -60,9 +60,11 @@ const Settings = () => {
     setSelectedModelId(newId);
   };
 
+  // console.log(selectedModels)
+
   return (
     <div
-      className={`absolute w-60 h-auto bg-white rounded-r-2xl shadow-lg shadow-gray-100 z-50 top-2/4 -translate-y-2/4 ${
+    className={`absolute w-60 h-auto bg-white rounded-r-2xl shadow-lg shadow-gray-100 z-[16442066] top-2/4 -translate-y-2/4 ${
         openSettings ? "left-0" : "-left-60"
       } transition-all duration-300`}
     >
