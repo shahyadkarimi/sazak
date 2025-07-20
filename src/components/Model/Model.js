@@ -102,7 +102,7 @@ const Model = ({ path, position, id, rotation }) => {
     <group ref={modelRef}>
       <primitive
         object={clonedSceneState}
-        scale={100}
+        scale={10}
         position={position}
         rotation={rotation}
         onClick={handleClick}

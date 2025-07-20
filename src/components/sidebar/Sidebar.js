@@ -14,7 +14,7 @@ const Sidebar = () => {
   const buttonRefs = useRef({}); // برای نگه‌داشتن ref هر مدل
 
   const rawModelsList = [
-    { id: 1, name: "I3", color: "سبز", path: "/models/I3_green.glb" },
+    { id: 1, name: "I3", color: "سبز", path: "/models/L_Piece.glb" },
     { id: 2, name: "I3", color: "زرد", path: "/models/I3_yellow.glb" },
     { id: 3, name: "I4", color: "نارنجی", path: "/models/I4_orange.glb" },
     { id: 4, name: "I4", color: "صورتی", path: "/models/I4_pink.glb" },
