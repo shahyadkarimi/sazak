@@ -1,11 +1,11 @@
 import axios from "axios";
 
-export const baseURL = "http://192.168.1.18:8000/api";
-export const siteURL = "http://192.168.1.18:8000";
+export const baseURL = "http://localhost:3000/api";
+export const siteURL = "http://localhost:3000";
 
 // axios config
 const servicesApi = axios.create({
-  baseURL: "http://192.168.1.18:8000/api",
+  baseURL: "http://localhost:3000/api",
   withCredentials: false,
   timeout: 60000000,
   headers: {

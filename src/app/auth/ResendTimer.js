@@ -32,7 +32,7 @@ const ResendTimer = ({ userInfo, min, sec, url }) => {
   const resendVerficationCode = () => {
     setLoading(true);
 
-    postData(url || "/user/auth", { phone_number: userInfo.phone_number })
+    postData(url || "/auth/phone-number", { phoneNumber: userInfo.phoneNumber })
       .then((res) => {
         setLoading(false);
 
@@ -42,7 +42,7 @@ const ResendTimer = ({ userInfo, min, sec, url }) => {
       .catch((err) => {
         setLoading(false);
 
-        toast.error(err.response.data.message || "خطا هنگام دریافت مجدد کد تائید", {
+        toast.error(err.response.data.message || "خطا هنگام دریافت مجدد کد تایید", {
           duration: 3000,
         });
       });
@@ -65,7 +65,7 @@ const ResendTimer = ({ userInfo, min, sec, url }) => {
             }`}
           ></i>
 
-          <span>ارسال مجدد کد تائید</span>
+          <span>ارسال مجدد کد تایید</span>
         </div>
       ) : (
         <span className="text-sm font-semibold text-gray-500">
@@ -76,7 +76,7 @@ const ResendTimer = ({ userInfo, min, sec, url }) => {
           {seconds < 10
             ? `${toFarsiNumber(0)}${toFarsiNumber(seconds)}`
             : toFarsiNumber(seconds)}{" "}
-          تا ارسال مجدد کد تائید
+          تا ارسال مجدد کد تایید
         </span>
       )}
     </div>

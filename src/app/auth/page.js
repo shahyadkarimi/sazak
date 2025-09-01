@@ -6,20 +6,20 @@ import { Icon } from "@iconify/react";
 import AuthSlider from "@/components/auth/AuthSlider";
 
 export const metadata = {
-  title: "توتون سلامت - ورود به حساب کاربری",
-  author: "توتون سلامت",
+  title: "آموزشگاه رباتیک سازک - ورود به حساب کاربری",
+  author: "آموزشگاه رباتیک سازک",
   description: "وارد حساب کاربری خود شوید",
 
   openGraph: {
-    title: "توتون سلامت - ورود به حساب کاربری",
+    title: "آموزشگاه رباتیک سازک - ورود به حساب کاربری",
     description: "وارد حساب کاربری خود شوید",
     url: `https://sazakacademy.ir/auth`,
     metadataBase: new URL(`https://sazakacademy.ir/auth`),
-    siteName: "توتون سلامت",
+    siteName: "آموزشگاه رباتیک سازک",
     images: [
       {
         url: `/assets/logo.png`,
-        alt: "توتون سلامت - صفحه اصلی",
+        alt: "آموزشگاه رباتیک سازک - صفحه اصلی",
         width: 300,
         hieght: 300,
       },
@@ -32,8 +32,6 @@ export const metadata = {
 const Page = () => {
   return (
     <div className="w-full min-h-screen flex overflow-x-hidden">
-      {/*  */}
-
       <div className="w-[55%] min-h-full flex justify-center items-center">
         <div className="w-full max-w-[425px]">
           <LoginForm />

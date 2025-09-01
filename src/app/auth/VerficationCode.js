@@ -15,19 +15,19 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
     setValue,
     control,
     watch,
-    reset,
+    setError,
     clearErrors,
     formState: { errors },
   } = useForm({
     mode: "onSubmit",
     defaultValues: {
-      vcode: "",
+      code: "",
     },
   });
 
   const [loading, setLoading] = useState(false);
 
-  const code = watch("vcode");
+  const code = watch("code");
 
   const backPhoneStepHandler = () => {
     setStep("phone");
@@ -35,17 +35,17 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
 
   const enterVerficationCodeHandler = (data) => {
     setLoading(true);
+    clearErrors();
 
-    postData("/user/check-code", {
-      ...data,
-      vcode: code,
-      phone_number: userInfo.phone_number,
+    postData("/auth/verify-otp", {
+      code,
+      phoneNumber: userInfo.phoneNumber,
     })
       .then((res) => {
         setLoading(false);
 
         // set user phone number for next step
-        setUserInfo((prev) => ({ ...prev, ...data, vcode: code }));
+        setUserInfo((prev) => ({ ...prev, ...data, code }));
 
         // go to next step after verify code was correct
         setStep("completeRegister");
@@ -53,23 +53,25 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
       .catch((err) => {
         setLoading(false);
 
-        toast.error(
-          err.response.data.message || "خطا هنگام تایید شماره موبایل",
-          {
-            duration: 3000,
-          }
-        );
+        setError("code", { message: err?.response?.data?.message });
+
+        toast.error("خطا هنگام تایید کد فعالسازی", {
+          duration: 3000,
+        });
       });
   };
 
   useEffect(() => {
-    if (code.length === 5) {
+    if (code.length === 6) {
       enterVerficationCodeHandler();
     }
   }, [code]);
 
   return (
-    <div className="w-full flex flex-col gap-8">
+    <form
+      onSubmit={handleSubmit(enterVerficationCodeHandler)}
+      className="w-full flex flex-col gap-8"
+    >
       <Toaster />
 
       <div className="flex flex-col items-center gap-4">
@@ -83,7 +85,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
 
       <div className="w-full flex flex-col gap-0">
         <InputOtp
-          length={5}
+          length={6}
           size="lg"
           variant="bordered"
           radius="lg"
@@ -92,12 +94,12 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
             wrapper: "w-full",
             segmentWrapper: "w-full flex-row-reverse gap-4 pt-0 pb-2",
             segment:
-              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             errorMessage: "font-normal",
           }}
-          isInvalid={errors.vcode ? true : false}
-          errorMessage="کد تائید اجباری میباشد"
-          {...register("vcode", { required: true })}
+          isInvalid={errors.code ? true : false}
+          errorMessage={errors?.code?.message || "کد تایید اجباری میباشد"}
+          {...register("code", { required: true })}
           autoComplete="one-time-code"
         />
 
@@ -106,6 +108,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
 
           <button
             onClick={backPhoneStepHandler}
+            type="button"
             className="text-sm font-semibold text-primaryThemeColor"
           >
             تغییر شماره موبایل{" "}
@@ -116,10 +119,11 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
       <div className="w-full flex items-center gap-2">
         <Button
           isLoading={loading}
+          type="submit"
           onClick={handleSubmit(enterVerficationCodeHandler)}
           className="bg-primaryThemeColor text-base h-16 font-semibold w-3/4 text-white rounded-2xl"
         >
-          تائید و ادامه
+          تایید و ادامه
         </Button>
 
         <button
@@ -135,7 +139,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
           />
         </button>
       </div>
-    </div>
+    </form>
   );
 };
 

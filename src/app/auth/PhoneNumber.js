@@ -16,6 +16,7 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
     reset,
     clearErrors,
     getValues,
+    setError,
     formState: { errors },
   } = useForm({
     mode: "onSubmit",
@@ -29,7 +30,7 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
   const enterPhoneNumberHandler = (data) => {
     setLoading(true);
 
-    postData("/user/auth", { ...data })
+    postData("/auth/phone-number", { ...data })
       .then((res) => {
         setLoading(false);
 
@@ -37,12 +38,20 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
         setUserInfo(data);
 
         // go to next step after phone number was correct
-        setStep(res.data.description);
+        if (res.data.registered) {
+          setStep("password");
+        } else {
+          setStep("code");
+        }
       })
       .catch((err) => {
         setLoading(false);
 
-        toast.error(err.response.data.message, {
+        err?.response?.data?.errors?.forEach((error) => {
+          setError(error.name, { message: error.message });
+        });
+
+        toast.error(err.response.data.message || "خطا هنگام ورود یا ثبت نام", {
           duration: 3000,
         });
       });
@@ -79,7 +88,7 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
         classNames={{
           input: "placeholder:font-light placeholder:text-gray-600",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.phoneNumber ? true : false}
         errorMessage={errors?.phoneNumber?.message}

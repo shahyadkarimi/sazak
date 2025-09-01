@@ -56,7 +56,7 @@ const PasswordRecovery = ({ userInfo, setUserInfo, step, setStep }) => {
       <div className="flex flex-col items-center gap-4">
         <h1 className="text-3xl font-black">بازیابی رمز عبور</h1>
         <p className="text-sm font-semibold text-gray-500/90">
-          شماره موبایل خود را وارد کنید تا کد تائید برایتان ارسال شود
+          شماره موبایل خود را وارد کنید تا کد تایید برایتان ارسال شود
         </p>
       </div>
 
@@ -79,7 +79,7 @@ const PasswordRecovery = ({ userInfo, setUserInfo, step, setStep }) => {
         classNames={{
           input: "placeholder:font-light placeholder:text-gray-600",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.phoneNumber ? true : false}
         errorMessage={errors?.phoneNumber?.message}
@@ -98,7 +98,7 @@ const PasswordRecovery = ({ userInfo, setUserInfo, step, setStep }) => {
         className="bg-primaryThemeColor text-base h-16 font-semibold w-full text-white rounded-2xl"
         type="submit"
       >
-        ارسال کد تائید
+        ارسال کد تایید
       </Button>
 
       <button

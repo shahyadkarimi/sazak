@@ -99,11 +99,11 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
             wrapper: "w-full",
             segmentWrapper: "w-full flex-row-reverse gap-4 pt-0 pb-2",
             segment:
-              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             errorMessage: "font-normal",
           }}
           isInvalid={errors.vcode ? true : false}
-          errorMessage="کد تائید اجباری میباشد"
+          errorMessage="کد تایید اجباری میباشد"
           {...register("vcode", { required: true })}
           autoComplete="one-time-code"
         />
@@ -133,7 +133,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
           classNames={{
             input: "placeholder:font-light placeholder:text-gray-600",
             inputWrapper:
-              "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
           }}
           startContent={
             <Icon
@@ -186,7 +186,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
           type="submit"
           className="bg-primaryThemeColor text-base h-16 font-semibold w-3/4 text-white rounded-2xl"
         >
-          تائید و ورود
+          تایید و ورود
         </Button>
 
         <button

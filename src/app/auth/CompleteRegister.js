@@ -99,7 +99,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         classNames={{
           input: "placeholder:font-light placeholder:text-gray-600",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.name ? true : false}
         errorMessage="نام اجباری میباشد"
@@ -122,7 +122,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         classNames={{
           input: "placeholder:font-light placeholder:text-gray-600",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.family_name ? true : false}
         errorMessage="نام خانوادگی اجباری میباشد"
@@ -137,7 +137,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
           classNames={{
             input: "placeholder:font-light placeholder:text-gray-600",
             inputWrapper:
-              "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
           }}
           startContent={
             <Icon
