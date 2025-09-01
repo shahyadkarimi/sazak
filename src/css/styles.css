@@ -93,3 +93,46 @@ body {
 .scroll-bar::-webkit-scrollbar-thumb:hover {
   background: #d1d5db;
 }
+
+.auth-bg {
+  display: flex;
+  position: relative;
+  background: url(../../public/assets/auth-banner.png);
+  background-position-x: 0%;
+  background-position-y: 0%;
+  background-size: auto;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.auth-bg::before {
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: rgb(166 0 255 / 0.025);
+  top: 0;
+  left: 0;
+}
+
+.swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.swiper-slide {
+  font-size: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.swiper-slide img {
+  display: block;
+  object-fit: cover;
+}
+
+.swiper-slide {
+  background: transparent !important;
+}

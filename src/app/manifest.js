@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: "مرکزیاب",
-    short_name: "مرکزیاب",
+    name: "آموزشگاه رباتیک سازک",
+    short_name: "آموزشگاه رباتیک سازک",
     description: "A Progressive Web App built with Next.js",
     start_url: "/",
     display: "standalone",
