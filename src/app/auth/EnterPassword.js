@@ -1,5 +1,5 @@
 import { toFarsiNumber } from "@/helper/helper";
-import { saveSession } from "@/lib/storage";
+import { saveSession } from "@/lib/auth";
 import { getData, postData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
 import { Button, Input } from "@heroui/react";
@@ -37,7 +37,7 @@ const EnterPassword = ({ userInfo, setStep }) => {
   const EnterPasswordHandler = (data) => {
     setLoading(true);
 
-    postData("/user/check-password", { ...data, ...userInfo })
+    postData("/auth/login", { ...data, ...userInfo })
       .then((res) => {
         // navigate user to dashboard
         toast.success("ورود با موفقیت انجام شد، درحال انتقال...", {
@@ -49,21 +49,19 @@ const EnterPassword = ({ userInfo, setStep }) => {
         localStorage.setItem("token", res.data.token);
 
         // get user data & save
-        getData("/user/profile").then((res) => {
-          setUser(res.data);
-
-          router.push("/user");
-        });
+        setUser(res.data.user);
+        // router.push("/user");
       })
       .catch((err) => {
         setLoading(false);
 
-        setError("password", {
-          type: "custom",
-          message: "رمز عبور صحیح نمیباشد",
+        err?.response?.data?.errors?.forEach((error) => {
+          setError("password", {
+            message: error.message,
+          });
         });
 
-        toast.error("خطا هنگام ورود", {
+        toast.error(err?.response?.data?.message || "خطا هنگام ورود", {
           duration: 3000,
         });
       });
@@ -83,7 +81,7 @@ const EnterPassword = ({ userInfo, setStep }) => {
 
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold text-gray-500/90">
-            ورود به حساب با شماره موبایل {toFarsiNumber(userInfo.phone_number)}
+            ورود به حساب با شماره موبایل {toFarsiNumber(userInfo.phoneNumber)}
           </p>
 
           <div onClick={backPhoneStepHandler}>
@@ -125,12 +123,12 @@ const EnterPassword = ({ userInfo, setStep }) => {
         }
         type={showPassword ? "text" : "password"}
         isInvalid={errors.password ? true : false}
-        errorMessage={
-          errors?.password?.type === "custom"
-            ? errors.password.message
-            : "رمز عبور اجباری میباشد"
-        }
-        {...register("password", { required: true })}
+        errorMessage={errors?.password?.message}
+        {...register("password", {
+          validate: {
+            isRequired: (value) => value.length > 0 || "رمز عبور الزامی است",
+          },
+        })}
       />
 
       <Button

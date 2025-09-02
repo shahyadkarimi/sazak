@@ -1,5 +1,5 @@
 import { toFarsiNumber } from "@/helper/helper";
-import { saveSession } from "@/lib/storage";
+import { saveSession } from "@/lib/auth";
 import { getData, postData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
 import { Button, Input, Select, SelectItem } from "@heroui/react";
@@ -40,7 +40,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
   const completeRegisterHandler = (data) => {
     setLoading(true);
 
-    postData("/user/register", { ...userInfo, ...data })
+    postData("/auth/complete-register", { ...userInfo, ...data })
       .then((res) => {
         // navigate user to dashboard
         toast.success("ثبت نام با موفقیت انجام شد، درحال انتقال...", {
@@ -51,12 +51,8 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         saveSession(res.data.token);
         localStorage.setItem("token", res.data.token);
 
-        // get user data & save
-        getData("/user/profile").then((res) => {
-          setUser(res.data);
-
-          router.push("/user");
-        });
+        setUser(res.data.user);
+        // router.push("/user");
       })
       .catch((err) => {
         setLoading(false);
@@ -102,7 +98,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
             "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.name ? true : false}
-        errorMessage="نام اجباری میباشد"
+        errorMessage="نام الزامی است"
         {...register("name", { required: true })}
       />
 
@@ -124,9 +120,9 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
           inputWrapper:
             "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
-        isInvalid={errors.family_name ? true : false}
-        errorMessage="نام خانوادگی اجباری میباشد"
-        {...register("family_name", { required: true })}
+        isInvalid={errors.familyName ? true : false}
+        errorMessage="نام خانوادگی الزامی است"
+        {...register("familyName", { required: true })}
       />
 
       <div className="flex flex-col gap-1">
@@ -166,21 +162,18 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
           errorMessage={errors?.password?.message}
           {...register("password", {
             validate: {
-              isRequired: (value) =>
-                value.length > 0 || "رمز عبور اجباری میباشد",
+              isRequired: (value) => value.length > 0 || "رمز عبور الزامی است",
               isSixLength: (value) =>
-                value.length > 6 || "رمز عبور باید حداقل شش رقم باشد",
-              isLowercase: (value) =>
-                /[a-z]/g.test(value) || "رمز عبور شما باید شامل حروف کوچک باشد",
-              isUppercase: (value) =>
-                /[A-Z]/g.test(value) || "رمز عبور شما باید شامل حروف بزرگ باشد",
+                value.length >= 6 || "رمز عبور باید حداقل ۶ کاراکتر باشد",
+              isLetterExist: (value) =>
+                /[A-Za-z]/.test(value) ||
+                "رمز عبور باید حداقل شامل یک حرف باشد",
             },
           })}
         />
 
         <p className="text-tiny text-warning">
-          رمز عبور باید حداقل شش رقم و شامل اعداد، حروف انگلیسی بزرگ و کوچک
-          باشد.
+          رمز عبور باید حداقل ۶ کاراکتر و شامل اعداد و حروف انگلیسی باشد.
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 import { toFarsiNumber } from "@/helper/helper";
-import { saveSession } from "@/lib/storage";
+import { saveSession } from "@/lib/auth";
 import { postData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
 import { Button, Input, InputOtp } from "@heroui/react";
@@ -103,7 +103,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
             errorMessage: "font-normal",
           }}
           isInvalid={errors.vcode ? true : false}
-          errorMessage="کد تایید اجباری میباشد"
+          errorMessage="کد تایید الزامی است"
           {...register("vcode", { required: true })}
           autoComplete="one-time-code"
         />
@@ -163,7 +163,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
           {...register("password", {
             validate: {
               isRequired: (value) =>
-                value.length > 0 || "رمز عبور اجباری میباشد",
+                value.length > 0 || "رمز عبور الزامی است",
               isSixLength: (value) =>
                 value.length > 6 || "رمز عبور باید حداقل شش رقم باشد",
               isLowercase: (value) =>

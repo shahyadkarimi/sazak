@@ -35,7 +35,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
 
   const enterVerficationCodeHandler = (data) => {
     setLoading(true);
-    clearErrors();
+    clearErrors("code");
 
     postData("/auth/verify-otp", {
       code,
@@ -98,7 +98,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
             errorMessage: "font-normal",
           }}
           isInvalid={errors.code ? true : false}
-          errorMessage={errors?.code?.message || "کد تایید اجباری میباشد"}
+          errorMessage={errors?.code?.message || "کد تایید الزامی است"}
           {...register("code", { required: true })}
           autoComplete="one-time-code"
         />

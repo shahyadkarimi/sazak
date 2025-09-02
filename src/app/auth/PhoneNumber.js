@@ -95,7 +95,7 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
         {...register("phoneNumber", {
           validate: {
             isRequired: (value) =>
-              value.length > 0 || "شماره تلفن اجباری میباشد",
+              value.length > 0 || "شماره تلفن الزامی است",
             isNumber: (value) =>
               /^[0-9\b]+$/.test(value) || "فرمت شماره تلفن صحیح نمیباشد",
           },

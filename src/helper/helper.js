@@ -20,4 +20,18 @@ const snapToGrid = ([x, y, z], step = 1) => {
   return [Math.round(x / step) * step, y, Math.round(z / step) * step];
 };
 
-export { snapToGrid, toFarsiNumber, idGenerator };
+const greetByTime = () => {
+  const hour = new Date().getHours();
+
+  if (hour >= 5 && hour < 12) {
+    return "صبح بخیر 🌅";
+  } else if (hour >= 12 && hour < 18) {
+    return "ظهر بخیر ☀️";
+  } else if (hour >= 18 && hour < 22) {
+    return "عصر بخیر 🌇";
+  } else {
+    return "شب بخیر 🌙";
+  }
+};
+
+export { snapToGrid, toFarsiNumber, idGenerator, greetByTime };

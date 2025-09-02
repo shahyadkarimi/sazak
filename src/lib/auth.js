@@ -4,6 +4,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { baseURL } from "@/services/API";
 import { redirect } from "next/navigation";
+import { verifyToken } from "./jwt";
 
 // export const cookieName = "token"
 
@@ -14,7 +15,7 @@ export async function saveSession(data) {
 }
 
 export async function getUser() {
-  const token = (await cookies()).get("token")?.value;
+  const token = (await cookies()).get("auth-token")?.value;
 
   if (!token) {
     return null;
@@ -24,7 +25,7 @@ export async function getUser() {
     const userRes = await fetch(`${baseURL}/user/profile`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        "x-auth-token": `${token}`,
       },
     });
 
@@ -40,8 +41,19 @@ export async function removeSession() {
   (await cookies()).delete("token");
 }
 
-export async function tokenExpired() {
-  (await cookies()).delete("token");
+export async function getAuthUser(request) {
+  try {
+    const token =
+      request.cookies.get("auth-token")?.value ||
+      request.headers.get("x-auth-token");
 
-  redirect("/auth");
+    if (!token) {
+      return null;
+    }
+
+    const payload = verifyToken(token);
+    return payload;
+  } catch (error) {
+    return null;
+  }
 }
