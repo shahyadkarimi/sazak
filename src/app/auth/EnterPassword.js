@@ -50,7 +50,7 @@ const EnterPassword = ({ userInfo, setStep }) => {
 
         // get user data & save
         setUser(res.data.user);
-        // router.push("/user");
+        router.push("/panel");
       })
       .catch((err) => {
         setLoading(false);

@@ -54,6 +54,7 @@ export async function POST(req) {
           id: newUser._id,
           name: newUser.name,
           familyName: newUser.familyName,
+          fullName: newUser.name + " " + newUser.familyName,
           phoneNumber: newUser.phoneNumber,
         },
       },

@@ -27,3 +27,15 @@ export const loginSchema = z.object({
   phoneNumber: phoneSchema.shape.phoneNumber,
   password: z.string().min(6, "رمز عبور باید حداقل 6 کاراکتر باشد"),
 });
+
+export const updateProfileSchema = z.object({
+  name: z.string().min(1, "نام الزامی است").optional(),
+  familyName: z.string().min(1, "نام خانوادگی الزامی است").optional(),
+  password: z
+    .string()
+    .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
+    .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
+    .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد")
+    .optional()
+    .or(z.literal("")),
+});

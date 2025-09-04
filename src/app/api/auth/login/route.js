@@ -13,7 +13,9 @@ export async function POST(req) {
 
     const { phoneNumber, password } = loginSchema.parse(body);
 
-    const user = await User.findOne({ phoneNumber });
+    const user = await User.findOne({ phoneNumber })
+      .select("-__v -password -deletedAt")
+      .lean();
 
     if (!user) {
       return NextResponse.json(
@@ -49,10 +51,8 @@ export async function POST(req) {
         message: "ورود موفقیت‌آمیز بود",
         token,
         user: {
-          id: user._id,
-          name: user.name,
-          familyName: user.familyName,
-          phoneNumber: user.phoneNumber,
+          fullName: user.name + " " + user.familyName,
+          ...user,
         },
       },
       { status: 200 }

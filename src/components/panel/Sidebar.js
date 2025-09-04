@@ -1,6 +1,7 @@
 "use client";
 
-import { cn } from "@heroui/react";
+import { useUserStore } from "@/store/UserInfo";
+import { Link as ButtonLink, Button, cn } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -22,10 +23,11 @@ export const menu = [
 ];
 
 const Sidebar = () => {
+  const { user } = useUserStore();
   const pathname = usePathname();
 
   return (
-    <div className="min-w-64 h-full flex flex-col justify-between bg-white py-6 px-5">
+    <div className="min-w-64 min-h-full flex flex-col justify-between bg-white py-6 px-5">
       <div className="flex flex-col gap-4">
         {/* logo */}
         <div className="flex items-center gap-2 pb-4 border-b">
@@ -68,6 +70,44 @@ const Sidebar = () => {
             <span>خروج</span>
           </button>
         </div>
+      </div>
+
+      {/* user profile */}
+      <div className="w-full flex justify-between items-center">
+        {/* user info */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <div className="flex h-2 w-2 absolute bottom-0 right-1">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+              <span className="relative bg-success inline-flex rounded-full h-2 w-2"></span>
+            </div>
+
+            <Image
+              src={"/assets/avatar.png"}
+              width={100}
+              height={100}
+              className="size-10 rounded-full border-2 shadow-lg shadow-gray-100"
+              alt="user avatar"
+            />
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm text-gray-600 font-bold">
+              {user.fullName}
+            </span>
+            <span className="text-xs text-gray-500">دانشجو</span>
+          </div>
+        </div>
+
+        {/* edit profile */}
+        <Button
+          as={ButtonLink}
+          href="/panel/profile"
+          isIconOnly
+          className="bg-white size-9 min-w-9 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
+        >
+          <Icon icon="solar:pen-2-broken" width="18" height="18" />
+        </Button>
       </div>
     </div>
   );

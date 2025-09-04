@@ -58,7 +58,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
 
         getData("/user/profile").then((res) => {
           setUser(res.data);
-          router.push("/user");
+          router.push("/panel");
         });
       })
       .catch((err) => {

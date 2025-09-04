@@ -12,7 +12,7 @@ const Layout = ({ children }) => {
         <div className="w-full">
           <Header />
 
-          <div className="h-[calc(100%-80px)] bg-gray-100/70 rounded-tr-3xl">
+          <div className="h-[calc(100%-80px)] bg-gray-100/70 rounded-tr-3xl p-4 lg:p-8">
             {children}
           </div>
         </div>

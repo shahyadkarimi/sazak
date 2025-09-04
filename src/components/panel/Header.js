@@ -1,17 +1,20 @@
 "use client";
 
 import { greetByTime, toFarsiNumber } from "@/helper/helper";
+import { useUserStore } from "@/store/UserInfo";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import React from "react";
 
 const Header = () => {
+  const { user } = useUserStore();
+
   return (
     <div className="w-full h-20 bg-white flex items-center justify-between px-4 lg:px-8">
       {/* greeting */}
       <div className="flex items-center gap-3">
         <span className="text-xl font-bold text-gray-700">
-          سلام؛ شهیاد کریمی
+          سلام؛ {user.fullName}
         </span>
         <span className="block w-0.5 h-4 bg-gray-200"></span>
         <span className="text-sm font-bold text-gray-500">{greetByTime()}</span>

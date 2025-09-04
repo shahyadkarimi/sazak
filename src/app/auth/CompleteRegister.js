@@ -33,7 +33,6 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
   const { user, setUser } = useUserStore();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const helPassword = ["رمز عبور باید حداقل شش رقم باشد", "رمز عبور باید", ""];
 
   const router = useRouter();
 
@@ -52,7 +51,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         localStorage.setItem("token", res.data.token);
 
         setUser(res.data.user);
-        // router.push("/user");
+        router.push("/panel");
       })
       .catch((err) => {
         setLoading(false);

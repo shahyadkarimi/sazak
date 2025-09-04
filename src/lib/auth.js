@@ -15,7 +15,7 @@ export async function saveSession(data) {
 }
 
 export async function getUser() {
-  const token = (await cookies()).get("auth-token")?.value;
+  const token = (await cookies()).get("token")?.value;
 
   if (!token) {
     return null;
@@ -44,7 +44,7 @@ export async function removeSession() {
 export async function getAuthUser(request) {
   try {
     const token =
-      request.cookies.get("auth-token")?.value ||
+      request.cookies.get("token")?.value ||
       request.headers.get("x-auth-token");
 
     if (!token) {

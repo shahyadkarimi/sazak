@@ -16,7 +16,9 @@ export async function GET(req) {
         { status: 401 }
       );
     }
-    const user = await User.findById(authUser.userId).select("-password");
+    const user = await User.findById(authUser.userId)
+      .select("-__v -password -deletedAt")
+      .lean();
 
     if (!user) {
       return NextResponse.json(
@@ -28,7 +30,10 @@ export async function GET(req) {
     return NextResponse.json(
       {
         success: true,
-        user,
+        user: {
+          ...user,
+          fullName: user.name + " " + user.familyName,
+        },
       },
       { status: 200 }
     );

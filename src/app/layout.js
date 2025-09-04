@@ -16,7 +16,7 @@ export default async function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl" className="">
       <body className="">
-        <NextTopLoader color="#dc2626" showSpinner={false} />
+        <NextTopLoader color="#a600ff" showSpinner={false} />
 
         <AuthProvider userData={user} />
         <Providers>{children}</Providers>

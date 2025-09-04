@@ -7,8 +7,8 @@ export const AuthProvider = ({ userData }) => {
   const { setUser, setLoading } = useUserStore();
 
   useEffect(() => {
-    if (userData.success) {
-      setUser(userData.user);
+    if (userData?.success) {
+      setUser(userData?.user);
       setLoading(false);
     } else {
       setUser(null);
