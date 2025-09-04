@@ -12,12 +12,13 @@ export const menu = [
   { title: "داشبورد", path: "/panel", icon: "solar:home-smile-broken" },
   {
     title: "دوره های من",
-    path: "/my-courses",
+    path: "/panel/my-courses",
+    soon: true,
     icon: "solar:square-academic-cap-2-broken",
   },
   {
     title: "پروژه های من",
-    path: "/my-projects",
+    path: "/panel/project/my-projects",
     icon: "solar:ruler-cross-pen-broken",
   },
 ];

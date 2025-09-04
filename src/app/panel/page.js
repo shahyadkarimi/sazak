@@ -30,7 +30,7 @@ const Page = async () => {
       {/* username */}
       <div className="w-fit text-gray-700 bg-white p-4 lg:p-6 rounded-2xl shadow-lg shadow-gray-100">
         <p>
-          <span class="font-black text-xl ml-2">{user?.fullName}😍؛</span>
+          <span className="font-black text-xl ml-2">{user?.name} عزیز😍؛</span>
           <span>به جمع بچه های سازک خوش آمدی👋🏻</span>
         </p>
       </div>
@@ -43,7 +43,10 @@ const Page = async () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {userHistory.map((item, index) => (
-            <div className="w-full h-24 flex items-center gap-3 bg-white rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all p-4 lg:p-6">
+            <div
+              key={index}
+              className="w-full h-24 flex items-center gap-3 bg-white rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all p-4 lg:p-6"
+            >
               <div
                 className={cn(
                   "size-11 rounded-2xl flex justify-center items-center text-white",
@@ -66,6 +69,7 @@ const Page = async () => {
         </div>
       </div>
 
+      {/* user recent projects */}
       <div className="flex flex-col gap-4 border-t border-gray-200/80 pt-4 lg:pt-6">
         <div className="w-full flex items-center justify-between">
           <h2 className="text-xl lg:text-2xl text-gray-700 font-black">
@@ -86,9 +90,12 @@ const Page = async () => {
           <h2 className="text-gray-600 text-lg">
             شما هنوز پروژه ای نساخته اید !
           </h2>
-          <h2 className="text-primaryThemeColor font-bold">
+          <Link
+            href={"/panel/project/my-projects"}
+            className="text-primaryThemeColor font-bold"
+          >
             میخواهید اولین پروژه خود را ایجاد کنید ؟
-          </h2>
+          </Link>
         </div>
       </div>
     </div>
