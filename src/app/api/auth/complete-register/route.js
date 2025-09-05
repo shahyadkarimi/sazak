@@ -62,7 +62,7 @@ export async function POST(req) {
     );
   } catch (error) {
     if (error.name === "ZodError") {
-      const formattedErrors = error.errors.map((issue) => ({
+      const formattedErrors = error.issues.map((issue) => ({
         name: issue.path.join("."),
         message: issue.message,
       }));

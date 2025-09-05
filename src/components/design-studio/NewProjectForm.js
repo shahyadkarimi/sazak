@@ -1,20 +1,23 @@
 "use client";
 
+import { postData } from "@/services/API";
 import { Button, Input, Textarea } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import toast, { Toaster } from "react-hot-toast";
 
 const NewProjectForm = () => {
   const [loading, setLoading] = useState(false);
+
+  const router = useRouter();
 
   const {
     register,
     handleSubmit,
     setValue,
     control,
-    watch,
-    reset,
     clearErrors,
     setError,
     formState: { errors },
@@ -26,11 +29,35 @@ const NewProjectForm = () => {
     },
   });
 
-  const createNewProjectHandler = () => {};
+  const createNewProjectHandler = (data) => {
+    setLoading(true);
+
+    postData("/project/new-project", { ...data })
+      .then((res) => {
+        setLoading(false);
+        toast.success("با موفقیت انجام شد درحال انتقال شما...");
+
+        router.push(`/design-studio/project/${res?.data?.project?._id}`);
+      })
+      .catch((err) => {
+        err?.response?.data?.errors?.map((error) => {
+          setError(error.name, { message: error.message });
+        });
+        toast.error("خطا هنگام ایجاد پروژه جدید");
+        setLoading(false);
+      });
+  };
 
   return (
-    <div className="flex flex-col gap-4 lg:gap-6">
-        <p className="-mt-4 text-sm text-gray-600 self-center">پروژه جدید خود را ایجاد کنید و خلاقیت خود را شکوفا کنید</p>
+    <form
+      onSubmit={handleSubmit(createNewProjectHandler)}
+      className="flex flex-col gap-4 lg:gap-6"
+    >
+      <Toaster />
+
+      <p className="-mt-4 text-sm text-gray-600 self-center">
+        پروژه جدید خود را ایجاد کنید و خلاقیت خود را شکوفا کنید
+      </p>
 
       <Controller
         name="name"
@@ -58,9 +85,13 @@ const NewProjectForm = () => {
               inputWrapper:
                 "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             }}
-            isInvalid={errors.name ? true : false}
-            errorMessage="نام پروژه الزامی است"
-            {...register("name", { required: true })}
+            isInvalid={errors?.name ? true : false}
+            errorMessage={errors?.name?.message}
+            {...register("name", {
+              validate: {
+                required: (value) => value.length > 0 || "نام پروژه الزامی است",
+              },
+            })}
           />
         )}
       />
@@ -98,12 +129,12 @@ const NewProjectForm = () => {
 
       <Button
         isLoading={loading}
-        onClick={handleSubmit(createNewProjectHandler)}
+        type="submit"
         className="bg-primaryThemeColor text-base h-[50px] font-semibold w-full text-white rounded-2xl"
       >
         ایجاد پروژه
       </Button>
-    </div>
+    </form>
   );
 };
 

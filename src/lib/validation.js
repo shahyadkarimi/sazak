@@ -39,3 +39,8 @@ export const updateProfileSchema = z.object({
     .optional()
     .or(z.literal("")),
 });
+
+export const newProjectSchema = z.object({
+  name: z.string().min(1, "نام پروژه الزامی است"),
+  description: z.string().optional(),
+});

@@ -77,7 +77,7 @@ const Page = async () => {
           </h2>
 
           <Link
-            href={"#"}
+            href={"/user/project/my-projects"}
             className="flex items-center gap-2 text-gray-500 hover:text-primaryThemeColor text-sm font-bold transition-all duration-300"
           >
             <span>مشاهده همه پروژه ها</span>
@@ -91,7 +91,7 @@ const Page = async () => {
             شما هنوز پروژه ای نساخته اید !
           </h2>
           <Link
-            href={"/user/project/my-projects"}
+            href={"/design-studio/new-project"}
             className="text-primaryThemeColor font-bold"
           >
             میخواهید اولین پروژه خود را ایجاد کنید ؟
