@@ -91,7 +91,7 @@ const Page = async () => {
             شما هنوز پروژه ای نساخته اید !
           </h2>
           <Link
-            href={"/panel/project/my-projects"}
+            href={"/user/project/my-projects"}
             className="text-primaryThemeColor font-bold"
           >
             میخواهید اولین پروژه خود را ایجاد کنید ؟

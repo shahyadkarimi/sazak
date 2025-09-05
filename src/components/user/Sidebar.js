@@ -9,16 +9,16 @@ import { usePathname } from "next/navigation";
 import React from "react";
 
 export const menu = [
-  { title: "داشبورد", path: "/panel", icon: "solar:home-smile-broken" },
+  { title: "داشبورد", path: "/user", icon: "solar:home-smile-broken" },
   {
     title: "دوره های من",
-    path: "/panel/my-courses",
+    path: "/user/my-courses",
     soon: true,
     icon: "solar:square-academic-cap-2-broken",
   },
   {
     title: "پروژه های من",
-    path: "/panel/project/my-projects",
+    path: "/user/project/my-projects",
     icon: "solar:ruler-cross-pen-broken",
   },
 ];
@@ -103,7 +103,7 @@ const Sidebar = () => {
         {/* edit profile */}
         <Button
           as={ButtonLink}
-          href="/panel/profile"
+          href="/user/profile"
           isIconOnly
           className="bg-white size-9 min-w-9 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
         >

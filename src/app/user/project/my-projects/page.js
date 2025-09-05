@@ -13,7 +13,7 @@ const Page = () => {
           </h2>
 
           <Link
-            href={"/panel/project/new-project"}
+            href={"/user/design-studio/new-project"}
             className="py-3 px-6 text-sm flex items-center gap-2 font-bold rounded-2xl bg-primaryThemeColor text-white focus-within:scale-95 transition-all"
           >
             <Icon icon="solar:add-circle-broken" width="24" height="24" />
@@ -26,7 +26,7 @@ const Page = () => {
             شما هنوز پروژه ای نساخته اید !
           </h2>
           <Link
-            href={"/panel/project/my-projects"}
+            href={"/user/design-studio/new-project"}
             className="text-primaryThemeColor font-bold"
           >
             برای ایجاد اولین پروژه خود کلیک کنید

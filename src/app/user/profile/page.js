@@ -1,4 +1,4 @@
-import EditProfileForm from "@/components/panel/EditProfileForm";
+import EditProfileForm from "@/components/user/EditProfileForm";
 import Image from "next/image";
 import React from "react";
 
