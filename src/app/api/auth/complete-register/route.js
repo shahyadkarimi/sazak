@@ -56,6 +56,8 @@ export async function POST(req) {
           familyName: newUser.familyName,
           fullName: newUser.name + " " + newUser.familyName,
           phoneNumber: newUser.phoneNumber,
+          role: newUser.role,
+          createdAt: user.createdAt,
         },
       },
       { status: 200 }

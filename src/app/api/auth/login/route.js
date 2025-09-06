@@ -51,8 +51,13 @@ export async function POST(req) {
         message: "ورود موفقیت‌آمیز بود",
         token,
         user: {
+          id: user._id,
+          name: user.name,
+          familyName: user.familyName,
           fullName: user.name + " " + user.familyName,
-          ...user,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          createdAt: user.createdAt,
         },
       },
       { status: 200 }

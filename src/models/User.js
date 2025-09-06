@@ -24,6 +24,10 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    role: {
+      type: String,
+      default: "user",
+    },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

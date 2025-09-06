@@ -47,8 +47,13 @@ export async function POST(req) {
         success: true,
         message: "پروفایل با موفقیت ویرایش شد.",
         user: {
+          id: user._id,
+          name: user.name,
+          familyName: user.familyName,
           fullName: user.name + " " + user.familyName,
-          ...user,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          createdAt: user.createdAt,
         },
       },
       { status: 200 }

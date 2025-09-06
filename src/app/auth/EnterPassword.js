@@ -50,7 +50,9 @@ const EnterPassword = ({ userInfo, setStep }) => {
 
         // get user data & save
         setUser(res.data.user);
-        router.push("/user");
+        setTimeout(() => {
+          router.push("/user");
+        }, 500);
       })
       .catch((err) => {
         setLoading(false);

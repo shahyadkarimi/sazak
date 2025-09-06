@@ -10,8 +10,22 @@ const ProtectedRoute = ({ children, fallback }) => {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && !user?._id) {
-        router.push("/auth");
+    if (!loading && !user?.id) {
+      router.push("/auth");
+    } else {
+      if (user?.role === "user") {
+        router.push("/user");
+
+        return;
+      }
+
+      if (user?.role === "admin") {
+        router.push("/admin");
+
+        return;
+      }
+
+      router.push("/auth");
     }
   }, [user, loading, router]);
 
@@ -29,7 +43,7 @@ const ProtectedRoute = ({ children, fallback }) => {
     );
   }
 
-  if (!user?._id) {
+  if (!user?.id) {
     return null;
   }
 
