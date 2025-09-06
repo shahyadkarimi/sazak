@@ -14,7 +14,7 @@ export async function POST(req) {
     const { phoneNumber, password } = loginSchema.parse(body);
 
     const user = await User.findOne({ phoneNumber })
-      .select("-__v -password -deletedAt")
+      .select("-__v -deletedAt")
       .lean();
 
     if (!user) {
