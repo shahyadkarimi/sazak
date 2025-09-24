@@ -1,11 +1,11 @@
 import axios from "axios";
 
-export const baseURL = "http://localhost:3000/api";
-export const siteURL = "http://localhost:3000";
+export const baseURL = "https://sazak-academy.liara.run/api";
+export const siteURL = "https://sazak-academy.liara.run";
 
 // axios config
 const servicesApi = axios.create({
-  baseURL: "http://localhost:3000/api",
+  baseURL: "https://sazak-academy.liara.run/api",
   withCredentials: false,
   timeout: 60000000,
   headers: {
