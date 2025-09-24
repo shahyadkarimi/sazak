@@ -57,6 +57,7 @@ const Page = () => {
               </h2>
             </div>
           </div>
+          
           {/* go home */}
           <Link
             href={"/"}

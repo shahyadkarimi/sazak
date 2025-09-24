@@ -51,7 +51,9 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         localStorage.setItem("token", res.data.token);
 
         setUser(res.data.user);
-        router.push("/panel");
+        setTimeout(() => {
+          router.push("/user");
+        }, 500);
       })
       .catch((err) => {
         setLoading(false);

@@ -24,7 +24,7 @@ const Header = () => {
       <div className="flex items-center gap-3">
         <div className="relative">
           <span className="size-5 text-white rounded-full flex items-center justify-center text-xs pl-0.5 pt-0.5 bg-red-600 absolute -top-1.5 -right-1.5 z-50">
-            {toFarsiNumber(2)}
+            {toFarsiNumber(0)}
           </span>
 
           <Button

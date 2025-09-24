@@ -34,7 +34,6 @@ const NewProjectForm = () => {
 
     postData("/project/new-project", { ...data })
       .then((res) => {
-        setLoading(false);
         toast.success("با موفقیت انجام شد درحال انتقال شما...");
 
         router.push(`/design-studio/project/${res?.data?.project?._id}`);

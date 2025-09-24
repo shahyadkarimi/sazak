@@ -12,20 +12,12 @@ const ProtectedRoute = ({ children, fallback }) => {
   useEffect(() => {
     if (!loading && !user?.id) {
       router.push("/auth");
-    } else {
-      if (user?.role === "user") {
-        router.push("/user");
+    }
 
-        return;
-      }
+    if (user?.role === "admin") {
+      router.push("/admin");
 
-      if (user?.role === "admin") {
-        router.push("/admin");
-
-        return;
-      }
-
-      router.push("/auth");
+      return;
     }
   }, [user, loading, router]);
 

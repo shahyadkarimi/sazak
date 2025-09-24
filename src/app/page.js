@@ -1,14 +1,15 @@
-import CustomGrid from "@/components/home/CustomGrid";
-import GridPage from "@/components/home/GridPage";
-import Sidebar from "@/components/sidebar/Sidebar";
+"use client";
+import { useRouter } from "next/navigation";
+import React, { useEffect } from "react";
 
-const Home = async () => {
-  
-  return (
-    <div className="w-full flex flex-col items-center">
-      
-    </div>
-  );
+const Home = () => {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.push("/user");
+  }, []);
+
+  return <div className="w-full flex flex-col items-center"></div>;
 };
 
 export default Home;

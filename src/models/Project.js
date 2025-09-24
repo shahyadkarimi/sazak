@@ -2,23 +2,11 @@ import mongoose from "mongoose";
 
 const objectSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+    id: { type: Number, required: true },
+    path: { type: String, required: true },
     color: { type: String, default: "#ffffff" },
-    position: {
-      x: { type: Number, default: 0 },
-      y: { type: Number, default: 0 },
-      z: { type: Number, default: 0 },
-    },
-    rotation: {
-      x: { type: Number, default: 0 },
-      y: { type: Number, default: 0 },
-      z: { type: Number, default: 0 },
-    },
-    scale: {
-      x: { type: Number, default: 1 },
-      y: { type: Number, default: 1 },
-      z: { type: Number, default: 1 },
-    },
+    position: { type: Array, default: [0, 0, 0] },
+    rotation: { type: Array, default: [0, 0, 0] },
   },
   { timestamps: true }
 );
@@ -29,6 +17,7 @@ const projectSchema = new mongoose.Schema(
     name: { type: String, required: true },
     description: { type: String, required: false },
     objects: [objectSchema],
+    autoSave: { type: Boolean, default: false },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

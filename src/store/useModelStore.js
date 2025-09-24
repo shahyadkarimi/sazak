@@ -11,8 +11,7 @@ const useModelStore = create((set) => ({
   },
   modelsRef: {},
 
-  setSelectedModels: (modelPath) =>
-    set((state) => ({ selectedModels: [...state.selectedModels, modelPath] })),
+  setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
   setCurrentPlacingModel: (modelPath) =>
     set({ currentPlacingModel: modelPath }),

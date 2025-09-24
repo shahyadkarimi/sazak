@@ -10,8 +10,8 @@ const CustomGrid = () => {
     const size = 20;
     const divisions = 20;
 
-    const colorCenterLine = new THREE.Color("#6b7280"); // رنگ خط مرکزی
-    const colorGrid = new THREE.Color("#6b7280"); // رنگ خطوط معمولی
+    const colorCenterLine = new THREE.Color("#6b7280");
+    const colorGrid = new THREE.Color("#6b7280");
 
     const gridHelper = new THREE.GridHelper(
       size,

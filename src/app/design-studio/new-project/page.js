@@ -1,6 +1,3 @@
-import CustomGrid from "@/components/home/CustomGrid";
-import GridPage from "@/components/home/GridPage";
-import Sidebar from "@/components/sidebar/Sidebar";
 import NewProjectForm from "../../../components/design-studio/NewProjectForm";
 import Link from "next/link";
 import { Icon } from "@iconify/react";

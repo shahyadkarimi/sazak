@@ -1,18 +1,19 @@
 "use client";
 
+import { removeSession } from "@/lib/auth";
 import { useUserStore } from "@/store/UserInfo";
-import { Link as ButtonLink, Button, cn } from "@heroui/react";
+import { Link as ButtonLink, Button, cn, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React from "react";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useState } from "react";
 
 export const menu = [
   { title: "داشبورد", path: "/user", icon: "solar:home-smile-broken" },
   {
-    title: "دوره های من",
-    path: "/user/my-courses",
+    title: "آموزشگاه",
+    path: "#",
     soon: true,
     icon: "solar:square-academic-cap-2-broken",
   },
@@ -24,8 +25,21 @@ export const menu = [
 ];
 
 const Sidebar = () => {
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
   const pathname = usePathname();
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const logoutHandler = () => {
+    setLoading(true);
+    router.push("/auth");
+    localStorage.removeItem("token");
+    removeSession();
+
+    setTimeout(() => {
+      setUser({});
+    }, 1000);
+  };
 
   return (
     <div className="min-w-64 min-h-full flex flex-col justify-between bg-white py-6 px-5">
@@ -66,8 +80,15 @@ const Sidebar = () => {
             );
           })}
 
-          <button className="flex items-center gap-2 text-gray-700 rounded-2xl h-12 hover:bg-gray-100/70 hover:text-red-600 px-4 transition-all duration-300">
-            <Icon icon="solar:logout-3-linear" width="20" height="24" />
+          <button
+            onClick={logoutHandler}
+            className="flex items-center gap-2 text-gray-700 rounded-2xl h-12 hover:bg-gray-100/70 hover:text-danger px-4 transition-all duration-300"
+          >
+            {loading ? (
+              <Spinner size="sm" color="danger" />
+            ) : (
+              <Icon icon="solar:logout-3-linear" width="20" height="24" />
+            )}
             <span>خروج</span>
           </button>
         </div>
