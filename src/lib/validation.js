@@ -44,3 +44,9 @@ export const newProjectSchema = z.object({
   name: z.string().min(1, "نام پروژه الزامی است"),
   description: z.string().optional(),
 });
+
+export const editProjectSchema = z.object({
+  id: z.string().min(1, "شناسه پروژه الزامی است"),
+  name: z.string().min(1, "نام پروژه الزامی است"),
+  description: z.string().optional(),
+});

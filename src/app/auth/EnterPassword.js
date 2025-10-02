@@ -78,11 +78,11 @@ const EnterPassword = ({ userInfo, setStep }) => {
     >
       <Toaster />
 
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-black">ورورد به حساب کاربری</h1>
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-2xl sm:text-3xl font-black">ورورد به حساب کاربری</h1>
 
         <div className="flex items-center gap-2">
-          <p className="text-sm font-semibold text-gray-500/90">
+          <p className="text-sm sm:text-base font-semibold text-gray-500/90">
             ورود به حساب با شماره موبایل {toFarsiNumber(userInfo.phoneNumber)}
           </p>
 
@@ -135,7 +135,7 @@ const EnterPassword = ({ userInfo, setStep }) => {
 
       <Button
         isLoading={loading}
-        className="bg-primaryThemeColor text-base h-16 font-semibold w-full text-white rounded-2xl"
+        className="bg-primaryThemeColor text-base h-14 sm:h-16 font-semibold w-full text-white rounded-2xl"
         type="submit"
       >
         تایید و ورود
@@ -144,7 +144,7 @@ const EnterPassword = ({ userInfo, setStep }) => {
       <button
         type="button"
         onClick={() => setStep("passwordRecovery")}
-        className="text-right w-full flex justify-center items-center h-16 bg-gray-100 border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+        className="text-right w-full flex justify-center items-center h-14 sm:h-16 bg-gray-100 border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
       >
         آیا رمز عبور خود را فراموش کرده اید ؟
       </button>

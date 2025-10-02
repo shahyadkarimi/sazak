@@ -74,9 +74,9 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
     >
       <Toaster />
 
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-black">تایید شماره موبایل</h1>
-        <p className="text-sm font-semibold text-gray-500/90">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-2xl sm:text-3xl font-black">تایید شماره موبایل</h1>
+        <p className="text-sm sm:text-base font-semibold text-gray-500/90">
           کد ۵ رقمی پیامک شده به شماره{" "}
           {toFarsiNumber(userInfo.phoneNumber || "9120000000")} را در کادر زیر
           وارد نمایید
@@ -121,14 +121,14 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
           isLoading={loading}
           type="submit"
           onClick={handleSubmit(enterVerficationCodeHandler)}
-          className="bg-primaryThemeColor text-base h-16 font-semibold w-3/4 text-white rounded-2xl"
+          className="bg-primaryThemeColor text-base h-14 sm:h-16 font-semibold w-3/4 text-white rounded-2xl"
         >
           تایید و ادامه
         </Button>
 
         <button
           onClick={backPhoneStepHandler}
-          className="text-right w-1/4 flex justify-center items-center gap-2 h-16 bg-white border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+          className="text-right w-1/4 flex justify-center items-center gap-2 h-14 sm:h-16 bg-white border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
         >
           <span>بازگشت</span>
           <Icon

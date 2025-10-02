@@ -12,7 +12,7 @@ const Page = async ({ params }) => {
 
   const fetchData = async () => {
     try {
-      const projectRes = await fetch(`${baseURL}/project/get-project/${id}`, {
+      const projectRes = await fetch(`${baseURL}/project/get/${id}`, {
         headers: {
           "x-auth-token": token,
         },

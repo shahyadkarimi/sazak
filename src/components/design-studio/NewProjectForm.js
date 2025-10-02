@@ -32,7 +32,7 @@ const NewProjectForm = () => {
   const createNewProjectHandler = (data) => {
     setLoading(true);
 
-    postData("/project/new-project", { ...data })
+    postData("/project/new", { ...data })
       .then((res) => {
         toast.success("با موفقیت انجام شد درحال انتقال شما...");
 

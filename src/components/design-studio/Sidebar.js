@@ -191,7 +191,7 @@ const Sidebar = () => {
 
   return (
     <>
-      <div className="min-w-72 flex flex-col gap-4 h-full bg-white p-4">
+      <div className="min-w-80 max-w-80 flex flex-col gap-4 h-full bg-white p-4 overflow-y-auto">
         <Input
           type="text"
           placeholder="جست و جو سازه"

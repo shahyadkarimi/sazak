@@ -133,11 +133,11 @@ const Page = async () => {
         </div>
 
         {myProjects.length ? (
-          <div className="w-full grid grid-cols-3 mt-8 gap-4">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mt-8 gap-4">
             {myProjects.map((item) => (
               <div
                 key={item._id}
-                className="w-full max-h-[396]  group flex flex-col gap-3 bg-white p-4 lg:p-4 rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all"
+                className="w-full group flex flex-col gap-3 bg-white p-4 lg:p-4 rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all"
               >
                 <Link
                   href={`/design-studio/project/${item._id}`}

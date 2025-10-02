@@ -16,7 +16,7 @@ const ProjectActions = ({ id, project }) => {
 
   const deleteProjectHandler = () => {
     setLoading(true);
-    postData("/project/delete-project", { id })
+    postData("/project/delete", { id })
       .then((res) => {
         router.refresh();
         toast.success("پروژه با موفقیت حذف شد");

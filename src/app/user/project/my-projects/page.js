@@ -39,7 +39,7 @@ const Page = async () => {
 
           <Link
             href={"/design-studio/new-project"}
-            className="py-3 px-6 text-sm flex items-center gap-2 font-bold rounded-2xl bg-primaryThemeColor text-white focus-within:scale-95 transition-all"
+            className="sm:py-3 sm:px-6 py-2 px-4 text-sm flex items-center gap-2 font-bold rounded-2xl bg-primaryThemeColor text-white focus-within:scale-95 transition-all"
           >
             <Icon icon="solar:add-circle-broken" width="24" height="24" />
             <span>ایجاد پروژه جدید</span>
@@ -47,11 +47,11 @@ const Page = async () => {
         </div>
 
         {myProjects.length ? (
-          <div className="w-full grid grid-cols-3 gap-4">
+          <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {myProjects.map((item) => (
               <div
                 key={item._id}
-                className="w-full max-h-[396]  group flex flex-col gap-3 bg-white p-4 lg:p-4 rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all"
+                className="w-full group flex flex-col gap-3 bg-white p-4 lg:p-4 rounded-2xl shadow-lg shadow-gray-100 hover:shadow-xl hover:shadow-gray-200/90 transition-all"
               >
                 <Link
                   href={`/design-studio/project/${item._id}`}

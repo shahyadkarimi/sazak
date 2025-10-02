@@ -42,7 +42,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="min-w-64 min-h-full flex flex-col justify-between bg-white py-6 px-5">
+    <div className="min-w-64 min-h-full flex flex-col justify-between bg-white py-6 px-5 max-h-screen overflow-y-auto">
       <div className="flex flex-col gap-4">
         {/* logo */}
         <div className="flex items-center gap-2 pb-4 border-b">

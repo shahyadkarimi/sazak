@@ -62,9 +62,9 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
       onSubmit={handleSubmit(enterPhoneNumberHandler)}
       className="w-full flex flex-col gap-8"
     >
-      <div className="flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-black">به آکادمی سازک خوش آمدید</h1>
-        <p className="text-sm font-semibold text-gray-500/90">
+      <div className="flex flex-col items-center gap-3 text-center">
+        <h1 className="text-2xl sm:text-3xl font-black">به آکادمی سازک خوش آمدید</h1>
+        <p className="text-sm sm:text-base font-semibold text-gray-500/90">
           جهت ثبت نام یا ورود به حساب کاربری، شماره موبایل خود را وارد نمایید.
         </p>
       </div>
@@ -105,14 +105,14 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
       <Button
         isLoading={loading}
         type="submit"
-        className="bg-primaryThemeColor text-base h-16 font-semibold w-full text-white rounded-2xl"
+        className="bg-primaryThemeColor text-base h-14 sm:h-16 font-semibold w-full text-white rounded-2xl"
       >
         ورود یا ثبت نام
       </Button>
 
       <button
         onClick={() => setStep("passwordRecovery")}
-        className="text-right w-full flex justify-center items-center h-16 bg-gray-100 border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+        className="text-right w-full flex justify-center items-center h-14 sm:h-16 bg-gray-100 border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
       >
         آیا رمز عبور خود را فراموش کرده اید ؟
       </button>

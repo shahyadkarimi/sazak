@@ -1,11 +1,16 @@
 import axios from "axios";
 
-export const baseURL = "https://sazak-academy.liara.run/api";
-export const siteURL = "https://sazak-academy.liara.run";
+const host =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:3001"
+    : "https://sazak-academy.liara.run";
+
+export const baseURL = `${host}/api`;
+export const siteURL = host;
 
 // axios config
 const servicesApi = axios.create({
-  baseURL: "https://sazak-academy.liara.run/api",
+  baseURL: baseURL,
   withCredentials: false,
   timeout: 60000000,
   headers: {
