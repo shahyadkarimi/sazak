@@ -1,6 +1,6 @@
 import { toFarsiNumber } from "@/helper/helper";
 import { getUser } from "@/lib/auth";
-import { baseURL } from "@/services/API";
+import { baseURL, siteURL } from "@/services/API";
 import { cn } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { cookies } from "next/headers";
@@ -70,7 +70,7 @@ const Page = async () => {
       icon: "solar:layers-broken",
     },
   ];
-
+{console.log(myProjects)}
   return (
     <div className="flex flex-col gap-4 lg:gap-8">
       {/* username */}
@@ -144,7 +144,7 @@ const Page = async () => {
                   className="overflow-hidden rounded-2xl"
                 >
                   <Image
-                    src={"/assets/holder.svg"}
+                    src={item.image ? `${siteURL}${item.image}` : "/assets/holder.svg"}
                     width={400}
                     height={200}
                     className="aspect-video rounded-xl group-hover:scale-105 transition-all"

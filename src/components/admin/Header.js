@@ -1,8 +1,13 @@
+"use client";
+
 import { Icon } from "@iconify/react";
+import { useUserStore } from "@/store/UserInfo";
+import Link from "next/link";
 
 import React from "react";
 
 const Header = () => {
+  const { user } = useUserStore();
   return (
     <header className="z-10 flex w-full h-16 justify-between items-center gap-4 border-b bg-white px-4 lg:p-6">
       <button
@@ -13,7 +18,13 @@ const Header = () => {
         <Icon icon="solar:window-frame-line-duotone" width="16" height="16" />{" "}
       </button>
 
-      <h2 className="text-2xl font-bold text-gray-700">داشبورد</h2>
+      <Link
+        href="/user"
+        className="w-fit px-4 text-xs h-10 bg-primaryThemeColor/15 text-primaryThemeColor rounded-2xl flex items-center gap-1 transition-all"
+      >
+        <Icon icon="solar:user-circle-line-duotone" width="18" height="18" />
+        بازگشت به پنل کاربری
+      </Link>
 
       <div className="flex items-center gap-4">
         <button
@@ -31,7 +42,9 @@ const Header = () => {
             height={32}
             className="rounded-full"
           />
-          <span className="font-medium text-sm font-semibold text-gray-700">شهیاد کریمی</span>
+          <span className="text-sm font-semibold text-gray-700">
+            {user.fullName}
+          </span>
           <Icon
             icon="solar:alt-arrow-down-line-duotone"
             width="16"

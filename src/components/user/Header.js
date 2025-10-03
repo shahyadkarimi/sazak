@@ -4,6 +4,7 @@ import { greetByTime, toFarsiNumber } from "@/helper/helper";
 import { useUserStore } from "@/store/UserInfo";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import Link from "next/link";
 import React from "react";
 
 const Header = ({ onOpenSidebar }) => {
@@ -26,7 +27,9 @@ const Header = ({ onOpenSidebar }) => {
           <span className="text-base sm:text-xl font-bold text-gray-700">
             سلام؛ {user.fullName}
           </span>
-          <span className="text-sm font-bold text-gray-500">{greetByTime()}</span>
+          <span className="text-sm font-bold text-gray-500">
+            {greetByTime()}
+          </span>
         </div>
       </div>
 
@@ -51,6 +54,15 @@ const Header = ({ onOpenSidebar }) => {
         >
           <Icon icon="solar:user-rounded-broken" width="24" height="24" />
         </Button>
+
+        {user.role === "admin" && <Button
+          as={Link}
+          href="/admin"
+          className="bg-white h-11 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
+        >
+          <Icon icon="solar:laptop-2-broken" width="24" height="24" />
+          <span className="text-xs">پنل مدیریت </span>
+        </Button>}
       </div>
     </div>
   );

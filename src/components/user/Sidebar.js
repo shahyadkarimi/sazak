@@ -117,7 +117,7 @@ const Sidebar = () => {
             <span className="text-sm text-gray-600 font-bold">
               {user.fullName}
             </span>
-            <span className="text-xs text-gray-500">دانشجو</span>
+            <span className="text-xs text-gray-500">{user.role === "user" ? "دانشجو" : "ادمین"}</span>
           </div>
         </div>
 

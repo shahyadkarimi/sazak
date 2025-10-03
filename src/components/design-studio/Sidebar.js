@@ -6,14 +6,17 @@ import useModelStore from "@/store/useModelStore";
 import { button, cn, Input, MenuItem } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import React, { useRef, useState } from "react";
+import dynamic from "next/dynamic";
+
+const ModelThumbnail = dynamic(() => import("./ModelThumbnail"), {
+  ssr: false,
+});
 
 const filters = [
   { name: "همه", value: "all" },
-  { name: "اتصال", value: "connector" },
-  { name: "پلیت", value: "plate" },
-  { name: "میلگرد", value: "bar" },
-  { name: "نبشی", value: "L" },
-  { name: "ناودانی", value: "U" },
+  { name: "اتصالی", value: "connector" },
+  { name: "تخت", value: "plate" },
+  { name: "پیچ ها", value: "screw" },
 ];
 
 const Sidebar = () => {
@@ -44,42 +47,42 @@ const Sidebar = () => {
       id: 2,
       path: "/models/I_Piece_2_hole_1_track_hole_Onde_Sided_Plate _12cm.glb",
       nameEn: "Straight Plate 12cm",
-      nameFa: "صفحه صاف ۱۲ سانتی",
+      nameFa: "تخت ۱۲ تایی",
       type: "plate",
     },
     {
       id: 3,
       path: "/models/I_Piece_2_hole_1_track_hole_One_Sided_Plate_8cm.glb",
       nameEn: "Straight Plate 8cm",
-      nameFa: "صفحه صاف ۸ سانتی",
+      nameFa: "تخت ۸ تایی",
       type: "plate",
     },
     {
       id: 4,
       path: "/models/I_Piece_2_hole_1side_hole.glb",
       nameEn: "Straight Bar",
-      nameFa: "میله صاف",
+      nameFa: "آی 2",
       type: "bar",
     },
     {
       id: 5,
       path: "/models/I_Piece_3_hole__2_side_hole.glb",
       nameEn: "Straight Bar (3H)",
-      nameFa: "میله ۳ سوراخ",
+      nameFa: "آی 3",
       type: "bar",
     },
     {
       id: 6,
       path: "/models/I_Piece_4_hole__3_side_hole.glb",
       nameEn: "Straight Bar (4H)",
-      nameFa: "میله ۴ سوراخ",
+      nameFa: "آی 4",
       type: "bar",
     },
     {
       id: 7,
       path: "/models/I_Piece_4_hole_4_side_hole.glb",
       nameEn: "Straight Bar (4H Side)",
-      nameFa: "میله کناری ۴ سوراخ",
+      nameFa: "آی 4 کناری",
       type: "bar",
     },
     {
@@ -149,11 +152,9 @@ const Sidebar = () => {
 
   const groupedModels = {
     all: modelList,
-    connector: modelList.filter((m) => m.type === "connector"),
+    connector: modelList.filter((m) => ["connector", "L", "U"].includes(m.type)),
     plate: modelList.filter((m) => m.type === "plate"),
-    bar: modelList.filter((m) => m.type === "bar"),
-    L: modelList.filter((m) => m.type === "L"),
-    U: modelList.filter((m) => m.type === "U"),
+    screw: modelList.filter((m) => m.type === "bar"),
   };
 
   const colors = [
@@ -188,6 +189,8 @@ const Sidebar = () => {
   const searchedModels = filteredModels.filter((item) =>
     item.nameFa.includes(search)
   );
+
+  
 
   return (
     <>
@@ -230,15 +233,18 @@ const Sidebar = () => {
           ))}
         </div>
 
-        <div className="w-full scroll-bar flex flex-col gap-3 overflow-y-auto">
+        <div className="w-full scroll-bar flex flex-col gap-3 overflow-y-auto pl-2">
           {searchedModels.map((model) => (
             <button
               key={model.id}
               ref={(el) => (buttonRefs.current[model.id] = el)}
               onClick={() => clickModelHandler(model.id)}
-              className="w-full p-2 border font-light rounded-2xl text-sm text-gray-700 flex items-center justify-center hover:border-primaryThemeColor transition-all duration-300"
+              className="w-full p-2 border font-light rounded-2xl text-sm text-gray-700 flex items-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
             >
-              {toFarsiNumber(model.nameFa)}
+              <div className="size-20 rounded-xl overflow-hidden">
+                <ModelThumbnail path={model.path} className="w-full h-full" />
+              </div>
+              <span className="text-center">{toFarsiNumber(model.nameFa)}</span>
             </button>
           ))}
         </div>
@@ -249,8 +255,9 @@ const Sidebar = () => {
           ref={colorRef}
           className="w-auto grid grid-cols-4 items-center gap-6 absolute z-50 bg-gray-200/50 rounded-2xl py-3 px-4"
           style={{
-            top: colorBoxPos.top - 5,
-            right: 285,
+            top: colorBoxPos.top,
+            transform: "translateY(-100%)",
+            right: 290,
           }}
         >
           <button className="w-full h-8 flex justify-center items-center text-sm font-light bg-gray-50 col-span-4 rounded-xl">

@@ -12,6 +12,7 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  Tooltip,
 } from "@heroui/react";
 import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -25,16 +26,37 @@ const AutoSave = ({ project }) => {
   useEffect(() => {
     if (!project) return;
 
-    const intervalId = setInterval(() => {
-      postData("/project/save-changes", {
-        projectId: id,
-        objects: selectedModels,
-      }).catch(() => {
-        toast.error("خطا هنگام ذخیره تغییرات", {
-          duration: 3500,
-          className: "text-sm rounded-2xl",
-        });
+    const takeCanvasBlob = () =>
+      new Promise((resolve) => {
+        const canvas = document.querySelector(".design-studio canvas");
+        if (!canvas) return resolve(null);
+        canvas.toBlob((blob) => resolve(blob), "image/png");
       });
+
+    const intervalId = setInterval(() => {
+      (async () => {
+        try {
+          const imageBlob = await takeCanvasBlob();
+          const form = new FormData();
+          form.append("projectId", id);
+          form.append("objects", JSON.stringify(selectedModels));
+          if (imageBlob) {
+            const file = new File(
+              [imageBlob],
+              `${project?.name || "project"}-${Date.now()}.png`,
+              { type: "image/png" }
+            );
+            form.append("image", file);
+          }
+
+          await postData("/project/save-changes", form, undefined, "multipart");
+        } catch (e) {
+          toast.error("خطا هنگام ذخیره تغییرات", {
+            duration: 3500,
+            className: "text-sm rounded-2xl",
+          });
+        }
+      })();
     }, 30000);
 
     return () => clearInterval(intervalId);
@@ -44,8 +66,18 @@ const AutoSave = ({ project }) => {
 };
 
 const Toolbar = ({ project }) => {
-  const { selectedModels, setSelectedModels, selectedModelId } =
-    useModelStore();
+  const {
+    selectedModels,
+    setSelectedModels,
+    selectedModelId,
+    setSelectedModelId,
+    isPasteMode,
+    setIsPasteMode,
+    clipboardModel,
+    setClipboardModel,
+    undo,
+    redo,
+  } = useModelStore();
   const [loading, setLoading] = useState(false);
   const [confirmAutoSave, setConfirmAutoSave] = useState(0);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -74,30 +106,47 @@ const Toolbar = ({ project }) => {
     setSelectedModels(project?.objects || []);
   }, [project]);
 
-  const saveChangeHandler = () => {
+  const saveChangeHandler = async () => {
     setLoading(true);
 
-    postData("/project/save-changes", {
-      projectId: id,
-      objects: selectedModels,
-    })
-      .then((res) => {
-        setLoading(false);
-        toast.success("تغییرات با موفقیت ذخیره شدند", {
-          duration: 3500,
-          className: "text-sm rounded-2xl",
-        });
-      })
-      .catch((err) => {
-        toast.error("خطا هنگام ذخیره تغییرات", {
-          duration: 3500,
-          className: "text-sm rounded-2xl",
-        });
-        setLoading(false);
+    try {
+      const canvas = document.querySelector(".design-studio canvas");
+      let imageBlob = null;
+      if (canvas) {
+        imageBlob = await new Promise((resolve) =>
+          canvas.toBlob((blob) => resolve(blob), "image/png")
+        );
+      }
+
+      const form = new FormData();
+      form.append("projectId", id);
+      form.append("objects", JSON.stringify(selectedModels));
+      if (imageBlob) {
+        const file = new File(
+          [imageBlob],
+          `${project?.name || "project"}-${Date.now()}.png`,
+          { type: "image/png" }
+        );
+        form.append("image", file);
+      }
+
+      await postData("/project/save-changes", form, undefined, "multipart");
+
+      setLoading(false);
+      toast.success("تغییرات با موفقیت ذخیره شدند", {
+        duration: 3500,
+        className: "text-sm rounded-2xl",
       });
+    } catch (err) {
+      toast.error("خطا هنگام ذخیره تغییرات", {
+        duration: 3500,
+        className: "text-sm rounded-2xl",
+      });
+      setLoading(false);
+    }
   };
 
-  const submitEditHandler = (data) => {
+  const editProjectHandler = (data) => {
     setEditLoading(true);
 
     postData("/project/edit", { id, ...data })
@@ -129,7 +178,69 @@ const Toolbar = ({ project }) => {
       (item) => item.id !== selectedModelId
     );
 
+    // snapshot for undo
+    const { pushHistory } = useModelStore.getState();
+    pushHistory();
     setSelectedModels(newData);
+  };
+
+  // Copy selected model
+  const copyModelHandler = () => {
+    if (!selectedModelId) return;
+
+    const selectedModel = selectedModels.find(
+      (model) => model.id === selectedModelId
+    );
+    if (selectedModel) {
+      // snapshot for undo consistency
+      const { pushHistory } = useModelStore.getState();
+      pushHistory();
+      setClipboardModel({ ...selectedModel, action: "copy" });
+      toast.success("مدل کپی شد", {
+        duration: 2000,
+        className: "text-sm rounded-2xl",
+      });
+    }
+  };
+
+  // Cut selected model
+  const cutModelHandler = () => {
+    if (!selectedModelId) return;
+
+    const selectedModel = selectedModels.find(
+      (model) => model.id === selectedModelId
+    );
+    if (selectedModel) {
+      setClipboardModel({ ...selectedModel, action: "cut" });
+      const { pushHistory } = useModelStore.getState();
+      pushHistory();
+      setSelectedModels(
+        selectedModels.filter((model) => model.id !== selectedModelId)
+      );
+      setSelectedModelId(null);
+      toast.success("مدل بریده شد", {
+        duration: 2000,
+        className: "text-sm rounded-2xl",
+      });
+    }
+  };
+
+  // Toggle paste mode
+  const togglePasteMode = () => {
+    if (!clipboardModel) return;
+
+    setIsPasteMode(!isPasteMode);
+    if (!isPasteMode) {
+      toast.success("حالت پیست فعال شد. روی محل مورد نظر کلیک کنید", {
+        duration: 3000,
+        className: "text-sm rounded-2xl",
+      });
+    } else {
+      toast.success("حالت پیست غیرفعال شد", {
+        duration: 2000,
+        className: "text-sm rounded-2xl",
+      });
+    }
   };
 
   const getScreenShotHandler = () => {
@@ -150,10 +261,37 @@ const Toolbar = ({ project }) => {
     document.body.removeChild(link);
   };
 
+  const exportProjectHandler = () => {
+    const jsonStr = JSON.stringify(selectedModels, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${project.name}-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  const importProjectHandler = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target.result);
+        setSelectedModels(json);
+      } catch (err) {
+        toast.error("خطا هنگام بارگذاری پروژه");
+      }
+    };
+
+    reader.readAsText(file);
+  };
+
   return (
     <div className="w-full flex items-center justify-center bg-gray-200/40">
       <AutoSave project={project} />
-      
+
       <Toaster />
       <div className="w-full max-w-[1450px] h-16 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -176,76 +314,160 @@ const Toolbar = ({ project }) => {
 
         {/* tools */}
         <div className="flex flex-row-reverse items-center gap-3">
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-add-document size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="بارگذاری پروژه" placement="bottom" size="sm">
+              <div
+                className="bg-gray-200/90 relative flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-rr-add-document size-4 block"></i>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-scissors size-4 block"></i>
-          </button>
+                <input
+                  type="file"
+                  accept=".json"
+                  className="cursor-pointer absolute opacity-0 left-0 w-full"
+                  onChange={importProjectHandler}
+                />
+              </div>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-copy size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="خروجی پروژه" placement="bottom" size="sm">
+              <button
+                onClick={exportProjectHandler}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-rr-file-export size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-paste size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="برش" placement="bottom" size="sm">
+              <button
+                onClick={cutModelHandler}
+                disabled={!selectedModelId}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fi fi-rr-scissors size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button
-            onClick={saveChangeHandler}
-            disabled={loading}
-            className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
-          >
-            {loading ? (
-              <Spinner
-                size="sm"
-                classNames={{
-                  circle1: "border-b-primaryThemeColor",
-                  circle2: "border-b-primaryThemeColor",
-                }}
-              />
-            ) : (
-              <i className="fi fi-rr-disk size-4 block"></i>
-            )}
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="کپی" placement="bottom" size="sm">
+              <button
+                onClick={copyModelHandler}
+                disabled={!selectedModelId}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i className="fi fi-rr-copy size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi fi-rr-floppy-disk-pen size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="چسباندن" placement="bottom" size="sm">
+              <button
+                title="چسباندن"
+                onClick={togglePasteMode}
+                disabled={!clipboardModel}
+                className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isPasteMode
+                    ? "bg-primaryThemeColor text-white"
+                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                }`}
+              >
+                <i className="fi fi-rr-paste size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi fi fi-rr-undo-alt size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="ذخیره" placement="bottom" size="sm">
+              <button
+                title="ذخیره"
+                onClick={saveChangeHandler}
+                disabled={loading}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                {loading ? (
+                  <Spinner
+                    size="sm"
+                    classNames={{
+                      circle1: "border-b-primaryThemeColor",
+                      circle2: "border-b-primaryThemeColor",
+                    }}
+                  />
+                ) : (
+                  <i className="fi fi-rr-disk size-4 block"></i>
+                )}
+              </button>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-redo-alt size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="واگرد" placement="bottom" size="sm">
+              <button
+                onClick={undo}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi fi fi-rr-undo-alt size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="از نو" placement="bottom" size="sm">
+              <button
+                onClick={redo}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-rr-redo-alt size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
         </div>
 
         {/* other tools */}
-        <div className="flex items-center gap-3">
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-journal-alt size-4 block"></i>
-          </button>
+        <div className="flex items-end gap-3">
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="یادداشت" placement="bottom" size="sm">
+              <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+                <i className="fi fi-rr-journal-alt size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button
-            onClick={getScreenShotHandler}
-            className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
-          >
-            <i className="fi fi-sr-mode-landscape size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="اسکرین شات" placement="bottom" size="sm">
+              <button
+                onClick={getScreenShotHandler}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-sr-mode-landscape size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
-            <i className="fi fi-rr-share-square size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="اشتراک" placement="bottom" size="sm">
+              <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+                <i className="fi fi-rr-share-square size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
 
-          <button
-            onClick={deleteModelHandler}
-            className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
-          >
-            <i className="fi fi-rr-trash size-4 block"></i>
-          </button>
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="حذف" placement="bottom" size="sm">
+              <button
+                onClick={deleteModelHandler}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-rr-trash size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -313,7 +535,7 @@ const Toolbar = ({ project }) => {
             <Button
               className="bg-primaryThemeColor text-white"
               isLoading={editLoading}
-              onPress={handleSubmit(submitEditHandler)}
+              onPress={handleSubmit(editProjectHandler)}
             >
               ذخیره تغییرات
             </Button>

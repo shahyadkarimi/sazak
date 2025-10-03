@@ -1,6 +1,5 @@
 import DesignPanel from "@/components/design-studio/DesignPanel";
 import Header from "@/components/design-studio/Header";
-import Navbar from "@/components/design-studio/Navbar";
 import Toolbar from "@/components/design-studio/Toolbar";
 import { baseURL } from "@/services/API";
 import { cookies } from "next/headers";
@@ -35,7 +34,6 @@ const Page = async ({ params }) => {
 
   return (
     <div className="w-full flex flex-col">
-      <Navbar project={project} />
       <Header />
       <Toolbar project={project} />
       <DesignPanel project={project} />

@@ -6,14 +6,13 @@ export const useModelScene = (path) => {
   // چک کردن path قبل از بارگذاری
   const scene = path ? useModelLoader(path) : null;
 
-  // تنظیم مرکز مدل
+  // تنظیم مرکز مدل و قرار دادن پایین مدل روی زمین
   const adjustedScene = useMemo(() => {
     if (!scene) return null;
     const clonedScene = scene.clone();
-    const box = new THREE.Box3().setFromObject(clonedScene);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    clonedScene.position.sub(center); // تنظیم مرکز مدل
+    
+    // Don't apply scale here - let the Model component handle it
+    // Just return the original scene
     return clonedScene;
   }, [scene]);
 

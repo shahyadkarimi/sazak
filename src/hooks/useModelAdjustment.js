@@ -20,7 +20,7 @@ export const degToRad = (deg) => {
 };
 
 // تابع بررسی و اصلاح برخورد
-const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1) => {
+export const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1) => {
   let adjustedPos = new THREE.Vector3(...newPos);
 
   for (const model of models) {

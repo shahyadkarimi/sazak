@@ -20,6 +20,11 @@ const navItems = [
     path: "/admin/users",
     icon: "solar:users-group-two-rounded-line-duotone",
   },
+  {
+    title: "پروژه‌ها",
+    path: "/admin/projects",
+    icon: "solar:folder-with-files-line-duotone",
+  },
 ];
 
 const helpItems = [
@@ -180,7 +185,7 @@ const Sidebar = () => {
           </ul>
         </div>
 
-        <div className="relative flex w-full flex-col p-2 mt-4">
+        {/* <div className="relative flex w-full flex-col p-2 mt-4">
           <div
             className={`flex h-8 shrink-0 items-center rounded-xl px-2 text-xs font-medium text-gray-500 ${
               isSidebarOpen ? "" : "hidden"
@@ -207,13 +212,13 @@ const Sidebar = () => {
               </li>
             ))}
           </ul>
-        </div>
+        </div> */}
       </div>
 
       <div className="flex flex-col gap-1 p-2">
         <div className="group/menu-item relative">
           <Link
-            href={"/profile"}
+            href={"/user/profile"}
             className={`flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 hover:text-gray-900 text-gray-700 ${
               isSidebarOpen ? "" : "!size-8 !p-2 justify-center"
             }`}

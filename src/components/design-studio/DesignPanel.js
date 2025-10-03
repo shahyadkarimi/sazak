@@ -16,7 +16,7 @@ const DesignPanel = ({project}) => {
   };
 
   return (
-    <div className="w-full h-[calc(100vh-176px)] md:h-[calc(100vh-176px)] relative flex gap-2 md:gap-4">
+    <div className="w-full h-[calc(100vh-144px)] relative flex">
       {/* Desktop persistent sidebars */}
       <div className="hidden md:flex">
         <Sidebar />

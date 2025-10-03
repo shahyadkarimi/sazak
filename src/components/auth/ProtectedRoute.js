@@ -13,12 +13,6 @@ const ProtectedRoute = ({ children, fallback }) => {
     if (!loading && !user?.id) {
       router.push("/auth");
     }
-
-    if (user?.role === "admin") {
-      router.push("/admin");
-
-      return;
-    }
   }, [user, loading, router]);
 
   if (loading) {

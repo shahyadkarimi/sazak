@@ -7,21 +7,21 @@ import * as THREE from "three";
 import useModelStore from "@/store/useModelStore";
 
 const snapToGrid = ([x, y, z], step = 1) => {
-  return [Math.round(x / step) * step, y, Math.round(z / step) * step];
+  // Ensure models snap to grid lines properly
+  const snappedX = Math.round(x / step) * step;
+  const snappedZ = Math.round(z / step) * step;
+  return [snappedX, y, snappedZ];
 };
 
 // تابع بررسی برخورد مدل جدید با مدل‌های قبلی و اصلاح موقعیت برای نچسبیدن به هم
-const adjustPositionToAvoidOverlap = (pos, models) => {
-  const step = 1;
+const adjustPositionToAvoidOverlap = (pos, models, snapSize = 1) => {
+  const step = snapSize;
   let adjustedPos = new THREE.Vector3(...pos);
 
   for (const model of models) {
     const modelPos = new THREE.Vector3(...model.position);
 
-    // فرض می‌گیریم سایز واقعی مدل را با Box3 از مدل بارگذاری شده بگیریم:
-    // برای این منظور باید مدل هر آبجکت رو لود کنیم یا ابعادش را داشته باشیم.
-    // اینجا یک نمونه ساده با اندازه 1x1x1 فرض می‌کنیم و به عنوان نمونه جایگزینش کن:
-
+    // Use proper collision detection with 1x1x1 grid cells
     const modelBox = new THREE.Box3().setFromCenterAndSize(
       modelPos,
       new THREE.Vector3(step, step, step)
@@ -35,31 +35,31 @@ const adjustPositionToAvoidOverlap = (pos, models) => {
 
     if (modelBox.intersectsBox(newBox)) {
       // وقتی برخورد داریم، مدل جدید را دقیقاً کنار مدل قبلی می‌چسبانیم
+      // Find the nearest available position on the grid
 
-      // فاصله لازم برای چسبیدن روی محور x,z (برای فرض گرید دوبعدی)
-      // اینجا فرض می‌کنیم مدل‌ها در محور y روی زمین هستند (y=0)
-      // و می‌خواهیم مدل جدید را دقیقاً کنار مدل قبلی بدون فاصله قرار دهیم.
-
-      // به صورت ساده می‌تونیم مدل جدید رو روی محور x یا z جابجا کنیم تا نچسبه به قبلی
-      // مثلا اگر مدل جدید وسطش روی x کمتره، بذاریم کنارش روی x جابجا بشه:
-
+      // Check horizontal direction first
       if (adjustedPos.x < modelPos.x) {
-        adjustedPos.x = modelBox.min.x - step / 2;
+        adjustedPos.x = modelBox.min.x - step;
       } else {
-        adjustedPos.x = modelBox.max.x + step / 2;
+        adjustedPos.x = modelBox.max.x + step;
       }
 
-      // همچنین اگر روی محور z نزدیک هستیم، این کار رو انجام بدیم
-      if (Math.abs(adjustedPos.z - modelPos.z) < step) {
+      // If still colliding on Z axis, adjust Z position
+      newBox = new THREE.Box3().setFromCenterAndSize(
+        adjustedPos,
+        new THREE.Vector3(step, step, step)
+      );
+      
+      if (modelBox.intersectsBox(newBox)) {
         if (adjustedPos.z < modelPos.z) {
-          adjustedPos.z = modelBox.min.z - step / 2;
+          adjustedPos.z = modelBox.min.z - step;
         } else {
-          adjustedPos.z = modelBox.max.z + step / 2;
+          adjustedPos.z = modelBox.max.z + step;
         }
       }
 
-      // فرض می‌کنیم مدل‌ها روی زمین هستن و ارتفاع y ثابت است
-      adjustedPos.y = modelPos.y;
+      // Keep the same Y position (ground level)
+      adjustedPos.y = 0;
     }
   }
 
@@ -77,6 +77,7 @@ const ModelPlacer = () => {
   const setCurrentPlacingModel = useModelStore((s) => s.setCurrentPlacingModel);
   const { setSelectedModels } = useModelStore();
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
+  const modelOptions = useModelStore((s) => s.modelOptions);
 
   const { scene: originalScene } = currentPlacingModel
     ? useGLTF(currentPlacingModel, true)
@@ -87,11 +88,27 @@ const ModelPlacer = () => {
 
     const clonedScene = originalScene.clone();
 
+    // Apply scale
+    clonedScene.scale.set(100, 100, 100);
+    
+    // Apply centering logic
     const box = new THREE.Box3().setFromObject(clonedScene);
     const center = new THREE.Vector3();
     box.getCenter(center);
-
-    clonedScene.position.sub(center);
+    
+    // Center the model horizontally and place bottom at y=0
+    clonedScene.position.x = -center.x;
+    clonedScene.position.z = -center.z;
+    clonedScene.position.y = -box.min.y;
+    
+    // Make the preview model semi-transparent
+    clonedScene.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material = child.material.clone();
+        child.material.transparent = true;
+        child.material.opacity = 0.7;
+      }
+    });
 
     return clonedScene;
   }, [originalScene]);
@@ -111,12 +128,16 @@ const ModelPlacer = () => {
 
     if (intersects.length > 0) {
       const point = intersects[0].point;
-      const baseSnapped = snapToGrid([point.x, 0, point.z], 1);
+      // Use the snap size from model options, default to 1 if free mode
+      const snapSize = modelOptions.snapSize === 'free' ? 0.1 : modelOptions.snapSize;
+      // Ensure Y position is exactly 0 (ground level) and snap to grid
+      const baseSnapped = snapToGrid([point.x, 0, point.z], snapSize);
 
       // اصلاح موقعیت با چک برخورد با مدل‌های قبلی
       const adjusted = adjustPositionToAvoidOverlap(
         baseSnapped,
-        selectedModels
+        selectedModels,
+        snapSize
       );
 
       setHoverPos(adjusted);
@@ -193,7 +214,7 @@ const ModelPlacer = () => {
       <mesh
         ref={planeRef}
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, 0, 0]}
+        position={[0, 0.001, 0]} // Slightly above ground to prevent z-fighting
         visible={false}
         layers={0}
       >
@@ -203,7 +224,7 @@ const ModelPlacer = () => {
 
       {hoverPos && previewModel && (
         <group position={new THREE.Vector3(...hoverPos)}>
-          <primitive object={previewModel} scale={100} />
+          <primitive object={previewModel} />
         </group>
       )}
     </>
