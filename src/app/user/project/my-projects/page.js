@@ -1,5 +1,5 @@
 import { toFarsiNumber } from "@/helper/helper";
-import { baseURL } from "@/services/API";
+import { baseURL, siteURL } from "@/services/API";
 import { Icon } from "@iconify/react";
 import { cookies } from "next/headers";
 import Image from "next/image";
@@ -58,9 +58,9 @@ const Page = async () => {
                   className="overflow-hidden rounded-2xl"
                 >
                   <Image
-                    src={"/assets/holder.svg"}
-                    width={400}
-                    height={200}
+                    src={item.image ? `${siteURL}${item.image}` : "/assets/holder.svg"}
+                    width={600}
+                    height={300}
                     className="aspect-video rounded-xl group-hover:scale-105 transition-all"
                     alt={item.name}
                   />
