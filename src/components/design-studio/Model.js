@@ -312,7 +312,43 @@ const Model = ({ path, position, id, rotation }) => {
           snapSize
         );
 
-        updateModelPosition(id, adjustedPosition);
+        // Check if multiple models are selected and move them together
+       if (selectedModelId === 'ALL') {
+         // Move all models
+         const deltaX = adjustedPosition[0] - position[0];
+         const deltaZ = adjustedPosition[2] - position[2];
+         
+         const updatedModels = existingModels.map(model => ({
+           ...model,
+           position: [
+             model.position[0] + deltaX,
+             model.position[1],
+             model.position[2] + deltaZ
+           ]
+         }));
+         
+         useModelStore.setState({ selectedModels: updatedModels });
+       } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
+         // Move multiple selected models
+         const deltaX = adjustedPosition[0] - position[0];
+         const deltaZ = adjustedPosition[2] - position[2];
+         
+         const updatedModels = existingModels.map(model => {
+           if (selectedModelId.includes(model.id)) {
+             return {
+               ...model,
+               position: [
+                 model.position[0] + deltaX,
+                 model.position[1],
+                 model.position[2] + deltaZ
+               ]
+             };
+           }
+           return model;
+         });
+         
+         useModelStore.setState({ selectedModels: updatedModels });
+       }
       }
     };
 

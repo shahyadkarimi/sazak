@@ -73,8 +73,8 @@ const Toolbar = ({ project }) => {
     setSelectedModelId,
     isPasteMode,
     setIsPasteMode,
-    clipboardModel,
-    setClipboardModel,
+    clipboardModels,
+    setClipboardModels,
     undo,
     redo,
   } = useModelStore();
@@ -103,8 +103,10 @@ const Toolbar = ({ project }) => {
   const { id } = useParams();
 
   useEffect(() => {
-    setSelectedModels(project?.objects || []);
-  }, [project]);
+    if (project?.objects) {
+      setSelectedModels(project.objects);
+    }
+  }, [project?.id]); // Only run when project ID changes (initial load)
 
   const saveChangeHandler = async () => {
     setLoading(true);
@@ -184,41 +186,67 @@ const Toolbar = ({ project }) => {
     setSelectedModels(newData);
   };
 
-  // Copy selected model
+  // Copy selected model(s)
   const copyModelHandler = () => {
     if (!selectedModelId) return;
 
-    const selectedModel = selectedModels.find(
-      (model) => model.id === selectedModelId
-    );
-    if (selectedModel) {
-      // snapshot for undo consistency
+    // Get models to copy based on selection
+    let modelsToCopy = [];
+    if (selectedModelId === 'ALL') {
+      modelsToCopy = selectedModels.map(model => ({ ...model, action: "copy" }));
+    } else if (Array.isArray(selectedModelId)) {
+      modelsToCopy = selectedModels
+        .filter(model => selectedModelId.includes(model.id))
+        .map(model => ({ ...model, action: "copy" }));
+    } else {
+      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      if (selectedModel) {
+        modelsToCopy = [{ ...selectedModel, action: "copy" }];
+      }
+    }
+
+    if (modelsToCopy.length > 0) {
       const { pushHistory } = useModelStore.getState();
       pushHistory();
-      setClipboardModel({ ...selectedModel, action: "copy" });
-      toast.success("مدل کپی شد", {
+      setClipboardModels(modelsToCopy);
+      toast.success(`${modelsToCopy.length} مدل کپی شد`, {
         duration: 2000,
         className: "text-sm rounded-2xl",
       });
     }
   };
 
-  // Cut selected model
+  // Cut selected model(s)
   const cutModelHandler = () => {
     if (!selectedModelId) return;
 
-    const selectedModel = selectedModels.find(
-      (model) => model.id === selectedModelId
-    );
-    if (selectedModel) {
-      setClipboardModel({ ...selectedModel, action: "cut" });
+    // Get models to cut based on selection
+    let idsToCut = [];
+    let modelsToCut = [];
+    
+    if (selectedModelId === 'ALL') {
+      idsToCut = selectedModels.map((m) => m.id);
+      modelsToCut = selectedModels.map(model => ({ ...model, action: "cut" }));
+    } else if (Array.isArray(selectedModelId)) {
+      idsToCut = [...selectedModelId];
+      modelsToCut = selectedModels
+        .filter(model => selectedModelId.includes(model.id))
+        .map(model => ({ ...model, action: "cut" }));
+    } else {
+      idsToCut = [selectedModelId];
+      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      if (selectedModel) {
+        modelsToCut = [{ ...selectedModel, action: "cut" }];
+      }
+    }
+
+    if (modelsToCut.length > 0) {
+      setClipboardModels(modelsToCut);
       const { pushHistory } = useModelStore.getState();
       pushHistory();
-      setSelectedModels(
-        selectedModels.filter((model) => model.id !== selectedModelId)
-      );
+      setSelectedModels(selectedModels.filter((model) => !idsToCut.includes(model.id)));
       setSelectedModelId(null);
-      toast.success("مدل بریده شد", {
+      toast.success(`${modelsToCut.length} مدل بریده شد`, {
         duration: 2000,
         className: "text-sm rounded-2xl",
       });
@@ -227,11 +255,11 @@ const Toolbar = ({ project }) => {
 
   // Toggle paste mode
   const togglePasteMode = () => {
-    if (!clipboardModel) return;
+    if (!clipboardModels || clipboardModels.length === 0) return;
 
     setIsPasteMode(!isPasteMode);
     if (!isPasteMode) {
-      toast.success("حالت پیست فعال شد. روی محل مورد نظر کلیک کنید", {
+      toast.success(`حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`, {
         duration: 3000,
         className: "text-sm rounded-2xl",
       });
@@ -371,7 +399,7 @@ const Toolbar = ({ project }) => {
               <button
                 title="چسباندن"
                 onClick={togglePasteMode}
-                disabled={!clipboardModel}
+                disabled={!clipboardModels || clipboardModels.length === 0}
                 className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isPasteMode
                     ? "bg-primaryThemeColor text-white"

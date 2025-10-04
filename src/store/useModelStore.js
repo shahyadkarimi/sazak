@@ -6,7 +6,7 @@ const useModelStore = create((set, get) => ({
   selectedModelId: null,
   isAdjustingHeight: false,
   isPasteMode: false,
-  clipboardModel: null,
+  clipboardModels: [], // Changed from clipboardModel to clipboardModels array
   // History stacks for Undo/Redo
   _historyPast: [],
   _historyFuture: [],
@@ -42,7 +42,7 @@ const useModelStore = create((set, get) => ({
 
   setIsPasteMode: (value) => set({ isPasteMode: value }),
 
-  setClipboardModel: (model) => set({ clipboardModel: model }),
+  setClipboardModels: (models) => set({ clipboardModels: models }),
 
   setModelOptions: (option) =>
     set((state) => ({

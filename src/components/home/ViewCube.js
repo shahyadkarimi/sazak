@@ -5,12 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 const FACE_CONFIG = [
-  { name: "FRONT", normal: [0, 0, 1], up: [0, 1, 0], color: "#ffffff" },
-  { name: "BACK", normal: [0, 0, -1], up: [0, 1, 0], color: "#ffffff" },
-  { name: "LEFT", normal: [-1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
-  { name: "RIGHT", normal: [1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
-  { name: "TOP", normal: [0, 1, 0], up: [0, 0, -1], color: "#ffffff" },
-  { name: "BOTTOM", normal: [0, -1, 0], up: [0, 0, 1], color: "#ffffff" },
+  { name: "جلو", normal: [0, 0, 1], up: [0, 1, 0], color: "#ffffff" },
+  { name: "پشت", normal: [0, 0, -1], up: [0, 1, 0], color: "#ffffff" },
+  { name: "چپ", normal: [-1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
+  { name: "راست", normal: [1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
+  { name: "بالا", normal: [0, 1, 0], up: [0, 0, -1], color: "#ffffff" },
+  { name: "پایین", normal: [0, -1, 0], up: [0, 0, 1], color: "#ffffff" },
 ];
 
 const FACE_NAMES = FACE_CONFIG.map((f) => f.name);
@@ -216,7 +216,7 @@ const ViewCube = ({ activeView, onViewChange }) => {
   };
 
   return (
-    <div className="absolute top-2 left-2 w-32 h-32 z-50 select-none">
+    <div className="absolute top-0 left-0 w-32 h-32 z-50 select-none">
       <Canvas camera={{ position: [3, 3, 3], fov: 40 }}>
         <ambientLight intensity={0.7} />
         <directionalLight position={[3, 5, 4]} intensity={0.8} />

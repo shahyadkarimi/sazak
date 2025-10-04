@@ -65,80 +65,86 @@ const KeyboardController = ({ onShowHelp }) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const setSelectedModelId = useModelStore((state) => state.setSelectedModelId);
   const setSelectedModels = useModelStore((state) => state.setSelectedModels);
-  const clipboardModel = useModelStore((state) => state.clipboardModel);
-  const setClipboardModel = useModelStore((state) => state.setClipboardModel);
+  const clipboardModels = useModelStore((state) => state.clipboardModels);
+  const setClipboardModels = useModelStore((state) => state.setClipboardModels);
   const isPasteMode = useModelStore((state) => state.isPasteMode);
   const setIsPasteMode = useModelStore((state) => state.setIsPasteMode);
   const pushHistory = useModelStore((state) => state.pushHistory);
   const undo = useModelStore((state) => state.undo);
   const redo = useModelStore((state) => state.redo);
 
-  // Copy selected model
+  // Copy selected model(s)
   const copyModel = () => {
     if (!selectedModelId) return;
 
-    // Resolve a single model to copy from current selection (supports 'ALL' and arrays)
-    let targetId = null;
+    // Get models to copy based on selection
+    let modelsToCopy = [];
     if (selectedModelId === 'ALL') {
-      targetId = selectedModels[0]?.id || null;
+      modelsToCopy = selectedModels.map(model => ({ ...model, action: "copy" }));
     } else if (Array.isArray(selectedModelId)) {
-      targetId = selectedModelId[0] || null;
+      modelsToCopy = selectedModels
+        .filter(model => selectedModelId.includes(model.id))
+        .map(model => ({ ...model, action: "copy" }));
     } else {
-      targetId = selectedModelId;
+      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      if (selectedModel) {
+        modelsToCopy = [{ ...selectedModel, action: "copy" }];
+      }
     }
 
-    const selectedModel = targetId
-      ? selectedModels.find((model) => model.id === targetId)
-      : null;
-    if (selectedModel) {
-      // Snapshot even though copy doesn't mutate models, as requested
+    if (modelsToCopy.length > 0) {
       pushHistory();
-      setClipboardModel({ ...selectedModel, action: "copy" });
-      toast.success("مدل کپی شد", {
+      setClipboardModels(modelsToCopy);
+      toast.success(`${modelsToCopy.length} مدل کپی شد`, {
         duration: 2000,
         className: "text-sm rounded-2xl",
       });
     }
   };
 
-  // Cut selected model
+  // Cut selected model(s)
   const cutModel = () => {
     if (!selectedModelId) return;
 
-    // Determine IDs to cut and the clipboard source
+    // Determine IDs to cut and get models for clipboard
     let idsToCut = [];
+    let modelsToCut = [];
+    
     if (selectedModelId === 'ALL') {
       idsToCut = selectedModels.map((m) => m.id);
+      modelsToCut = selectedModels.map(model => ({ ...model, action: "cut" }));
     } else if (Array.isArray(selectedModelId)) {
       idsToCut = [...selectedModelId];
+      modelsToCut = selectedModels
+        .filter(model => selectedModelId.includes(model.id))
+        .map(model => ({ ...model, action: "cut" }));
     } else {
       idsToCut = [selectedModelId];
+      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      if (selectedModel) {
+        modelsToCut = [{ ...selectedModel, action: "cut" }];
+      }
     }
 
-    const clipboardSourceId = idsToCut[0] || null;
-    const clipboardSource = clipboardSourceId
-      ? selectedModels.find((m) => m.id === clipboardSourceId)
-      : null;
-    if (clipboardSource) {
-      setClipboardModel({ ...clipboardSource, action: "cut" });
+    if (modelsToCut.length > 0) {
+      setClipboardModels(modelsToCut);
+      pushHistory();
+      setSelectedModels(selectedModels.filter((model) => !idsToCut.includes(model.id)));
+      setSelectedModelId(null);
+      toast.success(`${modelsToCut.length} مدل بریده شد و در کلیپ‌بورد قرار گرفت`, {
+        duration: 2000,
+        className: "text-sm rounded-2xl",
+      });
     }
-
-    pushHistory();
-    setSelectedModels(selectedModels.filter((model) => !idsToCut.includes(model.id)));
-    setSelectedModelId(null);
-    toast.success("انتخاب حذف و در کلیپ‌بورد قرار گرفت", {
-      duration: 2000,
-      className: "text-sm rounded-2xl",
-    });
   };
 
   // Toggle paste mode
   const togglePasteMode = () => {
-    if (!clipboardModel) return;
+    if (!clipboardModels || clipboardModels.length === 0) return;
 
     setIsPasteMode(!isPasteMode);
     if (!isPasteMode) {
-      toast.success("حالت پیست فعال شد. روی محل مورد نظر کلیک کنید", {
+      toast.success(`حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`, {
         duration: 3000,
         className: "text-sm rounded-2xl",
       });
@@ -206,6 +212,8 @@ const KeyboardController = ({ onShowHelp }) => {
         event.stopPropagation();
         if (selectedModels.length > 0) {
           setSelectedModelId('ALL');
+          // Make sure selectedModels contains all models when selecting all
+          // This ensures the drag functionality works correctly
         }
         return;
       }
@@ -343,8 +351,8 @@ const KeyboardController = ({ onShowHelp }) => {
     selectedModels,
     setSelectedModelId,
     setSelectedModels,
-    clipboardModel,
-    setClipboardModel,
+    clipboardModels,
+    setClipboardModels,
     isPasteMode,
     setIsPasteMode,
     onShowHelp,
@@ -357,14 +365,14 @@ const PasteHandler = () => {
   const { camera, gl } = useThree();
   const isPasteMode = useModelStore((state) => state.isPasteMode);
   const setIsPasteMode = useModelStore((state) => state.setIsPasteMode);
-  const clipboardModel = useModelStore((state) => state.clipboardModel);
+  const clipboardModels = useModelStore((state) => state.clipboardModels);
   const setSelectedModels = useModelStore((state) => state.setSelectedModels);
   const setSelectedModelId = useModelStore((state) => state.setSelectedModelId);
   const selectedModels = useModelStore((state) => state.selectedModels);
   const pushHistory = useModelStore((state) => state.pushHistory);
 
   const handlePaste = (event) => {
-    if (!isPasteMode || !clipboardModel) return;
+    if (!isPasteMode || !clipboardModels || clipboardModels.length === 0) return;
 
     // Get intersection point on the ground plane
     const raycaster = new THREE.Raycaster();
@@ -383,19 +391,35 @@ const PasteHandler = () => {
     raycaster.ray.intersectPlane(groundPlane, intersectionPoint);
 
     if (intersectionPoint) {
-      // Create new model at clicked position
-      const newModel = {
-        ...clipboardModel,
-        id: Date.now().toString(),
-        position: [intersectionPoint.x, 0, intersectionPoint.z],
+      // Calculate the center point of the original selection
+      const originalCenter = {
+        x: clipboardModels.reduce((sum, model) => sum + model.position[0], 0) / clipboardModels.length,
+        z: clipboardModels.reduce((sum, model) => sum + model.position[2], 0) / clipboardModels.length
       };
+      
+      // Create new models preserving their relative positions
+      const newModels = clipboardModels.map((model, index) => {
+        // Calculate offset from original center
+        const offsetX = model.position[0] - originalCenter.x;
+        const offsetZ = model.position[2] - originalCenter.z;
+        
+        return {
+          ...model,
+          id: (Date.now() + index).toString(),
+          position: [
+            intersectionPoint.x + offsetX,
+            0,
+            intersectionPoint.z + offsetZ
+          ],
+        };
+      });
 
       pushHistory();
-      setSelectedModels([...selectedModels, newModel]);
-      setSelectedModelId(newModel.id);
+      setSelectedModels([...selectedModels, ...newModels]);
+      setSelectedModelId(newModels[newModels.length - 1].id); // Select the last pasted model
       setIsPasteMode(false);
 
-      toast.success("مدل در موقعیت جدید قرار گرفت", {
+      toast.success(`${newModels.length} مدل در موقعیت جدید قرار گرفت`, {
         duration: 2000,
         className: "text-sm rounded-2xl",
       });
@@ -413,7 +437,7 @@ const PasteHandler = () => {
     return () => gl.domElement.removeEventListener("click", handleClick);
   }, [
     isPasteMode,
-    clipboardModel,
+    clipboardModels,
     camera,
     gl,
     selectedModels,
@@ -502,6 +526,7 @@ const GridPage = ({ project }) => {
   const isAdjustingHeight = useModelStore((state) => state.isAdjustingHeight);
   const setSelectedModelId = useModelStore((state) => state.setSelectedModelId);
   const isPasteMode = useModelStore((state) => state.isPasteMode);
+  const clipboardModels = useModelStore((state) => state.clipboardModels);
   const modelOptions = useModelStore((state) => state.modelOptions);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
   const [showHelp, setShowHelp] = useState(false);
@@ -516,6 +541,7 @@ const GridPage = ({ project }) => {
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
   };
+
 
   useEffect(() => {
     const onReset = () => {
@@ -560,12 +586,12 @@ const GridPage = ({ project }) => {
       </div>
 
       {/* Paste mode indicator */}
-      {isPasteMode && (
+      {isPasteMode && clipboardModels && clipboardModels.length > 0 && (
         <div className="absolute top-4 left-4 bg-primaryThemeColor text-white px-4 py-2 rounded-xl shadow-lg">
           <div className="flex items-center gap-2">
             <i className="fi fi-rr-paste size-4"></i>
             <span className="text-sm font-medium">
-              حالت پیست فعال - روی محل مورد نظر کلیک کنید
+              حالت پیست فعال - {clipboardModels.length} مدل آماده پیست - روی محل مورد نظر کلیک کنید
             </span>
           </div>
         </div>
@@ -579,9 +605,11 @@ const GridPage = ({ project }) => {
           e.preventDefault();
         }}
         onClick={(event) => {
-          // Only deselect if clicking on empty space (not on a model)
           if (event.object === event.scene) {
-            setSelectedModelId(null);
+            const isCtrlPressed = window.isCtrlKeyPressed || false;
+            if (!isCtrlPressed) {
+              setSelectedModelId(null);
+            }
           }
         }}
       >
@@ -601,6 +629,7 @@ const GridPage = ({ project }) => {
             rotation={model.rotation}
           />
         ))}
+
 
         <ModelPlacer />
 
@@ -678,6 +707,10 @@ const GridPage = ({ project }) => {
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
+                    <span>انتخاب مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Left Click</kbd>
+                  </div>
+                  <div className="flex justify-between">
                     <span>انتخاب همه</span>
                     <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
                       Ctrl+A
@@ -685,7 +718,11 @@ const GridPage = ({ project }) => {
                   </div>
                   <div className="flex justify-between">
                     <span>انتخاب/لغو انتخاب چندتایی</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl + Right Click</kbd>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl + Left Click</kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کشیدن مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Left Click + Drag</kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>لغو انتخاب</span>

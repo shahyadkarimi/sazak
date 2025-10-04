@@ -78,6 +78,7 @@ const ModelPlacer = () => {
   const { setSelectedModels } = useModelStore();
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
   const modelOptions = useModelStore((s) => s.modelOptions);
+  const pushHistory = useModelStore((s) => s.pushHistory);
 
   const { scene: originalScene } = currentPlacingModel
     ? useGLTF(currentPlacingModel, true)
@@ -146,6 +147,7 @@ const ModelPlacer = () => {
 
   const handleClick = () => {
     if (hoverPos && currentPlacingModel) {
+      pushHistory();
       setSelectedModels([
         ...selectedModels,
         {
@@ -207,6 +209,7 @@ const ModelPlacer = () => {
     setCurrentPlacingModel,
     setSelectedModelId,
     previewModel,
+    pushHistory,
   ]);
 
   return (
