@@ -14,14 +14,17 @@ const ModelThumbnail = dynamic(() => import("./ModelThumbnail"), {
 
 const filters = [
   { name: "همه", value: "all" },
-  { name: "اتصالی", value: "connector" },
   { name: "تخت", value: "plate" },
+  { name: "اتصالی", value: "connector" },
   { name: "پیچ ها", value: "screw" },
 ];
 
 const Sidebar = () => {
   const setCurrentPlacingModel = useModelStore(
     (state) => state.setCurrentPlacingModel
+  );
+  const setCurrentPlacingModelColor = useModelStore(
+    (state) => state.setCurrentPlacingModelColor
   );
   const [activeModel, setActiveModel] = useState(null);
   const [colorBoxPos, setColorBoxPos] = useState({ top: 0, right: 0 });
@@ -40,7 +43,7 @@ const Sidebar = () => {
       id: 1,
       path: "/models/3_ways_Piece.glb",
       nameEn: "3-Way Connector",
-      nameFa: "ال 4",
+      nameFa: "L4",
       type: "connector",
     },
     {
@@ -61,21 +64,21 @@ const Sidebar = () => {
       id: 4,
       path: "/models/I_Piece_2_hole_1side_hole.glb",
       nameEn: "Straight Bar",
-      nameFa: "آی 2",
+      nameFa: "I2",
       type: "connector",
     },
     {
       id: 5,
       path: "/models/I_Piece_3_hole__2_side_hole.glb",
       nameEn: "Straight Bar (3H)",
-      nameFa: "آی 3",
+      nameFa: "I3",
       type: "connector",
     },
     {
       id: 6,
       path: "/models/I_Piece_4_hole__3_side_hole.glb",
       nameEn: "Straight Bar (4H)",
-      nameFa: "آی 4",
+      nameFa: "I4",
       type: "connector",
     },
     {
@@ -89,63 +92,63 @@ const Sidebar = () => {
       id: 8,
       path: "/models/I_Piece_6_hole_I_Piece_With_1_Track.glb",
       nameEn: "Track Bar",
-      nameFa: "تخت 7 تایی",
+      nameFa: "S7",
       type: "plate",
     },
     {
       id: 9,
       path: "/models/I_piece_10_hole_One_Sided_Plate.glb",
       nameEn: "Long Plate",
-      nameFa: "تخت 10 تایی",
+      nameFa: "S10",
       type: "plate",
     },
     {
       id: 10,
       path: "/models/L_Piece_3_hole_1_side_hole.glb",
       nameEn: "L-Angle Small",
-      nameFa: "ال 3",
+      nameFa: "L3",
       type: "connector",
     },
     {
       id: 11,
       path: "/models/L_Piece_3_hole_2_track_hole_One_Sided_Plate.glb",
       nameEn: "L-Angle with Track",
-      nameFa: "ال 7 تخت",
+      nameFa: "L7T",
       type: "L",
     },
     {
       id: 12,
       path: "/models/L_Piece_4_hole_1_side_hole.glb",
       nameEn: "L-Angle Medium",
-      nameFa: "ال 4",
+      nameFa: "L4",
       type: "connector",
     },
     {
       id: 13,
-      path: "/models/L_Piece_5_hole_2_side_hole).glb",
+      path: "/models/L_Piece_5_hole_2_side_hole.glb",
       nameEn: "L-Angle Large",
-      nameFa: "ال 5",
+      nameFa: "L5",
       type: "connector",
     },
     {
       id: 14,
       path: "/models/L_Piece_5_hole_4_side_hole.glb",
       nameEn: "L-Angle Extra",
-      nameFa: "ال 5 تداخلی",
+      nameFa: "L5 تداخلی",
       type: "connector",
     },
     {
       id: 15,
       path: "/models/L_Piece_5_hole_One_sided_Plate.glb",
       nameEn: "L-Plate",
-      nameFa: "ال 5 تخت",
+      nameFa: "L5T",
       type: "connector",
     },
     {
       id: 16,
       path: "/models/U_Piece_7_hole_4_side_hole.glb",
       nameEn: "U-Channel",
-      nameFa: "یو",
+      nameFa: "U",
       type: "connector",
     },
   ];
@@ -260,7 +263,16 @@ const Sidebar = () => {
             right: 290,
           }}
         >
-          <button className="w-full h-8 flex justify-center items-center text-sm font-light bg-gray-50 col-span-4 rounded-xl">
+          <button 
+            onClick={() => {
+              setCurrentPlacingModel(
+                modelList.find((m) => m.id === activeModel)?.path
+              );
+              setCurrentPlacingModelColor(null); // Set transparent
+              setActiveModel(null);
+            }}
+            className="w-full h-8 flex justify-center items-center text-sm font-light bg-gray-50 col-span-4 rounded-xl hover:bg-gray-100 transition-all duration-300"
+          >
             شفاف
           </button>
 
@@ -271,6 +283,7 @@ const Sidebar = () => {
                 setCurrentPlacingModel(
                   modelList.find((m) => m.id === activeModel)?.path
                 );
+                setCurrentPlacingModelColor(c.hex);
                 setActiveModel(null);
               }}
               className="flex items-center gap-2 text-sm group text-gray-800 hover:text-primaryThemeColor transition-all duration-300"

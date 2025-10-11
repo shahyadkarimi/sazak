@@ -38,6 +38,7 @@ export const updateProfileSchema = z.object({
     .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد")
     .optional()
     .or(z.literal("")),
+  profilePicture: z.string().optional(),
 });
 
 export const newProjectSchema = z.object({
@@ -50,3 +51,54 @@ export const editProjectSchema = z.object({
   name: z.string().min(1, "نام پروژه الزامی است"),
   description: z.string().optional(),
 });
+
+export const userUpdateSchema = z.object({
+  name: z.string().min(1, "نام الزامی است").optional(),
+  familyName: z.string().min(1, "نام خانوادگی الزامی است").optional(),
+  phoneNumber: z
+    .string()
+    .min(1, "شماره موبایل الزامی است")
+    .regex(/^09\d{9}$/, "شماره موبایل نامعتبر است")
+    .optional(),
+  role: z.enum(["user", "admin"]).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const addUserSchema = z.object({
+  name: z.string().min(1, "نام الزامی است"),
+  familyName: z.string().min(1, "نام خانوادگی الزامی است"),
+  phoneNumber: z
+    .string()
+    .min(1, "شماره موبایل الزامی است")
+    .regex(/^09\d{9}$/, "شماره موبایل نامعتبر است"),
+  password: z
+    .string()
+    .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
+    .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
+    .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد"),
+  role: z.enum(["user", "admin"]).default("user"),
+});
+
+export const validateUserUpdate = (data) => {
+  try {
+    userUpdateSchema.parse(data);
+    return { isValid: true };
+  } catch (error) {
+    return {
+      isValid: false,
+      message: error.errors?.[0]?.message || "داده‌های ورودی نامعتبر است",
+    };
+  }
+};
+
+export const validateAddUser = (data) => {
+  try {
+    addUserSchema.parse(data);
+    return { isValid: true };
+  } catch (error) {
+    return {
+      isValid: false,
+      message: error.errors?.[0]?.message || "داده‌های ورودی نامعتبر است",
+    };
+  }
+};

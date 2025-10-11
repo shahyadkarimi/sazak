@@ -13,11 +13,11 @@ const Header = () => {
       <div className="w-full h-20 max-w-[1450px] px-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Image
-            src={"/assets/avatar.png"}
+            src={user.profilePicture || "/assets/avatar.png"}
             width={150}
             height={150}
             className="size-8 rounded-full scale-150"
-            alt="sazak logo"
+            alt="user avatar"
           />
 
           <div className="flex flex-col gap-0.5">

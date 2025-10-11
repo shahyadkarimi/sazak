@@ -25,7 +25,7 @@ export async function GET(req) {
     }
 
     const projects = await Project.find({ deletedAt: null })
-      .select("_id name user createdAt objects image")
+      .select("_id name user createdAt objects image isPublic")
       .populate({ path: "user", select: "name familyName phoneNumber" })
       .sort({ createdAt: -1 })
       .lean();
@@ -40,6 +40,7 @@ export async function GET(req) {
       userPhoneNumber: p.user?.phoneNumber ?? "",
       createdAt: p.createdAt,
       objectsCount: Array.isArray(p.objects) ? p.objects.length : 0,
+      isPublic: p.isPublic || false,
     }));
 
     return NextResponse.json(

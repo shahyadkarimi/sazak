@@ -74,6 +74,7 @@ const ModelPlacer = () => {
 
   const selectedModels = useModelStore((s) => s.selectedModels);
   const currentPlacingModel = useModelStore((s) => s.currentPlacingModel);
+  const currentPlacingModelColor = useModelStore((s) => s.currentPlacingModelColor);
   const setCurrentPlacingModel = useModelStore((s) => s.setCurrentPlacingModel);
   const { setSelectedModels } = useModelStore();
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
@@ -155,6 +156,7 @@ const ModelPlacer = () => {
           path: currentPlacingModel,
           position: hoverPos,
           rotation: [0, 0, 0],
+          color: currentPlacingModelColor,
         },
       ]);
       setCurrentPlacingModel(null);

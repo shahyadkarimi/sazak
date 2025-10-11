@@ -3,6 +3,8 @@ import connectDB from "@/lib/db";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
 import Project from "@/models/Project";
+import { validateAddUser } from "@/lib/validation";
+import bcrypt from "bcryptjs";
 
 export async function GET(req) {
   try {
@@ -24,16 +26,30 @@ export async function GET(req) {
       );
     }
 
-    const users = await User.find({})
+    const users = await User.find({ 
+      deletedAt: null,
+      isDeleted: { $ne: true }
+    })
       .select("_id name familyName phoneNumber role isActive createdAt")
       .sort({ createdAt: -1 })
       .lean();
 
     const [totalUsers, activeUsers, adminUsers, totalProjects] =
       await Promise.all([
-        User.countDocuments({}),
-        User.countDocuments({ isActive: true }),
-        User.countDocuments({ role: "admin" }),
+        User.countDocuments({ 
+          deletedAt: null,
+          isDeleted: { $ne: true }
+        }),
+        User.countDocuments({ 
+          isActive: true,
+          deletedAt: null,
+          isDeleted: { $ne: true }
+        }),
+        User.countDocuments({ 
+          role: "admin",
+          deletedAt: null,
+          isDeleted: { $ne: true }
+        }),
         Project.countDocuments({ deletedAt: null }),
       ]);
 
@@ -60,6 +76,95 @@ export async function GET(req) {
     console.error("Admin users list error:", error);
     return NextResponse.json(
       { success: false, message: "خطا هنگام دریافت لیست کاربران" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req) {
+  try {
+    await connectDB();
+
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return NextResponse.json(
+        { success: false, message: "توکن نامعتبر یا منقضی شده است" },
+        { status: 401 }
+      );
+    }
+
+    const requester = await User.findById(authUser.userId).lean();
+    if (!requester || requester.role !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
+    const body = await req.json();
+    const validation = validateAddUser(body);
+    
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { success: false, message: validation.message },
+        { status: 400 }
+      );
+    }
+
+    const { name, familyName, phoneNumber, password, role } = body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ 
+      phoneNumber,
+      deletedAt: null,
+      isDeleted: { $ne: true }
+    });
+    
+    if (existingUser) {
+      return NextResponse.json(
+        { success: false, message: "کاربری با این شماره موبایل قبلاً ثبت شده است" },
+        { status: 400 }
+      );
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Create new user
+    const newUser = new User({
+      name,
+      familyName,
+      phoneNumber,
+      password: hashedPassword,
+      role: role || "user",
+      isActive: true,
+    });
+
+    await newUser.save();
+
+    const userResponse = {
+      id: newUser._id,
+      name: newUser.name,
+      familyName: newUser.familyName,
+      fullName: `${newUser.name} ${newUser.familyName}`,
+      phoneNumber: newUser.phoneNumber,
+      role: newUser.role,
+      isActive: newUser.isActive,
+      createdAt: newUser.createdAt,
+    };
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "کاربر با موفقیت اضافه شد",
+        user: userResponse,
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Admin add user error:", error);
+    return NextResponse.json(
+      { success: false, message: "خطا هنگام اضافه کردن کاربر" },
       { status: 500 }
     );
   }

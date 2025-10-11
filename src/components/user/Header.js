@@ -50,6 +50,8 @@ const Header = ({ onOpenSidebar }) => {
 
         <Button
           isIconOnly
+          as={Link}
+          href="/user"
           className="bg-white size-11 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
         >
           <Icon icon="solar:user-rounded-broken" width="24" height="24" />

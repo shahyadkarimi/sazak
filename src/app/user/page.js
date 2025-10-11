@@ -70,7 +70,7 @@ const Page = async () => {
       icon: "solar:layers-broken",
     },
   ];
-{console.log(myProjects)}
+
   return (
     <div className="flex flex-col gap-4 lg:gap-8">
       {/* username */}

@@ -2,7 +2,7 @@
 
 import { removeSession } from "@/lib/auth";
 import { useUserStore } from "@/store/UserInfo";
-import { Link as ButtonLink, Button, cn, Spinner } from "@heroui/react";
+import { Button, cn, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -105,7 +105,7 @@ const Sidebar = () => {
             </div>
 
             <Image
-              src={"/assets/avatar.png"}
+              src={user.profilePicture || "/assets/avatar.png"}
               width={100}
               height={100}
               className="size-10 rounded-full border-2 shadow-lg shadow-gray-100"
@@ -123,7 +123,7 @@ const Sidebar = () => {
 
         {/* edit profile */}
         <Button
-          as={ButtonLink}
+          as={Link}
           href="/user/profile"
           isIconOnly
           className="bg-white size-9 min-w-9 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"

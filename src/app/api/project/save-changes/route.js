@@ -70,9 +70,9 @@ export async function POST(req) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      const originalName = uploadedFile.name || "project-image";
-      const safeName = originalName.replace(/[^a-zA-Z0-9_.-]/g, "_");
-      const fileName = `${safeName}`;
+      const originalName = project.name
+      const safeName = originalName.replaceAll(" ", "-");
+      const fileName = `${safeName}-${Date.now()}.png`;
       const filePath = path.join(uploadsDir, fileName);
 
       const arrayBuffer = await uploadedFile.arrayBuffer();

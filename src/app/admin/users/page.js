@@ -14,8 +14,18 @@ import {
   Pagination,
   Chip,
   Spinner,
+  Button,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
 } from "@heroui/react";
+import { Icon } from "@iconify/react";
 import { toFarsiNumber } from "@/helper/helper";
+import EditUserModal from "@/components/admin/EditUserModal";
+import DeleteUserModal from "@/components/admin/DeleteUserModal";
+import AddUserModal from "@/components/admin/AddUserModal";
+import toast from "react-hot-toast";
 
 const columns = [
   { name: "نام", uid: "name" },
@@ -24,6 +34,7 @@ const columns = [
   { name: "نقش", uid: "role" },
   { name: "وضعیت", uid: "isActive" },
   { name: "تاریخ ثبت‌نام", uid: "createdAt" },
+  { name: "عملیات", uid: "actions" },
 ];
 
 const Page = () => {
@@ -37,6 +48,12 @@ const Page = () => {
   const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
+
+  // Modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -90,6 +107,64 @@ const Page = () => {
     setPage(1);
   }, [query, role, status]);
 
+  const handleEditUser = (user) => {
+    setSelectedUser(user);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteUser = (user) => {
+    setSelectedUser(user);
+    setDeleteModalOpen(true);
+  };
+
+  const handleToggleStatus = async (user) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `/api/admin/users/${user.id}/toggle-status`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": token,
+          },
+          body: JSON.stringify({ isActive: !user.isActive }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update the user in the local state
+        setUsers((prevUsers) =>
+          prevUsers.map((u) =>
+            u.id === user.id ? { ...u, isActive: !u.isActive } : u
+          )
+        );
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || "خطا در تغییر وضعیت کاربر");
+      }
+    } catch (error) {
+      console.error("Error toggling user status:", error);
+      toast.error("خطا در تغییر وضعیت کاربر");
+    }
+  };
+
+  const handleEditSuccess = (updatedUser) => {
+    setUsers((prevUsers) =>
+      prevUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+    );
+  };
+
+  const handleDeleteSuccess = () => {
+    setUsers((prevUsers) => prevUsers.filter((u) => u.id !== selectedUser.id));
+  };
+
+  const handleAddSuccess = (newUser) => {
+    setUsers((prevUsers) => [newUser, ...prevUsers]);
+  };
+
   if (loading) {
     return (
       <div className="flex h-[60vh] w-full items-center justify-center">
@@ -115,6 +190,14 @@ const Page = () => {
           <h1 className="text-2xl font-bold text-gray-900">لیست کاربران</h1>
           <p className="text-gray-600">لیست کاربران ثبت شده</p>
         </div>
+        <Button
+          color="primary"
+          className="bg-primaryThemeColor"
+          startContent={<Icon icon="solar:user-plus-line-duotone" width="20" height="20" />}
+          onPress={() => setAddModalOpen(true)}
+        >
+          افزودن کاربر
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -128,16 +211,30 @@ const Page = () => {
         <div className="flex gap-2">
           <Input
             className="w-64"
+            label="جستجو"
             placeholder="جستجو کاربر..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            startContent={<span className="text-gray-500">🔎</span>}
+            startContent={
+              <Icon icon="solar:minimalistic-magnifer-broken" width="20" height="20" />
+            }
+            classNames={{
+              input: "placeholder:font-light placeholder:text-gray-600",
+              inputWrapper: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
+              label: "text-gray-700 font-medium",
+            }}
+            labelPlacement="outside"
           />
           <Select
             selectedKeys={[role]}
             onChange={(e) => setRole(e.target.value)}
             className="w-40"
             label="نقش"
+            labelPlacement="outside"
+            classNames={{
+              trigger: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
+              label: "text-gray-700 font-medium",
+            }}
           >
             <SelectItem key="all" value="all">
               همه نقش‌ها
@@ -154,6 +251,11 @@ const Page = () => {
             onChange={(e) => setStatus(e.target.value)}
             className="w-40"
             label="وضعیت"
+            labelPlacement="outside"
+            classNames={{
+              trigger: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
+              label: "text-gray-700 font-medium",
+            }}
           >
             <SelectItem key="all" value="all">
               همه وضعیت‌ها
@@ -179,19 +281,52 @@ const Page = () => {
             <TableRow key={item.id}>
               <TableCell>{item.name}</TableCell>
               <TableCell>{item.familyName}</TableCell>
-              <TableCell className="font-mono">{item.phoneNumber}</TableCell>
+              <TableCell>{toFarsiNumber(item.phoneNumber)}</TableCell>
               <TableCell>{item.role === "admin" ? "ادمین" : "کاربر"}</TableCell>
               <TableCell>
-                <Chip
-                  size="sm"
-                  color={item.isActive ? "success" : "default"}
-                  variant="flat"
-                >
-                  {item.isActive ? "فعال" : "غیرفعال"}
-                </Chip>
+                <button onClick={() => handleToggleStatus(item)}>
+                  <Chip
+                    size="sm"
+                    color={item.isActive ? "success" : "danger"}
+                    variant="flat"
+                  >
+                    {item.isActive ? "فعال" : "غیرفعال"}
+                  </Chip>
+                </button>
               </TableCell>
               <TableCell>
                 {new Date(item.createdAt).toLocaleDateString("fa-IR")}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="primary"
+                    onPress={() => handleEditUser(item)}
+                    className="min-w-0 px-2"
+                  >
+                    <Icon
+                      icon="solar:pen-2-line-duotone"
+                      width="16"
+                      height="16"
+                    />
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="danger"
+                    className="min-w-0 px-2"
+                    onPress={() => handleDeleteUser(item)}
+                  >
+                    <Icon
+                      icon="solar:trash-bin-minimalistic-line-duotone"
+                      width="16"
+                      height="16"
+                    />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           )}
@@ -199,14 +334,35 @@ const Page = () => {
       </Table>
 
       <div className="flex w-full items-center justify-center">
-        <Pagination
+        {/* <Pagination
           page={page}
           total={pages}
           onChange={setPage}
           showControls
           className="mt-2"
-        />
+        /> */}
       </div>
+
+      {/* Modals */}
+      <AddUserModal
+        isOpen={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        onSuccess={handleAddSuccess}
+      />
+
+      <EditUserModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        user={selectedUser}
+        onSuccess={handleEditSuccess}
+      />
+
+      <DeleteUserModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        user={selectedUser}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 };
@@ -219,6 +375,3 @@ const Stat = ({ title, value }) => (
 );
 
 export default Page;
-
-
-

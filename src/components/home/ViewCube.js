@@ -5,222 +5,210 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 const FACE_CONFIG = [
-  { name: "جلو", normal: [0, 0, 1], up: [0, 1, 0], color: "#ffffff" },
-  { name: "پشت", normal: [0, 0, -1], up: [0, 1, 0], color: "#ffffff" },
-  { name: "چپ", normal: [-1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
-  { name: "راست", normal: [1, 0, 0], up: [0, 1, 0], color: "#ffffff" },
-  { name: "بالا", normal: [0, 1, 0], up: [0, 0, -1], color: "#ffffff" },
-  { name: "پایین", normal: [0, -1, 0], up: [0, 0, 1], color: "#ffffff" },
+  { name: "جلو", normal: [0, 0, 1], position: [0, 0, 0.51], rotation: [0, 0, 0] },
+  { name: "پشت", normal: [0, 0, -1], position: [0, 0, -0.51], rotation: [0, Math.PI, 0] },
+  { name: "چپ", normal: [-1, 0, 0], position: [-0.51, 0, 0], rotation: [0, -Math.PI/2, 0] },
+  { name: "راست", normal: [1, 0, 0], position: [0.51, 0, 0], rotation: [0, Math.PI/2, 0] },
+  { name: "بالا", normal: [0, 1, 0], position: [0, 0.51, 0], rotation: [-Math.PI/2, 0, 0] },
+  { name: "پایین", normal: [0, -1, 0], position: [0, -0.51, 0], rotation: [Math.PI/2, 0, 0] },
 ];
 
-const FACE_NAMES = FACE_CONFIG.map((f) => f.name);
-
-const EDGE_VECTORS = [
-  [1, 1, 0], [1, -1, 0], [-1, 1, 0], [-1, -1, 0],
-  [1, 0, 1], [1, 0, -1], [-1, 0, 1], [-1, 0, -1],
-  [0, 1, 1], [0, 1, -1], [0, -1, 1], [0, -1, -1],
-];
-
-const CORNER_VECTORS = [
-  [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1],
-  [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
-];
-
-const CubeFace = ({ name, normal, color }) => {
-  const pos = new THREE.Vector3(...normal).clone().multiplyScalar(0.51);
-  const look = new THREE.Vector3(...normal).normalize();
-  const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), look);
+const CubeFace = ({ face, isSelected, onFaceClick }) => {
+  const faceColor = isSelected ? "#3b82f6" : "#ffffff";
+  const textColor = isSelected ? "#ffffff" : "#1f2937";
+  
+  const handleClick = (e) => {
+    e.stopPropagation();
+    onFaceClick(face.name);
+  };
+  
   return (
-    <group name={name} position={[pos.x, pos.y, pos.z]} quaternion={quat} userData={{ faceName: name }}>
-      <mesh name={name} userData={{ faceName: name }}>
-        <planeGeometry args={[0.9, 0.9]} />
-        <meshBasicMaterial color={color} side={THREE.DoubleSide} transparent opacity={0.95} />
+    <group position={face.position} rotation={face.rotation}>
+      <mesh 
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          e.object.material.color.set("#f3f4f6");
+        }}
+        onPointerOut={(e) => {
+          e.object.material.color.set(faceColor);
+        }}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial 
+          color={faceColor} 
+          transparent 
+          opacity={isSelected ? 1 : 0.95}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh
+        position={[0, 0, 0.01]}
+        onClick={handleClick}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <planeGeometry args={[0.8, 0.2]} />
+        <meshBasicMaterial 
+          color="transparent" 
+          transparent 
+          opacity={0}
+        />
       </mesh>
       <Text
-        name={name}
-        userData={{ faceName: name }}
         position={[0, 0, 0.01]}
-        fontSize={0.22}
-        color="#111827"
+        fontSize={0.18}
+        color={textColor}
         anchorX="center"
         anchorY="middle"
+        fontWeight="bold"
       >
-        {name}
+        {face.name}
       </Text>
     </group>
   );
 };
 
-const ViewCubeScene = ({ onSelect }) => {
+const ViewCubeScene = ({ onSelect, onDragStateChange }) => {
   const ref = useRef();
-  const { camera, gl } = useThree();
-  const [hoverId, setHoverId] = useState(null);
-  const draggingRef = useRef(false);
+  const { camera } = useThree();
+  const [selectedFace, setSelectedFace] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
-  // Start facing FRONT slightly from above
-  const yawRef = useRef(0);
-  const pitchRef = useRef(0.25);
-  const yawTargetRef = useRef(yawRef.current);
-  const pitchTargetRef = useRef(pitchRef.current);
-  const [activeFace] = useState("FRONT");
+  
+  const rotationRef = useRef({ x: 0, y: 0 });
+  const targetRotationRef = useRef({ x: 0, y: 0 });
 
-  // بچرخون مکعب برای هماهنگی با دوربین اصلی
   useFrame(() => {
     if (!ref.current) return;
-    const lerpFactor = 0.35;
-    yawRef.current += (yawTargetRef.current - yawRef.current) * lerpFactor;
-    pitchRef.current += (pitchTargetRef.current - pitchRef.current) * lerpFactor;
-    ref.current.rotation.set(pitchRef.current, yawRef.current, 0);
+    
+    const lerpFactor = 0.1;
+    rotationRef.current.x += (targetRotationRef.current.x - rotationRef.current.x) * lerpFactor;
+    rotationRef.current.y += (targetRotationRef.current.y - rotationRef.current.y) * lerpFactor;
+    
+    ref.current.rotation.set(rotationRef.current.x, rotationRef.current.y, 0);
   });
 
-  // هندل کلیک/هاور/درگ برای تعیین زاویه دوربین
-  useEffect(() => {
-    const handlePointer = (event, isClick) => {
-      const mouse = new THREE.Vector2();
-      const rect = gl.domElement.getBoundingClientRect();
-      const x = (event.clientX - rect.left) / rect.width;
-      const y = (event.clientY - rect.top) / rect.height;
-      mouse.x = x * 2 - 1;
-      mouse.y = -y * 2 + 1;
+  const handleFaceClick = (faceName) => {
+    console.log('Face clicked:', faceName);
+    setSelectedFace(faceName);
+    
+    const faceMap = {
+      "جلو": { position: [0, 15, 25], rotation: [0, 0] },
+      "پشت": { position: [0, 15, -25], rotation: [0, Math.PI] },
+      "چپ": { position: [-25, 15, 0], rotation: [0, -Math.PI/2] },
+      "راست": { position: [25, 15, 0], rotation: [0, Math.PI/2] },
+      "بالا": { position: [0, 25, 0], rotation: [-Math.PI/2, 0] },
+      "پایین": { position: [0, -25, 0], rotation: [Math.PI/2, 0] }
+    };
+    
+    const face = faceMap[faceName];
+    if (face) {
+      console.log('Changing camera to:', face.position, 'with rotation:', face.rotation);
+      targetRotationRef.current = { x: face.rotation[0], y: face.rotation[1] };
+      onSelect && onSelect({ camera: face.position, fov: 40, immediate: true });
+    }
+  };
 
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(ref.current.children, true);
-      if (intersects.length > 0) {
-        const processHit = (hitObj) => {
-          let obj = hitObj;
-          let face = obj.userData?.faceName || null;
-          while (!face && obj && obj !== ref.current) {
-            if (obj.userData?.faceName) {
-              face = obj.userData.faceName;
-              break;
-            }
-            if (FACE_NAMES.includes(obj.name)) {
-              face = obj.name;
-              break;
-            }
-            obj = obj.parent;
-          }
-          return face;
-        };
-
-        const hit = intersects[0].object;
-        const id = hit.userData?.id || hit.name;
-        if (!isClick) {
-          setHoverId(id);
-        } else {
-          // Walk through all hits to find a face click if the nearest isn't a face
-          let faceName = null;
-          for (let i = 0; i < intersects.length; i++) {
-            faceName = processHit(intersects[i].object);
-            if (faceName) break;
-          }
-          const map = {
-            FRONT: [0, 0, 1], BACK: [0, 0, -1], LEFT: [-1, 0, 0], RIGHT: [1, 0, 0], TOP: [0, 1, 0], BOTTOM: [0, -1, 0]
-          };
-          const v = faceName ? map[faceName] : null;
-          if (v) {
-            // Keep camera slightly above the grid for side views so grid/models are visible
-            const isTopOrBottom = Math.abs(v[1]) > 0.5;
-            const radius = isTopOrBottom ? 35 : 25; // farther for TOP/BOTTOM to avoid feeling over-zoomed
-            const base = new THREE.Vector3(v[0], v[1], v[2]).multiplyScalar(radius);
-            if (!isTopOrBottom) {
-              base.y = 17; // elevate FRONT/BACK/LEFT/RIGHT
-            }
-            // Rotate cube toward the selected face using pure face normal (not elevated)
-            const dir = new THREE.Vector3(v[0], v[1], v[2]).normalize();
-            const yaw = Math.atan2(dir.x, dir.z);
-            const pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-            yawTargetRef.current = yaw;
-            pitchTargetRef.current = pitch;
-            const fov = isTopOrBottom ? 45 : 35; // wider view for TOP/BOTTOM
-            onSelect && onSelect({ camera: [base.x, base.y, base.z], fov, immediate: false });
-          }
-        }
-      } else if (!isClick) {
-        setHoverId(null);
+  // Handle mouse down on the ViewCube
+  const handleMouseDown = (e) => {
+    e.stopPropagation();
+    if (e.button === 0) {
+      // Only start dragging if clicking on the main group or background
+      if (e.object === e.scene || e.object === ref.current) {
+        setIsDragging(true);
+        onDragStateChange && onDragStateChange(true);
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
       }
-    };
+    }
+  };
 
-    const down = (e) => handlePointer(e, true);
-    const move = (e) => handlePointer(e, false);
-    const onDragStart = (e) => {
-      draggingRef.current = true;
-      lastMouseRef.current = { x: e.clientX, y: e.clientY };
-    };
-    const onDragMove = (e) => {
-      if (!draggingRef.current) return;
+  // Global mouse move handler for continuous dragging
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
       const dx = e.clientX - lastMouseRef.current.x;
       const dy = e.clientY - lastMouseRef.current.y;
       lastMouseRef.current = { x: e.clientX, y: e.clientY };
 
-      const rotSpeed = 0.018;
-      yawTargetRef.current += dx * rotSpeed;
-      pitchTargetRef.current += dy * rotSpeed;
-      // محدود کردن پیچ برای جلوگیری از برعکس شدن
-      const limit = Math.PI / 2 - 0.05;
-      pitchTargetRef.current = Math.max(-limit, Math.min(limit, pitchTargetRef.current));
-
-      // دوربین اصلی را هم‌زمان با درگ به‌روزرسانی کن (real-time)
-      const radius = 25;
-      const dir = new THREE.Vector3(0, 0, 1);
-      const euler = new THREE.Euler(pitchTargetRef.current, yawTargetRef.current, 0, 'YXZ');
-      dir.applyEuler(euler).normalize();
-      const next = dir.multiplyScalar(radius);
-      // ensure minimum elevation for better grid visibility
-      const minY = 15;
-      if (next.y < minY) next.y = minY;
-      onSelect && onSelect({ camera: [next.x, next.y, next.z], fov: 40, immediate: true });
-    };
-    const onDragEnd = () => {
-      draggingRef.current = false;
+      targetRotationRef.current.y -= dx * 0.01;
+      targetRotationRef.current.x += dy * 0.01;
+      
+      const limit = Math.PI / 2 - 0.1;
+      targetRotationRef.current.x = Math.max(-limit, Math.min(limit, targetRotationRef.current.x));
     };
 
-    gl.domElement.addEventListener("pointerdown", down);
-    gl.domElement.addEventListener("pointermove", move);
-    gl.domElement.addEventListener("mousedown", onDragStart);
-    gl.domElement.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", onDragEnd);
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      onDragStateChange && onDragStateChange(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+
     return () => {
-      gl.domElement.removeEventListener("pointerdown", down);
-      gl.domElement.removeEventListener("pointermove", move);
-      gl.domElement.removeEventListener("mousedown", onDragStart);
-      gl.domElement.removeEventListener("mousemove", onDragMove);
-      window.removeEventListener("mouseup", onDragEnd);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [camera, gl, onSelect]);
+  }, [isDragging]);
 
   return (
-    <group ref={ref} scale={1.25}>
+    <group 
+      ref={ref} 
+      scale={1.2}
+      onPointerDown={handleMouseDown}
+    >
       {FACE_CONFIG.map((face) => (
-        <CubeFace key={face.name} name={face.name} normal={face.normal} color={face.color} />
+        <CubeFace 
+          key={face.name} 
+          face={face}
+          isSelected={selectedFace === face.name}
+          onFaceClick={handleFaceClick}
+        />
       ))}
-      {/* Solid cube core for true 3D look */}
+      
       <mesh>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#ffffff" roughness={1} metalness={0} flatShading />
+        <meshStandardMaterial 
+          color="#ffffff" 
+          transparent 
+          opacity={0.6}
+          roughness={0.2}
+          metalness={0.1}
+        />
       </mesh>
-      {/* Edge lines to emphasize cube borders */}
+      
+      {/* Edge lines for better visibility */}
       <lineSegments>
-        <edgesGeometry args={[new THREE.BoxGeometry(1.001, 1.001, 1.001)]} />
-        <lineBasicMaterial color="#111827" linewidth={1} />
+        <edgesGeometry args={[new THREE.BoxGeometry(1.01, 1.01, 1.01)]} />
+        <lineBasicMaterial color="#6b7280" linewidth={2} />
       </lineSegments>
     </group>
   );
 };
 
 const ViewCube = ({ activeView, onViewChange }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  
   const handleSelect = (view) => {
     if (!view) return;
     onViewChange && onViewChange({ camera: view.camera, fov: view.fov ?? 40 });
   };
 
   return (
-    <div className="absolute top-0 left-0 w-32 h-32 z-50 select-none">
-      <Canvas camera={{ position: [3, 3, 3], fov: 40 }}>
-        <ambientLight intensity={0.7} />
-        <directionalLight position={[3, 5, 4]} intensity={0.8} />
-        <ViewCubeScene onSelect={handleSelect} />
+    <div className="absolute top-4 left-4 w-32 h-32 z-50">
+      <Canvas 
+        camera={{ position: [3, 3, 3], fov: 50 }}
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+      >
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={1.2} />
+        <pointLight position={[-5, -5, -5]} intensity={0.4} />
+        <ViewCubeScene onSelect={handleSelect} onDragStateChange={setIsDragging} />
       </Canvas>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { postData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
-import { Button, Input } from "@heroui/react";
+import { Button, cn, Input, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
 import React, { useEffect, useState } from "react";
@@ -13,6 +13,10 @@ const EditProfileForm = () => {
   const { user, setUser } = useUserStore();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [profilePicture, setProfilePicture] = useState(
+    user.profilePicture || "/assets/avatar.png"
+  );
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const {
     register,
@@ -36,9 +40,56 @@ const EditProfileForm = () => {
   useEffect(() => {
     setValue("name", user.name);
     setValue("familyName", user.familyName);
-  }, []);
+    setProfilePicture(user.profilePicture || "/assets/avatar.png");
+  }, [user]);
 
   const showPasswordToggle = () => setShowPassword(!showPassword);
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("فرمت فایل پشتیبانی نمی‌شود. فقط JPG, PNG و WebP مجاز است");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      toast.error("حجم فایل نباید بیشتر از ۵ مگابایت باشد");
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("profilePicture", file);
+
+      const response = await fetch("/api/user/upload-profile-picture", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setProfilePicture(result.user.profilePicture);
+        setUser(result.user);
+        toast.success("عکس پروفایل با موفقیت آپلود شد");
+      } else {
+        toast.error(result.message || "خطا هنگام آپلود عکس");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("خطا هنگام آپلود عکس");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const editProfileHandler = (data) => {
     setLoading(true);
@@ -64,14 +115,40 @@ const EditProfileForm = () => {
 
       {/* avatar */}
       <div className="flex items-end -translate-y-14 gap-2">
-        <div className="relative border-8 border-white rounded-full">
+        <div className="relative border-8 border-white rounded-full group">
           <Image
-            src={"/assets/avatar.png"}
+            src={profilePicture}
             width={100}
             height={100}
             className="size-28 rounded-full border-2 shadow-lg shadow-gray-100"
             alt="user avatar"
           />
+
+          {/* Upload overlay */}
+          <div
+            className={cn(
+              "absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer",
+              uploadingImage && "opacity-100"
+            )}
+          >
+            <input
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              onChange={handleImageUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={uploadingImage}
+            />
+            {uploadingImage ? (
+              <Spinner color="white" />
+            ) : (
+              <Icon
+                icon="solar:camera-add-linear"
+                className="text-white"
+                width="24"
+                height="24"
+              />
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-0.5 pb-4">

@@ -27,9 +27,17 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: "user",
     },
+    profilePicture: {
+      type: String,
+      default: null,
+    },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

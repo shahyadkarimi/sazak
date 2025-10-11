@@ -26,6 +26,7 @@ export async function GET(req) {
 
     const projects = await Project.find({ user: user._id, deletedAt: null })
       .select("-__v -deletedAt")
+      .sort({ updatedAt: -1 })
       .lean();
 
     return NextResponse.json(

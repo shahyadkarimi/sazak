@@ -19,7 +19,7 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    const { name, familyName, password } = updateProfileSchema.parse(body);
+    const { name, familyName, password, profilePicture } = updateProfileSchema.parse(body);
 
     const userDoc = await User.findById(authUser.userId);
 
@@ -35,6 +35,7 @@ export async function POST(req) {
     if (password && password.trim() !== "") {
       userDoc.password = await bcrypt.hash(password, 10);
     }
+    if (profilePicture) userDoc.profilePicture = profilePicture;
 
     await userDoc.save();
 
@@ -53,6 +54,7 @@ export async function POST(req) {
           fullName: user.name + " " + user.familyName,
           phoneNumber: user.phoneNumber,
           role: user.role,
+          profilePicture: user.profilePicture,
           createdAt: user.createdAt,
         },
       },

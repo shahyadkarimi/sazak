@@ -58,6 +58,7 @@ export async function POST(req) {
           phoneNumber: newUser.phoneNumber,
           role: newUser.role,
           createdAt: newUser.createdAt,
+          profilePicture: newUser.profilePicture,
         },
       },
       { status: 200 }

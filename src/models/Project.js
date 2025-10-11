@@ -19,6 +19,7 @@ const projectSchema = new mongoose.Schema(
     image: { type: String, default: null },
     objects: [objectSchema],
     autoSave: { type: Boolean, default: false },
+    isPublic: { type: Boolean, default: false },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

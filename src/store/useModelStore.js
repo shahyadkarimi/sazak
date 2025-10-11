@@ -3,6 +3,7 @@ import { create } from "zustand";
 const useModelStore = create((set, get) => ({
   selectedModels: [],
   currentPlacingModel: null,
+  currentPlacingModelColor: null, // Add color for current placing model
   selectedModelId: null,
   isAdjustingHeight: false,
   isPasteMode: false,
@@ -21,6 +22,9 @@ const useModelStore = create((set, get) => ({
 
   setCurrentPlacingModel: (modelPath) =>
     set({ currentPlacingModel: modelPath }),
+
+  setCurrentPlacingModelColor: (color) =>
+    set({ currentPlacingModelColor: color }),
 
   setSelectedModelId: (id) => set({ selectedModelId: id }),
 

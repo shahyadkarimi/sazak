@@ -521,7 +521,19 @@ const CameraAnimator = ({ targetView, controlsRef, durationMs = 450 }) => {
   return null;
 };
 
-const GridPage = ({ project }) => {
+const CameraTracker = ({ onCameraUpdate }) => {
+  const { camera } = useThree();
+  
+  useFrame(() => {
+    if (camera && onCameraUpdate) {
+      onCameraUpdate(camera);
+    }
+  });
+
+  return null;
+};
+
+const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const isAdjustingHeight = useModelStore((state) => state.isAdjustingHeight);
   const setSelectedModelId = useModelStore((state) => state.setSelectedModelId);
@@ -530,7 +542,6 @@ const GridPage = ({ project }) => {
   const modelOptions = useModelStore((state) => state.modelOptions);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
   const [showHelp, setShowHelp] = useState(false);
-  const [cameraView, setCameraView] = useState(null);
   const [showSnapGrid, setShowSnapGrid] = useState(false);
   const controlsRef = useRef();
 
@@ -545,7 +556,7 @@ const GridPage = ({ project }) => {
 
   useEffect(() => {
     const onReset = () => {
-      setCameraView({ camera: [10, 25, 10], fov: 50, immediate: false });
+      onViewChange && onViewChange({ camera: [10, 25, 10], fov: 50, immediate: false });
     };
     if (typeof window !== "undefined") {
       window.addEventListener("designStudio:resetView", onReset);
@@ -555,7 +566,7 @@ const GridPage = ({ project }) => {
         window.removeEventListener("designStudio:resetView", onReset);
       }
     };
-  }, []);
+  }, [onViewChange]);
 
   // Close snap grid dropdown when clicking outside
   useEffect(() => {
@@ -600,7 +611,7 @@ const GridPage = ({ project }) => {
       <Canvas
         className={`design-studio ${isPasteMode ? "cursor-crosshair" : ""} bg-gray-100/70`}
         gl={{ preserveDrawingBuffer: true }}
-        camera={{ position: [10, 25, 10], fov: 40 }}
+        camera={{ position: [25, 45, 0], fov: 40 }}
         onContextMenu={(e) => {
           e.preventDefault();
         }}
@@ -614,6 +625,7 @@ const GridPage = ({ project }) => {
         }}
       >
         <CameraAnimator targetView={cameraView} controlsRef={controlsRef} />
+        <CameraTracker onCameraUpdate={(camera) => { if (mainCameraRef) mainCameraRef.current = camera; }} />
         <ZoomController />
         <KeyboardController onShowHelp={setShowHelp} />
         <PasteHandler />
@@ -627,6 +639,7 @@ const GridPage = ({ project }) => {
             path={model.path}
             position={model.position}
             rotation={model.rotation}
+            color={model.color}
           />
         ))}
 
@@ -667,6 +680,12 @@ const GridPage = ({ project }) => {
                   عملیات پایه
                 </h3>
                 <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                    <span>ذخیره پروژه</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+S
+                    </kbd>
+                  </div>
                   <div className="flex justify-between">
                     <span>کپی مدل</span>
                     <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
@@ -820,7 +839,6 @@ const GridPage = ({ project }) => {
         </ModalContent>
       </Modal>
 
-      <ViewCube activeView={cameraView} onViewChange={setCameraView} />
 
       {/* Snap Grid Dropdown */}
       <div className="absolute bottom-4 right-4 z-50 snap-grid-dropdown">

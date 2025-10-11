@@ -11,11 +11,19 @@ import {
   Input,
   Pagination,
   Spinner,
+  Button,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Chip,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { toFarsiNumber } from "@/helper/helper";
 import { siteURL } from "@/services/API";
 import Image from "next/image";
+import EditProjectModal from "@/components/admin/EditProjectModal";
+import DeleteProjectModal from "@/components/admin/DeleteProjectModal";
 
 const columns = [
   { name: "تصویر پروژه", uid: "image" },
@@ -23,7 +31,9 @@ const columns = [
   { name: "کاربر", uid: "userName" },
   { name: "شماره موبایل", uid: "userPhoneNumber" },
   { name: "تعداد آبجکت‌ها", uid: "objectsCount" },
+  { name: "وضعیت", uid: "isPublic" },
   { name: "تاریخ ایجاد", uid: "createdAt" },
+  { name: "عملیات", uid: "actions" },
 ];
 
 const Page = () => {
@@ -34,6 +44,11 @@ const Page = () => {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
+
+  // Modal states
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -75,6 +90,28 @@ const Page = () => {
     setPage(1);
   }, [query]);
 
+  const handleEditProject = (project) => {
+    setSelectedProject(project);
+    setEditModalOpen(true);
+  };
+
+  const handleDeleteProject = (project) => {
+    setSelectedProject(project);
+    setDeleteModalOpen(true);
+  };
+
+  const handleEditSuccess = (updatedProject) => {
+    setProjects((prevProjects) =>
+      prevProjects.map((p) => (p.id === updatedProject.id ? updatedProject : p))
+    );
+  };
+
+  const handleDeleteSuccess = () => {
+    setProjects((prevProjects) =>
+      prevProjects.filter((p) => p.id !== selectedProject.id)
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex h-[60vh] w-full items-center justify-center">
@@ -105,6 +142,7 @@ const Page = () => {
       <div className="flex items-center gap-2">
         <Input
           className="w-72"
+          label="جستجو"
           placeholder="جستجو پروژه/کاربر/موبایل..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -118,8 +156,11 @@ const Page = () => {
           }
           classNames={{
             input: "placeholder:font-light placeholder:text-gray-600",
-            inputWrapper: "!shadow-none rounded-2xl",
+            inputWrapper:
+              "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
+            label: "text-gray-700 font-medium",
           }}
+          labelPlacement="outside"
         />
       </div>
 
@@ -145,27 +186,84 @@ const Page = () => {
                   className="w-20 h-fit rounded-xl bg-gray-100 "
                 />
               </TableCell>
-              <TableCell>{item.name}</TableCell>
+              <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell>{item.userName}</TableCell>
-              <TableCell>{toFarsiNumber(item.userPhoneNumber)}</TableCell>
+              <TableCell className="">
+                {toFarsiNumber(item.userPhoneNumber)}
+              </TableCell>
               <TableCell>{toFarsiNumber(item.objectsCount)}</TableCell>
               <TableCell>
+                <Chip
+                  size="sm"
+                  color={item.isPublic ? "success" : "default"}
+                  variant="flat"
+                >
+                  {item.isPublic ? "عمومی" : "خصوصی"}
+                </Chip>
+              </TableCell>
+              <TableCell>
                 {new Date(item.createdAt).toLocaleDateString("fa-IR")}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="primary"
+                    onPress={() => handleEditProject(item)}
+                    className="min-w-0 px-2"
+                  >
+                    <Icon
+                      icon="solar:pen-2-line-duotone"
+                      width="16"
+                      height="16"
+                    />
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="danger"
+                    className="min-w-0 px-2"
+                    onPress={() => handleDeleteProject(item)}
+                  >
+                    <Icon
+                      icon="solar:trash-bin-minimalistic-line-duotone"
+                      width="16"
+                      height="16"
+                    />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
 
-      {/* <div className="flex w-full items-center justify-center">
-        <Pagination
+      <div className="flex w-full items-center justify-center">
+        {/* <Pagination
           page={page}
           total={pages}
           onChange={setPage}
           showControls
           className="mt-2"
-        />
-      </div> */}
+        /> */}
+      </div>
+
+      {/* Modals */}
+      <EditProjectModal
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        project={selectedProject}
+        onSuccess={handleEditSuccess}
+      />
+
+      <DeleteProjectModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        project={selectedProject}
+        onSuccess={handleDeleteSuccess}
+      />
     </div>
   );
 };

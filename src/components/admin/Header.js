@@ -36,7 +36,7 @@ const Header = () => {
 
         <div className="flex items-center gap-2 border-r pr-6">
           <img
-            src="/assets/avatar.png"
+            src={user.profilePicture || "/assets/avatar.png"}
             alt="آواتار کاربر"
             width={32}
             height={32}

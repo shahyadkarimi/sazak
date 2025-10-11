@@ -37,6 +37,7 @@ export async function GET(req) {
           fullName: user.name + " " + user.familyName,
           phoneNumber: user.phoneNumber,
           role: user.role,
+          profilePicture: user.profilePicture,
           createdAt: user.createdAt,
         },
       },

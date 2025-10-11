@@ -2,6 +2,8 @@
 
 import { postData } from "@/services/API";
 import useModelStore from "@/store/useModelStore";
+import useUnsavedChanges from "@/hooks/useUnsavedChanges";
+import UnsavedChangesModal from "./UnsavedChangesModal";
 import { Spinner } from "@heroui/react";
 import {
   Button,
@@ -15,7 +17,7 @@ import {
   Tooltip,
 } from "@heroui/react";
 import { useParams, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -85,6 +87,35 @@ const Toolbar = ({ project }) => {
 
   const router = useRouter();
 
+  // Unsaved changes functionality
+  const {
+    hasUnsavedChanges,
+    showWarning,
+    setShowWarning,
+    handleSaveAndContinue,
+    handleDiscardChanges,
+    isSaving,
+    setPendingNavigation,
+    checkForUnsavedChanges,
+  } = useUnsavedChanges(project);
+
+  // Real-time unsaved changes state
+  const [realTimeHasUnsavedChanges, setRealTimeHasUnsavedChanges] =
+    useState(false);
+
+  // Update real-time state
+  useEffect(() => {
+    const updateUnsavedChanges = () => {
+      const hasChanges = checkForUnsavedChanges();
+      setRealTimeHasUnsavedChanges(hasChanges);
+    };
+
+    updateUnsavedChanges();
+    const interval = setInterval(updateUnsavedChanges, 1000);
+
+    return () => clearInterval(interval);
+  }, [checkForUnsavedChanges]);
+
   const {
     register,
     handleSubmit,
@@ -108,7 +139,7 @@ const Toolbar = ({ project }) => {
     }
   }, [project?.id]); // Only run when project ID changes (initial load)
 
-  const saveChangeHandler = async () => {
+  const saveChangeHandler = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -146,7 +177,56 @@ const Toolbar = ({ project }) => {
       });
       setLoading(false);
     }
-  };
+  }, [id, selectedModels, project?.name]);
+
+  // Keyboard shortcut for Ctrl+S
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Check if Ctrl+S is pressed (both Windows and Mac)
+      if (
+        (event.ctrlKey || event.metaKey) && 
+        !event.altKey && 
+        !event.shiftKey &&
+        (event.key === 's' || event.key === 'S' || event.code === 'KeyS')
+      ) {
+        // Prevent browser's default save dialog
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        
+        // Only save if not already saving
+        if (!loading) {
+          saveChangeHandler();
+        }
+        
+        return false;
+      }
+    };
+
+    // Add event listener with capture phase and passive false
+    document.addEventListener('keydown', handleKeyDown, { 
+      capture: true, 
+      passive: false 
+    });
+
+    // Also add to window for extra coverage
+    window.addEventListener('keydown', handleKeyDown, { 
+      capture: true, 
+      passive: false 
+    });
+
+    // Cleanup event listeners on component unmount
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, { 
+        capture: true, 
+        passive: false 
+      });
+      window.removeEventListener('keydown', handleKeyDown, { 
+        capture: true, 
+        passive: false 
+      });
+    };
+  }, [loading, saveChangeHandler]); // Include saveChangeHandler in dependencies
 
   const editProjectHandler = (data) => {
     setEditLoading(true);
@@ -192,14 +272,19 @@ const Toolbar = ({ project }) => {
 
     // Get models to copy based on selection
     let modelsToCopy = [];
-    if (selectedModelId === 'ALL') {
-      modelsToCopy = selectedModels.map(model => ({ ...model, action: "copy" }));
+    if (selectedModelId === "ALL") {
+      modelsToCopy = selectedModels.map((model) => ({
+        ...model,
+        action: "copy",
+      }));
     } else if (Array.isArray(selectedModelId)) {
       modelsToCopy = selectedModels
-        .filter(model => selectedModelId.includes(model.id))
-        .map(model => ({ ...model, action: "copy" }));
+        .filter((model) => selectedModelId.includes(model.id))
+        .map((model) => ({ ...model, action: "copy" }));
     } else {
-      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      const selectedModel = selectedModels.find(
+        (model) => model.id === selectedModelId
+      );
       if (selectedModel) {
         modelsToCopy = [{ ...selectedModel, action: "copy" }];
       }
@@ -223,18 +308,23 @@ const Toolbar = ({ project }) => {
     // Get models to cut based on selection
     let idsToCut = [];
     let modelsToCut = [];
-    
-    if (selectedModelId === 'ALL') {
+
+    if (selectedModelId === "ALL") {
       idsToCut = selectedModels.map((m) => m.id);
-      modelsToCut = selectedModels.map(model => ({ ...model, action: "cut" }));
+      modelsToCut = selectedModels.map((model) => ({
+        ...model,
+        action: "cut",
+      }));
     } else if (Array.isArray(selectedModelId)) {
       idsToCut = [...selectedModelId];
       modelsToCut = selectedModels
-        .filter(model => selectedModelId.includes(model.id))
-        .map(model => ({ ...model, action: "cut" }));
+        .filter((model) => selectedModelId.includes(model.id))
+        .map((model) => ({ ...model, action: "cut" }));
     } else {
       idsToCut = [selectedModelId];
-      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      const selectedModel = selectedModels.find(
+        (model) => model.id === selectedModelId
+      );
       if (selectedModel) {
         modelsToCut = [{ ...selectedModel, action: "cut" }];
       }
@@ -244,7 +334,9 @@ const Toolbar = ({ project }) => {
       setClipboardModels(modelsToCut);
       const { pushHistory } = useModelStore.getState();
       pushHistory();
-      setSelectedModels(selectedModels.filter((model) => !idsToCut.includes(model.id)));
+      setSelectedModels(
+        selectedModels.filter((model) => !idsToCut.includes(model.id))
+      );
       setSelectedModelId(null);
       toast.success(`${modelsToCut.length} مدل بریده شد`, {
         duration: 2000,
@@ -259,10 +351,13 @@ const Toolbar = ({ project }) => {
 
     setIsPasteMode(!isPasteMode);
     if (!isPasteMode) {
-      toast.success(`حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`, {
-        duration: 3000,
-        className: "text-sm rounded-2xl",
-      });
+      toast.success(
+        `حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`,
+        {
+          duration: 3000,
+          className: "text-sm rounded-2xl",
+        }
+      );
     } else {
       toast.success("حالت پیست غیرفعال شد", {
         duration: 2000,
@@ -323,7 +418,9 @@ const Toolbar = ({ project }) => {
       <Toaster />
       <div className="w-full max-w-[1450px] h-16 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="font-bold text-gray-700 text-lg">{project.name}</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold text-gray-700 text-lg">{project.name}</h2>
+          </div>
 
           <button
             onClick={() => {
@@ -344,9 +441,7 @@ const Toolbar = ({ project }) => {
         <div className="flex flex-row-reverse items-center gap-3">
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="بارگذاری پروژه" placement="bottom" size="sm">
-              <div
-                className="bg-gray-200/90 relative flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
-              >
+              <div className="bg-gray-200/90 relative flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
                 <i className="fi fi-rr-add-document size-4 block"></i>
 
                 <input
@@ -412,9 +507,9 @@ const Toolbar = ({ project }) => {
           </div>
 
           <div className="flex flex-col items-center gap-1">
-            <Tooltip content="ذخیره" placement="bottom" size="sm">
+            <Tooltip content="ذخیره (Ctrl+S)" placement="bottom" size="sm">
               <button
-                title="ذخیره"
+                title="ذخیره (Ctrl+S)"
                 onClick={saveChangeHandler}
                 disabled={loading}
                 className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
@@ -496,6 +591,25 @@ const Toolbar = ({ project }) => {
               </button>
             </Tooltip>
           </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="خروج از استودیو" placement="bottom" size="sm">
+              <button
+                onClick={() => {
+                  if (realTimeHasUnsavedChanges) {
+                    // Set pending navigation to user page
+                    setPendingNavigation("/user");
+                    setShowWarning(true);
+                  } else {
+                    router.push("/user");
+                  }
+                }}
+                className="bg-red-100 text-red-600 flex justify-center items-center size-9 rounded-xl hover:bg-red-200 transition-all duration-300"
+              >
+                <i className="fi fi-rr-exit size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -570,6 +684,15 @@ const Toolbar = ({ project }) => {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Unsaved Changes Warning Modal */}
+      <UnsavedChangesModal
+        isOpen={showWarning}
+        onClose={() => setShowWarning(false)}
+        onSave={handleSaveAndContinue}
+        onDiscard={handleDiscardChanges}
+        isLoading={isSaving}
+      />
     </div>
   );
 };

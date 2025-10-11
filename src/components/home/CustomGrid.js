@@ -8,8 +8,8 @@ const CustomGrid = () => {
   const { scene } = useThree();
 
   useEffect(() => {
-    const size = 20;
-    const divisions = 20;
+    const size = 40;
+    const divisions = 40;
 
     const colorCenterLine = new THREE.Color("#9ca3af");
     const colorGrid = new THREE.Color("#9ca3af");
@@ -52,8 +52,8 @@ const CustomGrid = () => {
     <>
       {/* Academy Sazak Text on Grid */}
       <Text
-        position={[-9.5, 0.121, 6.8]}
-        fontSize={0.8}
+        position={[-19, 0.121, 13.9]}
+        fontSize={1.5}
         color="#9ca3af"
         anchorX="center"
         anchorY="middle"

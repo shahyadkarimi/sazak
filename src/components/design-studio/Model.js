@@ -7,7 +7,7 @@ import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
-const Model = ({ path, position, id, rotation }) => {
+const Model = ({ path, position, id, rotation, color }) => {
   const modelRef = useRef();
   const { raycaster, camera, gl } = useThree();
 
@@ -83,6 +83,11 @@ const Model = ({ path, position, id, rotation }) => {
 
     clonedSceneState.traverse((child) => {
       if (child.isMesh && child.material) {
+        // Apply base color if model has a color property
+        if (color && child.material.color) {
+          child.material.color = new THREE.Color(color);
+        }
+        
         if (isDragging) {
           if (child.material.emissive) {
             child.material.emissive = new THREE.Color(0x00ff00); // رنگ سبز برای drag
@@ -90,23 +95,23 @@ const Model = ({ path, position, id, rotation }) => {
           }
         } else if (isSelected) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(0xffff00); // رنگ درخشان زرد
+            child.material.emissive = new THREE.Color(color); // رنگ درخشان زرد
             child.material.emissiveIntensity = 0.3; // نوردهی ملایم
           }
         } else if (isHovered) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(0x3b82f6); // رنگ آبی برای hover
+            child.material.emissive = new THREE.Color(color); // رنگ آبی برای hover
             child.material.emissiveIntensity = 0.2; // نوردهی ملایم
           }
         } else {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(0xdc2626);
-            child.material.emissiveIntensity = 0; // نوردهی ملایم
+            child.material.emissive = new THREE.Color(color);
+            child.material.emissiveIntensity = 0.5; // نوردهی ملایم
           }
         }
       }
     });
-  }, [isSelected, isHovered, isDragging, clonedSceneState]);
+  }, [isSelected, isHovered, isDragging, clonedSceneState, color]);
 
   // اطلاع به استور درباره درحال تنظیم بودن مدل
   useEffect(() => {
@@ -205,48 +210,11 @@ const Model = ({ path, position, id, rotation }) => {
     });
   };
 
-  // Handle drag move
+  // Handle drag move - this is now handled by the global mouse move handler
   const handlePointerMove = (event) => {
-    if (!isDragging || !dragStartPosition || !dragStartMouse) return;
-    
-    event.stopPropagation();
-    
-    const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
-    mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
-    
-    const dragPlane = new THREE.Plane(
-      new THREE.Vector3(0, 1, 0),
-      -position[1]
-    );
-    const currentIntersection = new THREE.Vector3();
-    raycaster.setFromCamera(mouse, camera);
-    raycaster.ray.intersectPlane(dragPlane, currentIntersection);
-    
-    if (currentIntersection) {
-      const deltaX = currentIntersection.x - dragStartMouse.x;
-      const deltaZ = currentIntersection.z - dragStartMouse.y;
-      
-      const newX = dragStartPosition[0] + deltaX;
-      const newZ = dragStartPosition[2] + deltaZ;
-      
-      // Apply snap to grid if snap is enabled
-      const snapSize = modelOptions.snapSize;
-      const snappedX = snapSize > 0 ? Math.round(newX / snapSize) * snapSize : newX;
-      const snappedZ = snapSize > 0 ? Math.round(newZ / snapSize) * snapSize : newZ;
-      
-      const proposedPosition = [snappedX, position[1], snappedZ];
-      
-      // Check for collision and adjust position
-      const adjustedPosition = adjustPositionToAvoidOverlap(
-        proposedPosition,
-        id,
-        existingModels,
-        snapSize
-      );
-      
-      updateModelPosition(id, adjustedPosition);
-    }
+    // The global mouse move handler takes care of all drag movement
+    // This local handler is kept for potential future use but doesn't do anything
+    // to avoid conflicts with the global handler
   };
 
   // Handle drag end
@@ -313,48 +281,51 @@ const Model = ({ path, position, id, rotation }) => {
         );
 
         // Check if multiple models are selected and move them together
-       if (selectedModelId === 'ALL') {
-         // Move all models
-         const deltaX = adjustedPosition[0] - position[0];
-         const deltaZ = adjustedPosition[2] - position[2];
-         
-         const updatedModels = existingModels.map(model => ({
-           ...model,
-           position: [
-             model.position[0] + deltaX,
-             model.position[1],
-             model.position[2] + deltaZ
-           ]
-         }));
-         
-         useModelStore.setState({ selectedModels: updatedModels });
-       } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
-         // Move multiple selected models
-         const deltaX = adjustedPosition[0] - position[0];
-         const deltaZ = adjustedPosition[2] - position[2];
-         
-         const updatedModels = existingModels.map(model => {
-           if (selectedModelId.includes(model.id)) {
-             return {
-               ...model,
-               position: [
-                 model.position[0] + deltaX,
-                 model.position[1],
-                 model.position[2] + deltaZ
-               ]
-             };
-           }
-           return model;
-         });
-         
-         useModelStore.setState({ selectedModels: updatedModels });
-       }
+        if (selectedModelId === 'ALL') {
+          // Move all models
+          const deltaX = adjustedPosition[0] - position[0];
+          const deltaZ = adjustedPosition[2] - position[2];
+          
+          const updatedModels = existingModels.map(model => ({
+            ...model,
+            position: [
+              model.position[0] + deltaX,
+              model.position[1],
+              model.position[2] + deltaZ
+            ]
+          }));
+          
+          useModelStore.setState({ selectedModels: updatedModels });
+        } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
+          // Move multiple selected models
+          const deltaX = adjustedPosition[0] - position[0];
+          const deltaZ = adjustedPosition[2] - position[2];
+          
+          const updatedModels = existingModels.map(model => {
+            if (selectedModelId.includes(model.id)) {
+              return {
+                ...model,
+                position: [
+                  model.position[0] + deltaX,
+                  model.position[1],
+                  model.position[2] + deltaZ
+                ]
+              };
+            }
+            return model;
+          });
+          
+          useModelStore.setState({ selectedModels: updatedModels });
+        } else {
+          // Single model selection - update this model's position
+          updateModelPosition(id, adjustedPosition);
+        }
       }
     };
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels]);
+  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId]);
 
 
   // حذف مدل

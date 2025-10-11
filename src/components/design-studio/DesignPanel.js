@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Sidebar from "./Sidebar";
 import LeftSidebar from "./LeftSidebar";
 import GridPage from "./GridPage";
@@ -9,6 +9,8 @@ import { Checkbox } from "@heroui/react";
 const DesignPanel = ({project}) => {
   const [isRightOpen, setIsRightOpen] = useState(false); // models sidebar
   const [isLeftOpen, setIsLeftOpen] = useState(false);   // tools sidebar
+  const [cameraView, setCameraView] = useState(null);
+  const mainCameraRef = useRef();
 
   const closeAll = () => {
     setIsLeftOpen(false);
@@ -23,10 +25,10 @@ const DesignPanel = ({project}) => {
       </div>
 
       {/* 3d view */}
-      <GridPage project={project} />
+      <GridPage project={project} cameraView={cameraView} onViewChange={setCameraView} mainCameraRef={mainCameraRef} />
 
       <div className="hidden md:flex">
-        <LeftSidebar />
+        <LeftSidebar mainCamera={mainCameraRef.current} cameraView={cameraView} onViewChange={setCameraView} />
       </div>
 
       {/* Mobile floating toggles */}
@@ -62,7 +64,7 @@ const DesignPanel = ({project}) => {
           isLeftOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <LeftSidebar />
+        <LeftSidebar mainCamera={mainCameraRef.current} cameraView={cameraView} onViewChange={setCameraView} />
       </div>
 
       {/* Mobile right drawer */}
@@ -73,6 +75,7 @@ const DesignPanel = ({project}) => {
       >
         <Sidebar />
       </div>
+
     </div>
   );
 };
