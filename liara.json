@@ -7,7 +7,7 @@
   "disks": [
     {
       "name": "sazak-disk",
-      "mountTo": "sazak-disk"
+      "mountTo": "uploads/profiles"
     }
   ]
 }
