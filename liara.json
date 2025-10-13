@@ -7,7 +7,7 @@
   "disks": [
     {
       "name": "sazak-disk",
-      "mountTo": "uploads/profiles"
+      "mountTo": "/public/uploads/profiles"
     }
   ]
 }
