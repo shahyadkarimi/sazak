@@ -6,9 +6,22 @@ import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import { cn } from "@heroui/react";
 
-const CenteredModel = ({ path }) => {
+const CenteredModel = ({ path, color }) => {
   const { scene } = useGLTF(path);
-  const cloned = useMemo(() => scene.clone(true), [scene]);
+  const cloned = useMemo(() => {
+    const c = scene.clone(true);
+    c.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material = child.material.clone();
+        if (child.material.color) {
+          // const isWhite = child.material.color.equals(new THREE.Color(1, 1, 1));
+          child.material.emissive = new THREE.Color(color);
+          child.material.emissiveIntensity = 0.5; 
+        }
+      }
+    });
+    return c;
+  }, [scene, color]);
 
   const [centerOffset, setCenterOffset] = useState([0, 0, 0]);
   const [autoScale, setAutoScale] = useState(1);
@@ -22,12 +35,12 @@ const CenteredModel = ({ path }) => {
     box.getCenter(center);
 
     // Move model so its center is at origin
-    setCenterOffset([-center.x, -center.y, -center.z]);
+    setCenterOffset([-center.x - 1.2, -center.y, -center.z]);
 
     // Scale to a target normalized size to fit small canvas
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
-    const target = 2.2; // base fit size
-    const padding = 0.88; // add safe padding to avoid right-edge clipping
+    const target = 2.8; // base fit size
+    const padding = 1.2; // add safe padding to avoid right-edge clipping
     setAutoScale((target / maxDim) * padding);
   }, [cloned]);
 
@@ -38,7 +51,7 @@ const CenteredModel = ({ path }) => {
   );
 };
 
-const ModelThumbnail = ({ path, className = "", bg = "#fff" }) => {
+const ModelThumbnail = ({ path, className = "", bg = "#fff", color }) => {
   return (
     <div className={cn(className, "bg-gray-100")}
       style={{ backgroundColor: bg }}
@@ -53,13 +66,20 @@ const ModelThumbnail = ({ path, className = "", bg = "#fff" }) => {
         <ambientLight intensity={1} />
         <directionalLight position={[4, 6, 8]} intensity={1.2} />
         <Suspense fallback={null}>
-          <CenteredModel path={path} />
+          <CenteredModel path={path} color={color} />
         </Suspense>
       </Canvas>
     </div>
   );
 };
 
-export default memo(ModelThumbnail, (prev, next) => prev.path === next.path && prev.className === next.className && prev.bg === next.bg);
+export default memo(
+  ModelThumbnail,
+  (prev, next) =>
+    prev.path === next.path &&
+    prev.className === next.className &&
+    prev.bg === next.bg &&
+    prev.color === next.color
+);
 
 

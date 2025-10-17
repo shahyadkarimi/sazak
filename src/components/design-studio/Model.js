@@ -38,6 +38,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         modelOptions.snapSize === 0.1 || modelOptions.snapSize === 0.5 ? 3 : 3,
     }
   );
+  const constrainToGrid = useModelStore((s) => s.constrainToGrid);
 
   const isSelected =
     selectedModelId === id ||
@@ -68,44 +69,82 @@ const Model = ({ path, position, id, rotation, color }) => {
       clone.position.y = -box.min.y;
       
       clone.traverse((child) => {
-        if (child.isMesh && child.material) {
+        if (child.isMesh && child.material && child.geometry) {
           child.material = child.material.clone();
+          // Attach wireframe border helper for transparent mode
+          try {
+            const edges = new THREE.EdgesGeometry(child.geometry, 1);
+            const line = new THREE.LineSegments(
+              edges,
+              new THREE.LineBasicMaterial({ color: 0x000000 })
+            );
+            line.name = 'edge-lines';
+            line.renderOrder = 999;
+            child.add(line);
+          } catch (e) {
+            // ignore edge generation errors for non-standard geometries
+          }
         }
       });
       setClonedSceneState(clone);
     }
   }, [adjustedScene]);
 
-  // تغییر رنگ فقط وقتی مدل سلکت شده یا hover شده
+  // تغییر رنگ و حالت ترنسپرنت (فقط بردر)
   useEffect(() => {
     if (!clonedSceneState) return;
     setModelsRef(modelRef);
 
     clonedSceneState.traverse((child) => {
       if (child.isMesh && child.material) {
-        // Apply base color if model has a color property
-        if (color && child.material.color) {
-          child.material.color = new THREE.Color(color);
+        const edge = child.children?.find?.((c) => c.name === 'edge-lines');
+        const isTransparent = color == null;
+
+        // Base appearance
+        if (isTransparent) {
+          // Transparent body, only border visible
+          if (child.material) {
+            child.material.transparent = true;
+            child.material.opacity = 0;
+            // Avoid writing color/depth to prevent dark artifacts
+            if ('colorWrite' in child.material) child.material.colorWrite = false;
+            if ('depthWrite' in child.material) child.material.depthWrite = false;
+            if ('emissiveIntensity' in child.material) child.material.emissiveIntensity = 0;
+          }
+          if (edge) edge.visible = true;
+        } else {
+          // Opaque with selected color
+          if (child.material?.color && color) {
+            child.material.color = new THREE.Color(color);
+          }
+          if (child.material) {
+            child.material.transparent = false;
+            child.material.opacity = 1;
+            if ('colorWrite' in child.material) child.material.colorWrite = true;
+            if ('depthWrite' in child.material) child.material.depthWrite = true;
+          }
+          if (edge) edge.visible = false;
         }
         
-        if (isDragging) {
+        if (!isTransparent && isDragging) {
           if (child.material.emissive) {
             child.material.emissive = new THREE.Color(0x00ff00); // رنگ سبز برای drag
             child.material.emissiveIntensity = 0.4; // نوردهی بیشتر
           }
-        } else if (isSelected) {
+        } else if (!isTransparent && isSelected) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(color); // رنگ درخشان زرد
+            // هنگام انتخاب کمی درخشش با رنگ انتخابی (برای ترنسپرنت هم لبه‌ها کافی هستند)
+            child.material.emissive = new THREE.Color(color || 0x000000);
             child.material.emissiveIntensity = 0.3; // نوردهی ملایم
           }
-        } else if (isHovered) {
+        } else if (!isTransparent && isHovered) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(color); // رنگ آبی برای hover
+            child.material.emissive = new THREE.Color(color || 0x000000);
             child.material.emissiveIntensity = 0.2; // نوردهی ملایم
           }
-        } else {
+        } else if (!isTransparent) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(color);
+            child.material.emissive = new THREE.Color(color || 0x000000);
             child.material.emissiveIntensity = 0.5; // نوردهی ملایم
           }
         }
@@ -271,14 +310,29 @@ const Model = ({ path, position, id, rotation, color }) => {
         const snappedX = snapSize > 0 ? Math.round(newX / snapSize) * snapSize : newX;
         const snappedZ = snapSize > 0 ? Math.round(newZ / snapSize) * snapSize : newZ;
 
-        const proposedPosition = [snappedX, position[1], snappedZ];
+        let proposedPosition = [snappedX, position[1], snappedZ];
 
-        const adjustedPosition = adjustPositionToAvoidOverlap(
+        if (constrainToGrid) {
+          const limit = 20; // match CustomGrid size/2 (size=40)
+          proposedPosition[0] = Math.max(-limit, Math.min(limit, proposedPosition[0]));
+          proposedPosition[2] = Math.max(-limit, Math.min(limit, proposedPosition[2]));
+        }
+
+        let adjustedPosition = adjustPositionToAvoidOverlap(
           proposedPosition,
           id,
           existingModels,
           snapSize
         );
+
+        if (constrainToGrid) {
+          const limit = 20;
+          adjustedPosition = [
+            Math.max(-limit, Math.min(limit, adjustedPosition[0])),
+            adjustedPosition[1],
+            Math.max(-limit, Math.min(limit, adjustedPosition[2]))
+          ];
+        }
 
         // Check if multiple models are selected and move them together
         if (selectedModelId === 'ALL') {
@@ -286,14 +340,21 @@ const Model = ({ path, position, id, rotation, color }) => {
           const deltaX = adjustedPosition[0] - position[0];
           const deltaZ = adjustedPosition[2] - position[2];
           
-          const updatedModels = existingModels.map(model => ({
-            ...model,
-            position: [
-              model.position[0] + deltaX,
-              model.position[1],
-              model.position[2] + deltaZ
-            ]
-          }));
+          const updatedModels = existingModels.map(model => {
+            const nextX = model.position[0] + deltaX;
+            const nextZ = model.position[2] + deltaZ;
+            let clampedX = nextX;
+            let clampedZ = nextZ;
+            if (constrainToGrid) {
+              const limit = 20;
+              clampedX = Math.max(-limit, Math.min(limit, nextX));
+              clampedZ = Math.max(-limit, Math.min(limit, nextZ));
+            }
+            return {
+              ...model,
+              position: [clampedX, model.position[1], clampedZ]
+            };
+          });
           
           useModelStore.setState({ selectedModels: updatedModels });
         } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
@@ -303,14 +364,16 @@ const Model = ({ path, position, id, rotation, color }) => {
           
           const updatedModels = existingModels.map(model => {
             if (selectedModelId.includes(model.id)) {
-              return {
-                ...model,
-                position: [
-                  model.position[0] + deltaX,
-                  model.position[1],
-                  model.position[2] + deltaZ
-                ]
-              };
+              const nextX = model.position[0] + deltaX;
+              const nextZ = model.position[2] + deltaZ;
+              let clampedX = nextX;
+              let clampedZ = nextZ;
+              if (constrainToGrid) {
+                const limit = 20;
+                clampedX = Math.max(-limit, Math.min(limit, nextX));
+                clampedZ = Math.max(-limit, Math.min(limit, nextZ));
+              }
+              return { ...model, position: [clampedX, model.position[1], clampedZ] };
             }
             return model;
           });
@@ -325,7 +388,7 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId]);
+  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid]);
 
 
   // حذف مدل

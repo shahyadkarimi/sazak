@@ -72,7 +72,7 @@ const CubeFace = ({ face, isSelected, onFaceClick }) => {
   );
 };
 
-const ViewCubeScene = ({ onSelect, onDragStateChange }) => {
+const ViewCubeScene = ({ onSelect, onDragStateChange, cameraPosition }) => {
   const ref = useRef();
   const { camera } = useThree();
   const [selectedFace, setSelectedFace] = useState(null);
@@ -91,6 +91,19 @@ const ViewCubeScene = ({ onSelect, onDragStateChange }) => {
     
     ref.current.rotation.set(rotationRef.current.x, rotationRef.current.y, 0);
   });
+
+  // Sync rotation with main camera position (assuming lookAt origin)
+  useEffect(() => {
+    if (!cameraPosition) return;
+    const v = new THREE.Vector3(cameraPosition[0] || 0, cameraPosition[1] || 0, cameraPosition[2] || 0);
+    if (v.lengthSq() === 0) return;
+    v.normalize();
+    // yaw around Y so that +Z is zero
+    const yaw = Math.atan2(v.x, v.z);
+    // pitch around X; positive pitch looks downwards in our cube orientation
+    const pitch = Math.asin(v.y);
+    targetRotationRef.current = { x: -pitch, y: yaw };
+  }, [cameraPosition]);
 
   const handleFaceClick = (faceName) => {
     console.log('Face clicked:', faceName);
@@ -191,7 +204,7 @@ const ViewCubeScene = ({ onSelect, onDragStateChange }) => {
   );
 };
 
-const ViewCube = ({ activeView, onViewChange }) => {
+const ViewCube = ({ activeView, onViewChange, cameraPosition }) => {
   const [isDragging, setIsDragging] = useState(false);
   
   const handleSelect = (view) => {
@@ -208,7 +221,7 @@ const ViewCube = ({ activeView, onViewChange }) => {
         <ambientLight intensity={0.8} />
         <directionalLight position={[5, 5, 5]} intensity={1.2} />
         <pointLight position={[-5, -5, -5]} intensity={0.4} />
-        <ViewCubeScene onSelect={handleSelect} onDragStateChange={setIsDragging} />
+        <ViewCubeScene onSelect={handleSelect} onDragStateChange={setIsDragging} cameraPosition={cameraPosition} />
       </Canvas>
     </div>
   );

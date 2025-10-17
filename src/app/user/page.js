@@ -49,14 +49,20 @@ const Page = async () => {
 
   const { myProjects } = await fetchProjects();
 
+  const daysSinceCreated = Math.max(
+    0,
+    Math.floor(
+      (Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)
+    )
+  );
+
   const userHistory = [
     {
-      title: "تاریخ عضویت",
-      history: new Intl.DateTimeFormat("fa-IR", {
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-      }).format(new Date(user.createdAt)),
+      title: "سابقه عضویت",
+      history:
+        daysSinceCreated === 0
+          ? "امروز"
+          : `${toFarsiNumber(daysSinceCreated)} روز`,
       icon: "solar:calendar-broken",
     },
     {
@@ -73,12 +79,24 @@ const Page = async () => {
 
   return (
     <div className="flex flex-col gap-4 lg:gap-8">
-      {/* username */}
-      <div className="w-fit text-gray-700 bg-white p-4 lg:p-6 rounded-2xl shadow-lg shadow-gray-100">
-        <p>
-          <span className="font-black text-xl ml-2">{user?.name} عزیز😍؛</span>
-          <span>به جمع بچه های سازک خوش آمدی👋🏻</span>
-        </p>
+      {/* user name */}
+      <div className="w-full flex items-center justify-between">
+        <div className="w-fit text-gray-700 bg-white p-4 lg:p-6 rounded-2xl shadow-lg shadow-gray-100">
+          <p>
+            <span className="font-black text-xl ml-2">
+              {user?.name} عزیز😍؛
+            </span>
+            <span>به جمع بچه های سازک خوش آمدی👋🏻</span>
+          </p>
+        </div>
+
+        <Link
+          href={"/design-studio/new-project"}
+          className="hidden sm:py-3 sm:px-6 py-2 px-4 text-sm md:flex items-center gap-2 font-bold rounded-2xl bg-primaryThemeColor text-white focus-within:scale-95 transition-all"
+        >
+          <Icon icon="solar:add-circle-broken" width="24" height="24" />
+          <span>ایجاد پروژه جدید</span>
+        </Link>
       </div>
 
       {/* user history */}
@@ -144,7 +162,11 @@ const Page = async () => {
                   className="overflow-hidden rounded-2xl"
                 >
                   <Image
-                    src={item.image ? `${siteURL}${item.image}` : "/assets/holder.svg"}
+                    src={
+                      item.image
+                        ? `${siteURL}${item.image}`
+                        : "/assets/holder.svg"
+                    }
                     width={400}
                     height={200}
                     className="aspect-video rounded-xl group-hover:scale-105 transition-all"

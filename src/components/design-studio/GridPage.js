@@ -8,7 +8,8 @@ import useModelStore from "@/store/useModelStore";
 import Model from "./Model";
 import ModelPlacer from "./ModelPlacer";
 import CustomGrid from "../home/CustomGrid";
-import ViewCube from "../home/ViewCube";
+import SelectedModelPanel from "./SelectedModelPanel";
+import { useMemo } from "react";
 import {
   Checkbox,
   Modal,
@@ -291,6 +292,12 @@ const KeyboardController = ({ onShowHelp }) => {
                 np[0] += moveStep;
                 break;
             }
+            // Constrain to grid if enabled
+            if (useModelStore.getState().constrainToGrid) {
+              const limit = 20; // match CustomGrid size/2
+              np[0] = Math.max(-limit, Math.min(limit, np[0]));
+              np[2] = Math.max(-limit, Math.min(limit, np[2]));
+            }
             return np;
           };
 
@@ -540,6 +547,8 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const isPasteMode = useModelStore((state) => state.isPasteMode);
   const clipboardModels = useModelStore((state) => state.clipboardModels);
   const modelOptions = useModelStore((state) => state.modelOptions);
+  const constrainToGrid = useModelStore((state) => state.constrainToGrid);
+  const setConstrainToGrid = useModelStore((state) => state.setConstrainToGrid);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
   const [showHelp, setShowHelp] = useState(false);
   const [showSnapGrid, setShowSnapGrid] = useState(false);
@@ -585,16 +594,6 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   return (
     <div className="w-full h-full relative">
       <Toaster />
-      <div className="absolute flex justify-center items-center top-4 right-4 bg-white p-2 px-3 rounded-xl shadow-lg shadow-gray-100 gap-1 z-50">
-        <button
-          onClick={(e) => setShowHelp(true)}
-          className="text-gray-700 flex items-center gap-2 text-sm hover:text-primaryThemeColor transition-all duration-300 p-1"
-          title="راهنمای شورت کات‌ها"
-        >
-          <i className="fi fi-rr-interrogation block size-4"></i>
-          <span>راهنمای شورت کات‌ها</span>
-        </button>
-      </div>
 
       {/* Paste mode indicator */}
       {isPasteMode && clipboardModels && clipboardModels.length > 0 && (
@@ -652,6 +651,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           ref={controlsRef}
           enableRotate={!isAdjustingHeight}
           enablePan={!isAdjustingHeight}
+          zoomToCursor
           mouseButtons={{
             LEFT: undefined,
             MIDDLE: THREE.MOUSE.PAN,
@@ -661,187 +661,13 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
       </Canvas>
 
-      {/* Help Modal */}
-      <Modal
-        isOpen={showHelp}
-        onOpenChange={setShowHelp}
-        placement="center"
-        size="2xl"
-      >
-        <ModalContent>
-          <ModalHeader className="font-bold text-center">
-            راهنمای شورت کات‌های کیبورد
-          </ModalHeader>
-          <ModalBody className="py-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Basic Operations */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
-                  عملیات پایه
-                </h3>
-                <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                    <span>ذخیره پروژه</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+S
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>کپی مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+C
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>کات مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+X
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>پیست مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+V
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>تکثیر مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+D
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حذف مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Delete
-                    </kbd>
-                  </div>
-                </div>
-              </div>
 
-              {/* Selection & Movement */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
-                  انتخاب و حرکت
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>انتخاب مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Left Click</kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>انتخاب همه</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+A
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>انتخاب/لغو انتخاب چندتایی</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl + Left Click</kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>کشیدن مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">Left Click + Drag</kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>لغو انتخاب</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Escape
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حرکت بالا</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      ↑
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حرکت پایین</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      ↓
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حرکت چپ</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      ←
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حرکت راست</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      →
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>حرکت دقیق (با Shift)</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Shift + ↑↓←→
-                    </kbd>
-                  </div>
-                </div>
-              </div>
+      <SelectedModelPanel />
 
-              {/* Camera Controls */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
-                  کنترل دوربین
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>زوم این</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      +
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>زوم اوت</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      -
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>کنترل دوربین</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Space
-                    </kbd>
-                  </div>
-                </div>
-              </div>
-
-              {/* Future Features */}
-              <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
-                  ویرایش‌ها
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Undo</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+Z
-                    </kbd>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Redo</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
-                      Ctrl+Shift+Z
-                    </kbd>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setShowHelp(false)}>
-              بستن
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
+      {/* ViewCube is rendered in LeftSidebar; it already syncs with main camera. */}
 
       {/* Snap Grid Dropdown */}
-      <div className="absolute bottom-4 right-4 z-50 snap-grid-dropdown">
+      <div className="absolute bottom-16 right-4 z-50 snap-grid-dropdown">
         <div className="relative">
           <button
             onClick={() => setShowSnapGrid(!showSnapGrid)}
@@ -849,7 +675,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             title="تنظیمات Snap Grid"
           >
             <i className="fi fi-rr-grid size-4"></i>
-            <span className="text-sm">
+            <span className="text-xs font-semibold">
               {modelOptions.snapSize === 'free' ? 'آزاد' : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
             </span>
             <i className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${showSnapGrid ? 'rotate-180' : ''}`}></i>
@@ -884,8 +710,89 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           )}
         </div>
       </div>
+
+      {/* Bottom Stats Bar */}
+      <StatsBar />
+
+      {/* Constrain to Grid Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <div className="bg-white/90 rounded-xl px-3 py-2 shadow-lg shadow-gray-100 border border-gray-100">
+          <Checkbox
+            size="sm"
+            isSelected={constrainToGrid}
+            onValueChange={setConstrainToGrid}
+            classNames={{wrapper:"after:bg-primaryThemeColor"}}
+          >
+            <span className="text-xs text-gray-700">عدم خروج مدل‌ها از صفحه</span>
+          </Checkbox>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default GridPage;
+
+const StatsBar = () => {
+  const selectedModels = useModelStore((state) => state.selectedModels);
+  const snap = useModelStore((state) => state.modelOptions.snapSize);
+
+  const { count, width, depth, area, maxHeight } = useMemo(() => {
+    const count = selectedModels.length;
+    if (count === 0) return { count, width: 0, depth: 0, area: 0, maxHeight: 0 };
+
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let maxHeight = 0;
+    for (const m of selectedModels) {
+      const [x, y, z] = m.position || [0, 0, 0];
+      // Treat each piece roughly as 1x1 footprint; use position as center cell
+      const half = (snap && snap !== 'free') ? Math.max(0.5, snap / 2) : 0.5;
+      minX = Math.min(minX, x - half);
+      maxX = Math.max(maxX, x + half);
+      minZ = Math.min(minZ, z - half);
+      maxZ = Math.max(maxZ, z + half);
+      // Estimate height from position.y or explicit size if present
+      const modelHeight = Array.isArray(m.size) ? (m.size[1] ?? 0) : (m.height ?? y ?? 0);
+      maxHeight = Math.max(maxHeight, modelHeight);
+    }
+    const width = Math.max(0, maxX - minX);
+    const depth = Math.max(0, maxZ - minZ);
+    const area = width * depth;
+    return { count, width, depth, area, maxHeight };
+  }, [selectedModels, snap]);
+
+  const fmt = (v) => {
+    if (!isFinite(v)) return "0";
+    const n = Math.round(v * 100) / 100;
+    return toFarsiNumber(n);
+  };
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 z-40">
+      <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 p-3">
+        <div className="flex items-center justify-between text-xs text-gray-700">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">تعداد قطعات:</span>
+            <span>{toFarsiNumber(count)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">عرض کل:</span>
+            <span>{fmt(width)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">عمق کل:</span>
+            <span>{fmt(depth)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">مساحت اشغال‌شده:</span>
+            <span>{fmt(area)}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">بیشترین ارتفاع:</span>
+            <span>{fmt(maxHeight)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

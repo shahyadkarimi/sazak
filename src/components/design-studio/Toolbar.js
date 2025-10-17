@@ -84,6 +84,7 @@ const Toolbar = ({ project }) => {
   const [confirmAutoSave, setConfirmAutoSave] = useState(0);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const router = useRouter();
 
@@ -184,46 +185,46 @@ const Toolbar = ({ project }) => {
     const handleKeyDown = (event) => {
       // Check if Ctrl+S is pressed (both Windows and Mac)
       if (
-        (event.ctrlKey || event.metaKey) && 
-        !event.altKey && 
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
         !event.shiftKey &&
-        (event.key === 's' || event.key === 'S' || event.code === 'KeyS')
+        (event.key === "s" || event.key === "S" || event.code === "KeyS")
       ) {
         // Prevent browser's default save dialog
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
-        
+
         // Only save if not already saving
         if (!loading) {
           saveChangeHandler();
         }
-        
+
         return false;
       }
     };
 
     // Add event listener with capture phase and passive false
-    document.addEventListener('keydown', handleKeyDown, { 
-      capture: true, 
-      passive: false 
+    document.addEventListener("keydown", handleKeyDown, {
+      capture: true,
+      passive: false,
     });
 
     // Also add to window for extra coverage
-    window.addEventListener('keydown', handleKeyDown, { 
-      capture: true, 
-      passive: false 
+    window.addEventListener("keydown", handleKeyDown, {
+      capture: true,
+      passive: false,
     });
 
     // Cleanup event listeners on component unmount
     return () => {
-      document.removeEventListener('keydown', handleKeyDown, { 
-        capture: true, 
-        passive: false 
+      document.removeEventListener("keydown", handleKeyDown, {
+        capture: true,
+        passive: false,
       });
-      window.removeEventListener('keydown', handleKeyDown, { 
-        capture: true, 
-        passive: false 
+      window.removeEventListener("keydown", handleKeyDown, {
+        capture: true,
+        passive: false,
       });
     };
   }, [loading, saveChangeHandler]); // Include saveChangeHandler in dependencies
@@ -418,10 +419,6 @@ const Toolbar = ({ project }) => {
       <Toaster />
       <div className="w-full max-w-[1450px] h-16 px-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="font-bold text-gray-700 text-lg">{project.name}</h2>
-          </div>
-
           <button
             onClick={() => {
               reset({
@@ -430,10 +427,9 @@ const Toolbar = ({ project }) => {
               });
               setIsEditOpen(true);
             }}
-            className="text-gray-700 hover:text-primaryThemeColor transition-all duration-300"
+            className="flex items-center gap-2"
           >
-            {/* open edit modal */}
-            <i className="fi fi-rr-pencil size-4 block"></i>
+            <h2 className="font-bold text-gray-700 text-lg">{project.name}</h2>
           </button>
         </div>
 
@@ -530,6 +526,17 @@ const Toolbar = ({ project }) => {
           </div>
 
           <div className="flex flex-col items-center gap-1">
+            <Tooltip content="راهنما" placement="bottom" size="sm">
+              <button
+                onClick={(e) => setShowHelp(true)}
+                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+              >
+                <i className="fi fi-rr-interrogation block size-4"></i>
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
             <Tooltip content="واگرد" placement="bottom" size="sm">
               <button
                 onClick={undo}
@@ -612,6 +619,190 @@ const Toolbar = ({ project }) => {
           </div>
         </div>
       </div>
+
+      {/* Help Modal */}
+      <Modal
+        isOpen={showHelp}
+        onOpenChange={setShowHelp}
+        placement="center"
+        size="2xl"
+      >
+        <ModalContent>
+          <ModalHeader className="font-bold text-center">
+            راهنمای شورت کات‌های کیبورد
+          </ModalHeader>
+          <ModalBody className="py-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Basic Operations */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                  عملیات پایه
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>ذخیره پروژه</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+S
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کپی مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+C
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کات مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+X
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>پیست مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+V
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>تکثیر مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+D
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حذف مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Delete
+                    </kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Selection & Movement */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                  انتخاب و حرکت
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>انتخاب مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Left Click
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>انتخاب همه</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+A
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>انتخاب/لغو انتخاب چندتایی</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl + Left Click
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کشیدن مدل</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Left Click + Drag
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>لغو انتخاب</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Escape
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حرکت بالا</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      ↑
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حرکت پایین</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      ↓
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حرکت چپ</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      ←
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حرکت راست</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      →
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>حرکت دقیق (با Shift)</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Shift + ↑↓←→
+                    </kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Camera Controls */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                  کنترل دوربین
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>زوم این</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      +
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>زوم اوت</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      -
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>کنترل دوربین</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Space
+                    </kbd>
+                  </div>
+                </div>
+              </div>
+
+              {/* Future Features */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                  ویرایش‌ها
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Undo</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+Z
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Redo</span>
+                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                      Ctrl+Shift+Z
+                    </kbd>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onPress={() => setShowHelp(false)}>
+              بستن
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
       <Modal
         isOpen={isEditOpen}

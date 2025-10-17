@@ -17,6 +17,7 @@ const useModelStore = create((set, get) => ({
   },
   modelsRef: {},
   zoomLevel: 50, // FOV value for camera zoom
+  constrainToGrid: false,
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
@@ -42,6 +43,23 @@ const useModelStore = create((set, get) => ({
       ),
     })),
 
+  updateModelColor: (target, color) =>
+    set((state) => {
+      const isAll = target === 'ALL';
+      const isArray = Array.isArray(target);
+      const targetIds = isAll
+        ? state.selectedModels.map((m) => m.id)
+        : isArray
+          ? target
+          : [target];
+
+      return {
+        selectedModels: state.selectedModels.map((model) =>
+          targetIds.includes(model.id) ? { ...model, color } : model
+        ),
+      };
+    }),
+
   setIsAdjustingHeight: (value) => set({ isAdjustingHeight: value }),
 
   setIsPasteMode: (value) => set({ isPasteMode: value }),
@@ -59,6 +77,8 @@ const useModelStore = create((set, get) => ({
     })),
 
   setZoomLevel: (level) => set({ zoomLevel: Math.max(10, Math.min(100, level)) }),
+
+  setConstrainToGrid: (value) => set({ constrainToGrid: !!value }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 

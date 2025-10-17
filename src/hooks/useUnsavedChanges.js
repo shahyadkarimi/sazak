@@ -164,30 +164,10 @@ const useUnsavedChanges = (project) => {
     };
   }, [checkForUnsavedChanges]);
 
-  // Handle tab switching and page visibility changes - show custom modal
+  // Handle keyboard and navigation shortcuts (but NOT tab/app switching)
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden && checkForUnsavedChanges()) {
-        setShowWarning(true);
-      }
-    };
-
-    // Handle page focus loss (user switching tabs)
-    const handleBlur = () => {
-      if (checkForUnsavedChanges()) {
-        setShowWarning(true);
-      }
-    };
-
-    // Handle keyboard shortcuts
+    // Handle keyboard shortcuts (keep navigation keys, let hard refresh trigger native beforeunload)
     const handleKeyDown = (event) => {
-      // Ctrl+R or F5 for refresh
-      if ((event.ctrlKey && event.key === "r") || event.key === "F5") {
-        if (checkForUnsavedChanges()) {
-          event.preventDefault();
-          setShowWarning(true);
-        }
-      }
       // Ctrl+W for close tab
       if (event.ctrlKey && event.key === "w") {
         if (checkForUnsavedChanges()) {
@@ -212,15 +192,11 @@ const useUnsavedChanges = (project) => {
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("blur", handleBlur);
-    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     document.addEventListener("mousedown", handleMouseBack);
 
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("blur", handleBlur);
-      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleMouseBack);
     };
   }, [checkForUnsavedChanges]);

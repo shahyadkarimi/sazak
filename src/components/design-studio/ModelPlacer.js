@@ -73,6 +73,7 @@ const ModelPlacer = () => {
   const planeRef = useRef();
 
   const selectedModels = useModelStore((s) => s.selectedModels);
+  const constrainToGrid = useModelStore((s) => s.constrainToGrid);
   const currentPlacingModel = useModelStore((s) => s.currentPlacingModel);
   const currentPlacingModelColor = useModelStore((s) => s.currentPlacingModelColor);
   const setCurrentPlacingModel = useModelStore((s) => s.setCurrentPlacingModel);
@@ -142,6 +143,11 @@ const ModelPlacer = () => {
         snapSize
       );
 
+      if (constrainToGrid) {
+        const limit = 20; // match CustomGrid size/2 (size=40)
+        adjusted[0] = Math.max(-limit, Math.min(limit, adjusted[0]));
+        adjusted[2] = Math.max(-limit, Math.min(limit, adjusted[2]));
+      }
       setHoverPos(adjusted);
     }
   });
@@ -154,7 +160,15 @@ const ModelPlacer = () => {
         {
           id: Date.now(),
           path: currentPlacingModel,
-          position: hoverPos,
+          position: (function(){
+            const p = [...hoverPos];
+            if (constrainToGrid) {
+              const limit = 20;
+              p[0] = Math.max(-limit, Math.min(limit, p[0]));
+              p[2] = Math.max(-limit, Math.min(limit, p[2]));
+            }
+            return p;
+          })(),
           rotation: [0, 0, 0],
           color: currentPlacingModelColor,
         },

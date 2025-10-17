@@ -16,8 +16,8 @@ const Header = () => {
             src={user.profilePicture || "/assets/avatar.png"}
             width={150}
             height={150}
-            className="size-8 rounded-full scale-150"
-            alt="user avatar"
+            className="size-8 text-xs rounded-full scale-150"
+            alt="avatar"
           />
 
           <div className="flex flex-col gap-0.5">

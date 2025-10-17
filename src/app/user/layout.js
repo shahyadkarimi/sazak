@@ -46,7 +46,7 @@ const Layout = ({ children,  }) => {
           </div>
         )}
 
-        <div className="w-full lg:w-[calc(100%-256px)] self-end flex flex-col">
+        <div className="w-full lg:w-[calc(100%-256px)] flex flex-col">
           <Header onOpenSidebar={openSidebar} />
 
           <div className="h-[calc(100%-80px)] bg-gray-100/70 rounded-tr-3xl p-4 lg:p-8">

@@ -19,7 +19,7 @@ const filters = [
   { name: "پیچ ها", value: "screw" },
 ];
 
-const Sidebar = () => {
+const Sidebar = ({ onToggle }) => {
   const setCurrentPlacingModel = useModelStore(
     (state) => state.setCurrentPlacingModel
   );
@@ -45,6 +45,7 @@ const Sidebar = () => {
       nameEn: "3-Way Connector",
       nameFa: "L4",
       type: "connector",
+      color: "#ef4444",
     },
     {
       id: 2,
@@ -52,6 +53,7 @@ const Sidebar = () => {
       nameEn: "Straight Plate 12cm",
       nameFa: "شیاری بلند",
       type: "plate",
+      color: "#3b82f6",
     },
     {
       id: 3,
@@ -59,6 +61,7 @@ const Sidebar = () => {
       nameEn: "Straight Plate 8cm",
       nameFa: "شیاری کوتاه",
       type: "plate",
+      color: "#22c55e",
     },
     {
       id: 4,
@@ -66,6 +69,7 @@ const Sidebar = () => {
       nameEn: "Straight Bar",
       nameFa: "I2",
       type: "connector",
+      color: "#eab308",
     },
     {
       id: 5,
@@ -73,6 +77,7 @@ const Sidebar = () => {
       nameEn: "Straight Bar (3H)",
       nameFa: "I3",
       type: "connector",
+      color: "#f97316",
     },
     {
       id: 6,
@@ -80,13 +85,15 @@ const Sidebar = () => {
       nameEn: "Straight Bar (4H)",
       nameFa: "I4",
       type: "connector",
+      color: "#a855f7",
     },
     {
       id: 7,
       path: "/models/I_Piece_4_hole_4_side_hole.glb",
       nameEn: "Straight Bar (4H Side)",
-      nameFa: "آی 4 کناری",
+      nameFa: "I4",
       type: "connector",
+      color: "#10b981",
     },
     {
       id: 8,
@@ -94,6 +101,7 @@ const Sidebar = () => {
       nameEn: "Track Bar",
       nameFa: "S7",
       type: "plate",
+      color: "#0ea5e9",
     },
     {
       id: 9,
@@ -101,6 +109,7 @@ const Sidebar = () => {
       nameEn: "Long Plate",
       nameFa: "S10",
       type: "plate",
+      color: "#6366f1",
     },
     {
       id: 10,
@@ -108,6 +117,7 @@ const Sidebar = () => {
       nameEn: "L-Angle Small",
       nameFa: "L3",
       type: "connector",
+      color: "#f43f5e",
     },
     {
       id: 11,
@@ -115,6 +125,7 @@ const Sidebar = () => {
       nameEn: "L-Angle with Track",
       nameFa: "L7T",
       type: "L",
+      color: "#22d3ee",
     },
     {
       id: 12,
@@ -122,6 +133,7 @@ const Sidebar = () => {
       nameEn: "L-Angle Medium",
       nameFa: "L4",
       type: "connector",
+      color: "#84cc16",
     },
     {
       id: 13,
@@ -129,6 +141,7 @@ const Sidebar = () => {
       nameEn: "L-Angle Large",
       nameFa: "L5",
       type: "connector",
+      color: "#fb7185",
     },
     {
       id: 14,
@@ -136,6 +149,7 @@ const Sidebar = () => {
       nameEn: "L-Angle Extra",
       nameFa: "L5 تداخلی",
       type: "connector",
+      color: "#f59e0b",
     },
     {
       id: 15,
@@ -143,6 +157,7 @@ const Sidebar = () => {
       nameEn: "L-Plate",
       nameFa: "L5T",
       type: "connector",
+      color: "#64748b",
     },
     {
       id: 16,
@@ -150,12 +165,15 @@ const Sidebar = () => {
       nameEn: "U-Channel",
       nameFa: "U",
       type: "connector",
+      color: "#14b8a6",
     },
   ];
 
   const groupedModels = {
     all: modelList,
-    connector: modelList.filter((m) => ["connector", "L", "U"].includes(m.type)),
+    connector: modelList.filter((m) =>
+      ["connector", "L", "U"].includes(m.type)
+    ),
     plate: modelList.filter((m) => m.type === "plate"),
     screw: modelList.filter((m) => m.type === "bar"),
   };
@@ -184,6 +202,10 @@ const Sidebar = () => {
         });
       }
       setActiveModel(modelId);
+      const model = modelList.find((m) => m.id === modelId);
+      if (model?.color) {
+        setCurrentPlacingModelColor(model.color);
+      }
     }
   };
 
@@ -193,11 +215,22 @@ const Sidebar = () => {
     item.nameFa.includes(search)
   );
 
-  
-
   return (
     <>
-      <div className="min-w-80 max-w-80 flex flex-col gap-4 h-full bg-white p-4 overflow-y-auto">
+      <div className="relative min-w-80 max-w-80 flex flex-col gap-4 bg-white p-4 h-[calc(100vh-144px)]">
+        {typeof onToggle === "function" && (
+          <button
+            onClick={onToggle}
+            className="absolute top-1/2 -translate-y-1/2 -left-5 w-5 h-10 rounded-l-xl z-10 bg-white border border-r-0 flex items-center justify-center text-gray-600 hover:text-primaryThemeColor"
+            title="بستن"
+          >
+            <Icon
+              icon="solar:alt-arrow-left-line-duotone"
+              width="24"
+              height="24"
+            />
+          </button>
+        )}
         <Input
           type="text"
           placeholder="جست و جو سازه"
@@ -236,18 +269,29 @@ const Sidebar = () => {
           ))}
         </div>
 
-        <div className="w-full scroll-bar flex flex-col gap-3 overflow-y-auto pl-2">
+        <div className="w-full scroll-bar grid grid-cols-1 lg:grid-cols-3 gap-3 pt-2 overflow-y-auto pl-2">
           {searchedModels.map((model) => (
             <button
               key={model.id}
               ref={(el) => (buttonRefs.current[model.id] = el)}
               onClick={() => clickModelHandler(model.id)}
-              className="w-full p-2 border font-light rounded-2xl text-sm text-gray-700 flex items-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
+              className={cn(
+                "w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300",
+                activeModel === model.id
+                  ? "border-2 border-primaryThemeColor"
+                  : ""
+              )}
             >
-              <div className="size-20 rounded-xl overflow-hidden">
-                <ModelThumbnail path={model.path} className="w-full h-full" />
+              <div className="w-full h-12 rounded-xl">
+                <ModelThumbnail
+                  path={model.path}
+                  className="w-full h-full"
+                  color={model.color}
+                />
               </div>
-              <span className="text-center">{toFarsiNumber(model.nameFa)}</span>
+              <span className="text-xs font-semibold text-center">
+                {toFarsiNumber(model.nameFa)}
+              </span>
             </button>
           ))}
         </div>
@@ -256,14 +300,14 @@ const Sidebar = () => {
       {activeModel && (
         <div
           ref={colorRef}
-          className="w-auto grid grid-cols-4 items-center gap-6 absolute z-[999] bg-gray-200/50 rounded-2xl py-3 px-4"
-          style={{
-            top: colorBoxPos.top,
-            transform: "translateY(-100%)",
-            right: 290,
-          }}
+          className="w-auto grid grid-cols-4 items-center gap-6 absolute z-[999] bg-gray-200/50 rounded-2xl py-3 px-4 top-32 right-80"
         >
-          <button 
+          <p className="text-sm font-semibold text-gray-700 col-span-4 text-center">
+            قطعه{" "}
+            {toFarsiNumber(modelList.find((m) => m.id === activeModel)?.nameFa)}
+          </p>
+
+          <button
             onClick={() => {
               setCurrentPlacingModel(
                 modelList.find((m) => m.id === activeModel)?.path
@@ -275,6 +319,22 @@ const Sidebar = () => {
           >
             شفاف
           </button>
+
+          <div className="col-span-4 flex items-center justify-between">
+            <span className="text-xs text-gray-700">انتخاب رنگ</span>
+            <input
+              type="color"
+              onChange={(e) => {
+                setCurrentPlacingModel(
+                  modelList.find((m) => m.id === activeModel)?.path
+                );
+                setCurrentPlacingModelColor(e.target.value);
+                setActiveModel(null);
+              }}
+              className="w-10 h-6 p-0 border-0 bg-transparent cursor-pointer"
+              title="Color Picker"
+            />
+          </div>
 
           {colors.map((c) => (
             <button
