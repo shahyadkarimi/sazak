@@ -18,6 +18,11 @@ const useModelStore = create((set, get) => ({
   modelsRef: {},
   zoomLevel: 50, // FOV value for camera zoom
   constrainToGrid: false,
+  // Preview mode for snap-to-attach functionality
+  isPreviewMode: true,
+  snapPoints: [], // Array of available snap points
+  previewPosition: null, // Current preview position
+  isSnapping: false, // Whether currently snapping to a point
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
@@ -79,6 +84,12 @@ const useModelStore = create((set, get) => ({
   setZoomLevel: (level) => set({ zoomLevel: Math.max(10, Math.min(100, level)) }),
 
   setConstrainToGrid: (value) => set({ constrainToGrid: !!value }),
+  
+  // Preview mode controls
+  setIsPreviewMode: (value) => set({ isPreviewMode: !!value }),
+  setSnapPoints: (points) => set({ snapPoints: points || [] }),
+  setPreviewPosition: (position) => set({ previewPosition: position }),
+  setIsSnapping: (value) => set({ isSnapping: !!value }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 

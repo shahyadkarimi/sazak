@@ -9,6 +9,8 @@ import Model from "./Model";
 import ModelPlacer from "./ModelPlacer";
 import CustomGrid from "../home/CustomGrid";
 import SelectedModelPanel from "./SelectedModelPanel";
+import SnapPointPreview from "./SnapPointPreview";
+import ModelPreview from "./ModelPreview";
 import { useMemo } from "react";
 import {
   Checkbox,
@@ -550,6 +552,8 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const constrainToGrid = useModelStore((state) => state.constrainToGrid);
   const setConstrainToGrid = useModelStore((state) => state.setConstrainToGrid);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
+  const isPreviewMode = useModelStore((state) => state.isPreviewMode);
+  const setIsPreviewMode = useModelStore((state) => state.setIsPreviewMode);
   const [showHelp, setShowHelp] = useState(false);
   const [showSnapGrid, setShowSnapGrid] = useState(false);
   const controlsRef = useRef();
@@ -647,6 +651,9 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
         <CustomGrid />
 
+        <SnapPointPreview />
+        <ModelPreview />
+
         <OrbitControls
           ref={controlsRef}
           enableRotate={!isAdjustingHeight}
@@ -727,6 +734,20 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           </Checkbox>
         </div>
       </div>
+
+      {/* Preview Mode Toggle */}
+      {/* <div className="absolute top-4 right-32 z-50">
+        <div className="bg-white/90 rounded-xl px-3 py-2 shadow-lg shadow-gray-100 border border-gray-100">
+          <Checkbox
+            size="sm"
+            isSelected={isPreviewMode}
+            onValueChange={setIsPreviewMode}
+            classNames={{wrapper:"after:bg-primaryThemeColor"}}
+          >
+            <span className="text-xs text-gray-700">حالت پیشنمایش اتصال</span>
+          </Checkbox>
+        </div>
+      </div> */}
     </div>
   );
 };

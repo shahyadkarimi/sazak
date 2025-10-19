@@ -242,7 +242,11 @@ const useUnsavedChanges = (project) => {
     };
 
     // Add a dummy state to enable popstate detection
-    window.history.pushState({ preventBack: true }, "", window.location.href);
+    try {
+      window.history.pushState({ preventBack: true }, "", window.location.href);
+    } catch (error) {
+      console.warn("History API not available:", error);
+    }
 
     // Override router.push to check for unsaved changes
     const originalPush = router.push;

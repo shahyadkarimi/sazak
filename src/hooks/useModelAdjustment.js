@@ -19,42 +19,89 @@ export const degToRad = (deg) => {
   return deg * (Math.PI / 180);
 };
 
-// تابع بررسی و اصلاح برخورد
+// تابع محاسبه bounding box برای مدل‌های پیچیده
+export const calculateModelBoundingBox = (model, step = 1) => {
+  // برای مدل‌های رباتیک، ابعاد را بر اساس نوع مدل تخمین می‌زنیم
+  let size = { x: step, y: step, z: step };
+  
+  // تشخیص نوع مدل بر اساس نام فایل
+  const modelPath = model.path || '';
+  
+  if (modelPath.includes('U_Piece')) {
+    // مدل U شکل - عرض بیشتر
+    size = { x: step * 1.5, y: step, z: step };
+  } else if (modelPath.includes('L_Piece')) {
+    // مدل L شکل - ابعاد متفاوت
+    size = { x: step * 1.2, y: step, z: step * 1.2 };
+  } else if (modelPath.includes('I_Piece')) {
+    // مدل I شکل - ممکن است طولانی‌تر باشد
+    size = { x: step, y: step, z: step * 1.5 };
+  } else if (modelPath.includes('3_ways')) {
+    // مدل 3 راهه - ابعاد بزرگتر
+    size = { x: step * 1.3, y: step, z: step * 1.3 };
+  }
+  
+  return new THREE.Box3().setFromCenterAndSize(
+    new THREE.Vector3(...model.position),
+    new THREE.Vector3(size.x, size.y, size.z)
+  );
+};
+
+// تابع بررسی و اصلاح برخورد بهبود یافته
 export const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1) => {
   let adjustedPos = new THREE.Vector3(...newPos);
+  const currentModel = models.find(m => m.id === currentId);
+  
+  if (!currentModel) return [adjustedPos.x, adjustedPos.y, adjustedPos.z];
+
+  // محاسبه bounding box برای مدل فعلی
+  const currentModelBox = calculateModelBoundingBox(currentModel, step);
 
   for (const model of models) {
     if (model.id === currentId) continue; // مدل خودش را بررسی نکن
 
-    const modelPos = new THREE.Vector3(...model.position);
-    // فرض می‌کنیم ابعاد مدل‌ها 1x1x1 است (برای دقت بیشتر، از Box3 واقعی مدل استفاده کنید)
-    const modelBox = new THREE.Box3().setFromCenterAndSize(
-      modelPos,
-      new THREE.Vector3(step, step, step)
-    );
+    const modelBox = calculateModelBoundingBox(model, step);
+    
+    // بررسی برخورد با حاشیه امن
+    const safetyMargin = step * 0.1; // 10% حاشیه امن
+    const expandedModelBox = modelBox.clone().expandByScalar(safetyMargin);
+    const expandedCurrentBox = currentModelBox.clone().expandByScalar(safetyMargin);
+    
+    // جابجایی موقعیت مدل فعلی
+    expandedCurrentBox.translate(adjustedPos.clone().sub(new THREE.Vector3(...currentModel.position)));
 
-    const newBox = new THREE.Box3().setFromCenterAndSize(
-      adjustedPos,
-      new THREE.Vector3(step, step, step)
-    );
+    if (expandedModelBox.intersectsBox(expandedCurrentBox)) {
+      // محاسبه فاصله‌های مختلف برای انتخاب بهترین موقعیت
+      const distances = {
+        left: Math.abs(adjustedPos.x - modelBox.max.x),
+        right: Math.abs(adjustedPos.x - modelBox.min.x),
+        front: Math.abs(adjustedPos.z - modelBox.max.z),
+        back: Math.abs(adjustedPos.z - modelBox.min.z),
+        top: Math.abs(adjustedPos.y - modelBox.max.y),
+        bottom: Math.abs(adjustedPos.y - modelBox.min.y)
+      };
 
-    if (modelBox.intersectsBox(newBox)) {
-      // اگر برخورد وجود دارد، موقعیت را اصلاح می‌کنیم
-      if (adjustedPos.x < modelPos.x) {
-        adjustedPos.x = modelBox.min.x - step / 2;
-      } else {
-        adjustedPos.x = modelBox.max.x + step / 2;
+      // انتخاب کوتاه‌ترین فاصله
+      const minDistance = Math.min(...Object.values(distances));
+      
+      if (minDistance === distances.left) {
+        adjustedPos.x = modelBox.max.x + (currentModelBox.max.x - currentModelBox.min.x) / 2 + safetyMargin;
+      } else if (minDistance === distances.right) {
+        adjustedPos.x = modelBox.min.x - (currentModelBox.max.x - currentModelBox.min.x) / 2 - safetyMargin;
+      } else if (minDistance === distances.front) {
+        adjustedPos.z = modelBox.max.z + (currentModelBox.max.z - currentModelBox.min.z) / 2 + safetyMargin;
+      } else if (minDistance === distances.back) {
+        adjustedPos.z = modelBox.min.z - (currentModelBox.max.z - currentModelBox.min.z) / 2 - safetyMargin;
+      } else if (minDistance === distances.top) {
+        adjustedPos.y = modelBox.max.y + (currentModelBox.max.y - currentModelBox.min.y) / 2 + safetyMargin;
+      } else if (minDistance === distances.bottom) {
+        adjustedPos.y = modelBox.min.y - (currentModelBox.max.y - currentModelBox.min.y) / 2 - safetyMargin;
       }
 
-      if (Math.abs(adjustedPos.z - modelPos.z) < step) {
-        if (adjustedPos.z < modelPos.z) {
-          adjustedPos.z = modelBox.min.z - step / 2;
-        } else {
-          adjustedPos.z = modelBox.max.z + step / 2;
-        }
+      // اگر ارتفاع تغییر نکرده، ارتفاع اصلی را حفظ می‌کنیم
+      if (minDistance !== distances.top && minDistance !== distances.bottom) {
+        adjustedPos.y = newPos[1];
       }
-
-      adjustedPos.y = newPos[1]; // ارتفاع را حفظ می‌کنیم
     }
   }
 

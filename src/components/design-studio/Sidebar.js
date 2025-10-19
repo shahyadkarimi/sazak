@@ -113,6 +113,22 @@ const Sidebar = ({ onToggle }) => {
     },
     {
       id: 10,
+      path: "/models/I_piece_12_hole_One_Sided_Plate.glb",
+      nameEn: "Long Plate",
+      nameFa: "S12",
+      type: "plate",
+      color: "#6366f1",
+    },
+    {
+      id: 11,
+      path: "/models/I_piece_16_hole_One_Sided_Plate.glb",
+      nameEn: "Long Plate",
+      nameFa: "S16",
+      type: "plate",
+      color: "#6366f1",
+    },
+    {
+      id: 12,
       path: "/models/L_Piece_3_hole_1_side_hole.glb",
       nameEn: "L-Angle Small",
       nameFa: "L3",
@@ -120,7 +136,7 @@ const Sidebar = ({ onToggle }) => {
       color: "#f43f5e",
     },
     {
-      id: 11,
+      id: 13,
       path: "/models/L_Piece_3_hole_2_track_hole_One_Sided_Plate.glb",
       nameEn: "L-Angle with Track",
       nameFa: "L7T",
@@ -128,7 +144,7 @@ const Sidebar = ({ onToggle }) => {
       color: "#22d3ee",
     },
     {
-      id: 12,
+      id: 14,
       path: "/models/L_Piece_4_hole_1_side_hole.glb",
       nameEn: "L-Angle Medium",
       nameFa: "L4",
@@ -136,7 +152,7 @@ const Sidebar = ({ onToggle }) => {
       color: "#84cc16",
     },
     {
-      id: 13,
+      id: 15,
       path: "/models/L_Piece_5_hole_2_side_hole.glb",
       nameEn: "L-Angle Large",
       nameFa: "L5",
@@ -144,7 +160,7 @@ const Sidebar = ({ onToggle }) => {
       color: "#fb7185",
     },
     {
-      id: 14,
+      id: 16,
       path: "/models/L_Piece_5_hole_4_side_hole.glb",
       nameEn: "L-Angle Extra",
       nameFa: "L5 تداخلی",
@@ -152,7 +168,7 @@ const Sidebar = ({ onToggle }) => {
       color: "#f59e0b",
     },
     {
-      id: 15,
+      id: 17,
       path: "/models/L_Piece_5_hole_One_sided_Plate.glb",
       nameEn: "L-Plate",
       nameFa: "L5T",
@@ -160,13 +176,77 @@ const Sidebar = ({ onToggle }) => {
       color: "#64748b",
     },
     {
-      id: 16,
+      id: 18,
       path: "/models/U_Piece_7_hole_4_side_hole.glb",
       nameEn: "U-Channel",
       nameFa: "U",
       type: "connector",
       color: "#14b8a6",
     },
+      {
+        id: 19,
+        path: "/models/Screw_1cm.glb",
+        nameEn: "Screw 1cm",
+        nameFa: "پیچ 1cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 20,
+        path: "/models/Screw_2cm.glb",
+        nameEn: "Screw 2cm",
+        nameFa: "پیچ 2cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 21,
+        path: "/models/Screw_3cm.glb",
+        nameEn: "Screw 3cm",
+        nameFa: "پیچ 3cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 22,
+        path: "/models/Screw_4cm.glb",
+        nameEn: "Screw 4cm",
+        nameFa: "پیچ 4cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 23,
+        path: "/models/Screw_5cm.glb",
+        nameEn: "Screw 5cm",
+        nameFa: "پیچ 5cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 24,
+        path: "/models/Screw_6cm.glb",
+        nameEn: "Screw 6cm",
+        nameFa: "پیچ 6cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 25,
+        path: "/models/Screw_8cm.glb",
+        nameEn: "Screw 8cm",
+        nameFa: "پیچ 8cm",
+        type: "screw",
+        color: "#374151",
+      },
+      {
+        id: 26,
+        path: "/models/Screw_10cm.glb",
+        nameEn: "Screw 10cm",
+        nameFa: "پیچ 10cm",
+        type: "screw",
+        color: "#374151",
+      },
   ];
 
   const groupedModels = {
@@ -300,7 +380,7 @@ const Sidebar = ({ onToggle }) => {
       {activeModel && (
         <div
           ref={colorRef}
-          className="w-auto grid grid-cols-4 items-center gap-6 absolute z-[999] bg-gray-200/50 rounded-2xl py-3 px-4 top-32 right-80"
+          className="w-48 grid grid-cols-4 items-center gap-6 absolute z-[999] bg-gray-200/50 rounded-2xl py-3 px-4 top-32 right-80"
         >
           <p className="text-sm font-semibold text-gray-700 col-span-4 text-center">
             قطعه{" "}

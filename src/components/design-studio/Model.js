@@ -6,6 +6,7 @@ import ModelControls from "./ModelControls";
 import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
+import { calculateSnapPoints, calculatePreviewPosition } from "@/helper/snapDetection";
 
 const Model = ({ path, position, id, rotation, color }) => {
   const modelRef = useRef();
@@ -22,6 +23,10 @@ const Model = ({ path, position, id, rotation, color }) => {
   const modelOptions = useModelStore((s) => s.modelOptions);
   const setModelsRef = useModelStore((s) => s.setModelsRef);
   const pushHistory = useModelStore((s) => s.pushHistory);
+  const isPreviewMode = useModelStore((s) => s.isPreviewMode);
+  const setSnapPoints = useModelStore((s) => s.setSnapPoints);
+  const setPreviewPosition = useModelStore((s) => s.setPreviewPosition);
+  const setIsSnapping = useModelStore((s) => s.setIsSnapping);
 
   const modelControls = useModelAdjustment(
     id,
@@ -128,7 +133,9 @@ const Model = ({ path, position, id, rotation, color }) => {
         
         if (!isTransparent && isDragging) {
           if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(0x00ff00); // رنگ سبز برای drag
+            // Different colors for preview mode vs normal drag
+            const dragColor = isPreviewMode ? 0x00aaff : 0x00ff00; // Blue for preview, green for normal
+            child.material.emissive = new THREE.Color(dragColor);
             child.material.emissiveIntensity = 0.4; // نوردهی بیشتر
           }
         } else if (!isTransparent && isSelected) {
@@ -263,6 +270,13 @@ const Model = ({ path, position, id, rotation, color }) => {
       setIsDragging(false);
       setDragStartPosition(null);
       setDragStartMouse(null);
+      
+      // Clear preview state when drag ends
+      if (isPreviewMode) {
+        setSnapPoints([]);
+        setPreviewPosition(null);
+        setIsSnapping(false);
+      }
     }
   };
 
@@ -273,6 +287,13 @@ const Model = ({ path, position, id, rotation, color }) => {
         setIsDragging(false);
         setDragStartPosition(null);
         setDragStartMouse(null);
+        
+        // Clear preview state when drag ends
+        if (isPreviewMode) {
+          setSnapPoints([]);
+          setPreviewPosition(null);
+          setIsSnapping(false);
+        }
       }
     };
 
@@ -283,7 +304,7 @@ const Model = ({ path, position, id, rotation, color }) => {
     return () => {
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [isDragging]);
+  }, [isDragging, isPreviewMode, setSnapPoints, setPreviewPosition, setIsSnapping]);
 
   // Global mouse move to keep dragging even when cursor leaves the model
   useEffect(() => {
@@ -316,6 +337,32 @@ const Model = ({ path, position, id, rotation, color }) => {
           const limit = 20; // match CustomGrid size/2 (size=40)
           proposedPosition[0] = Math.max(-limit, Math.min(limit, proposedPosition[0]));
           proposedPosition[2] = Math.max(-limit, Math.min(limit, proposedPosition[2]));
+        }
+
+        // Handle preview mode with snap points
+        if (isPreviewMode) {
+          // Calculate snap points for this model
+          const snapPoints = calculateSnapPoints(
+            { id, position: proposedPosition, rotation },
+            existingModels.filter(m => m.id !== id),
+            2
+          );
+          setSnapPoints(snapPoints);
+
+          // Calculate preview position with snapping
+          const previewResult = calculatePreviewPosition(proposedPosition, snapPoints, 2);
+          setPreviewPosition(previewResult.position);
+          setIsSnapping(previewResult.isSnapped);
+
+          // Use snapped position if available
+          if (previewResult.isSnapped) {
+            proposedPosition = previewResult.position;
+          }
+        } else {
+          // Clear preview state when not in preview mode
+          setSnapPoints([]);
+          setPreviewPosition(null);
+          setIsSnapping(false);
         }
 
         let adjustedPosition = adjustPositionToAvoidOverlap(
@@ -388,7 +435,7 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid]);
+  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid, isPreviewMode, setSnapPoints, setPreviewPosition, setIsSnapping, rotation]);
 
 
   // حذف مدل
