@@ -162,11 +162,7 @@ const Page = async () => {
                   className="overflow-hidden rounded-2xl"
                 >
                   <Image
-                    src={
-                      item.image
-                        ? `${siteURL}${item.image}`
-                        : "/assets/holder.svg"
-                    }
+                    src={item.image || "/assets/holder.svg"}
                     width={400}
                     height={200}
                     className="aspect-video rounded-xl group-hover:scale-105 transition-all"

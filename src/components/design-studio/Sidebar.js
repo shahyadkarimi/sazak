@@ -249,6 +249,9 @@ const Sidebar = ({ onToggle }) => {
       },
   ];
 
+//   Access Key	asb2n9h31feq4cun	
+// Secret Key	8acb4510-ec61-4b72-b0ac-ca26d314b05e	
+
   const groupedModels = {
     all: modelList,
     connector: modelList.filter((m) =>
