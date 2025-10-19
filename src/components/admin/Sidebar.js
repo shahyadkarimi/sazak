@@ -40,8 +40,7 @@ const helpItems = [
   },
 ];
 
-const Sidebar = () => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+const Sidebar = ({ isOpen, onClose }) => {
   const [openMenu, setOpenMenu] = useState({});
   const [selectedMenu, setSelectedMenu] = useState({});
 
@@ -58,9 +57,7 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`right-0 z-20 flex min-h-screen flex-col border-r bg-white transition-all duration-200 ease-in-out ${
-        isSidebarOpen ? "w-64 md:min-w-64" : "w-16 md:min-w-16"
-      }`}
+      className={`w-64 lg:w-64 flex min-h-screen flex-col border-r bg-white transition-all duration-200 ease-in-out`}
     >
       <div className="flex h-16 items-center justify-center border-b px-4">
         <Link href={"admin"} className="flex items-center gap-4">
@@ -84,9 +81,7 @@ const Sidebar = () => {
             <input
               type="text"
               placeholder="جستجو در هر چیزی"
-              className={`flex h-8 w-full rounded-xl border outline-none px-3 py-2 placeholder:text-xs text-sm pl-8 ${
-                isSidebarOpen ? "" : "hidden"
-              }`}
+              className="flex h-8 w-full rounded-xl border outline-none px-3 py-2 placeholder:text-xs text-sm pl-8"
             />
             <Icon
               icon="solar:magnifer-line-duotone"
@@ -98,11 +93,7 @@ const Sidebar = () => {
         </div>
 
         <div className="relative flex w-full min-w-0 flex-col p-2">
-          <div
-            className={`flex h-8 shrink-0 items-center rounded-xl px-2 text-xs font-medium text-gray-500 ${
-              isSidebarOpen ? "" : "hidden"
-            }`}
-          >
+          <div className="flex h-8 shrink-0 items-center rounded-xl px-2 text-xs font-medium text-gray-500">
             منوی اصلی
           </div>
 
@@ -116,14 +107,12 @@ const Sidebar = () => {
                     pathname === item.path
                       ? "bg-gray-100 font-medium text-gray-900"
                       : "text-gray-700"
-                  } ${isSidebarOpen ? "" : "!size-8 !p-2 justify-center"}`}
+                  }`}
                 >
                   <div className="flex items-center gap-2">
                     <Icon icon={item.icon} width="20" height="20" />
 
-                    <span
-                      className={`truncate ${isSidebarOpen ? "" : "hidden"}`}
-                    >
+                    <span className="truncate">
                       {item.title}
                     </span>
                   </div>
@@ -142,11 +131,7 @@ const Sidebar = () => {
                   )}
 
                   {item.badge && (
-                    <span
-                      className={`ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 p-0 text-xs font-medium text-gray-700 ${
-                        isSidebarOpen ? "" : "hidden"
-                      }`}
-                    >
+                    <span className="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 p-0 text-xs font-medium text-gray-700">
                       {toFarsiNumber(item.badge)}
                     </span>
                   )}
@@ -218,13 +203,23 @@ const Sidebar = () => {
       <div className="flex flex-col gap-1 p-2">
         <div className="group/menu-item relative">
           <Link
+            href="/user"
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor text-gray-700"
+          >
+            <Icon icon="solar:user-circle-line-duotone" width="20" height="20" />
+            <span className="truncate">
+              بازگشت به پنل کاربری
+            </span>
+          </Link>
+        </div>
+
+        <div className="group/menu-item relative">
+          <Link
             href={"/user/profile"}
-            className={`flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 hover:text-gray-900 text-gray-700 ${
-              isSidebarOpen ? "" : "!size-8 !p-2 justify-center"
-            }`}
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 hover:text-gray-900 text-gray-700"
           >
             <Icon icon="solar:user-line-duotone" width="20" height="20" />
-            <span className={`truncate ${isSidebarOpen ? "" : "hidden"}`}>
+            <span className="truncate">
               پروفایل
             </span>
           </Link>
@@ -232,12 +227,10 @@ const Sidebar = () => {
 
         <div className="group/menu-item relative">
           <button
-            className={`flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-red-600/15 hover:text-red-600 text-gray-700 ${
-              isSidebarOpen ? "" : "!size-8 !p-2 justify-center"
-            }`}
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-red-600/15 hover:text-red-600 text-gray-700"
           >
             <Icon icon="solar:logout-3-line-duotone" width="20" height="20" />
-            <span className={`truncate ${isSidebarOpen ? "" : "hidden"}`}>
+            <span className="truncate">
               خروج
             </span>
           </button>

@@ -6,25 +6,19 @@ import Link from "next/link";
 
 import React from "react";
 
-const Header = () => {
+const Header = ({ onMenuClick }) => {
   const { user } = useUserStore();
   return (
     <header className="z-10 flex w-full h-16 justify-between items-center gap-4 border-b bg-white px-4 lg:p-6">
       <button
-        // onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 h-7 w-7 -ml-1 md:hidden bg-transparent hover:bg-gray-100"
+        onClick={onMenuClick}
+        className="inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 size-10 -ml-1 lg:hidden bg-transparent hover:bg-gray-100"
         aria-label="Toggle Sidebar"
       >
-        <Icon icon="solar:window-frame-line-duotone" width="16" height="16" />{" "}
+        <Icon icon="solar:hamburger-menu-line-duotone" width="24" height="24" />
       </button>
 
-      <Link
-        href="/user"
-        className="w-fit px-4 text-xs h-10 bg-primaryThemeColor/15 text-primaryThemeColor rounded-2xl flex items-center gap-1 transition-all"
-      >
-        <Icon icon="solar:user-circle-line-duotone" width="18" height="18" />
-        بازگشت به پنل کاربری
-      </Link>
+      <div className="hidden lg:block"></div>
 
       <div className="flex items-center gap-4">
         <button
@@ -51,10 +45,6 @@ const Header = () => {
             height="16"
           />
         </div>
-
-        {/* <button className="w-fit px-4 h-10 bg-black text-white rounded-2xl  flex items-center gap-2">
-          بازگشت به سایت
-        </button> */}
       </div>
     </header>
   );

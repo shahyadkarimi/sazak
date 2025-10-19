@@ -10,6 +10,9 @@ import { Icon } from "@iconify/react";
 const DesignPanel = ({ project }) => {
   const [isRightOpen, setIsRightOpen] = useState(true); // desktop default open
   const [isLeftOpen, setIsLeftOpen] = useState(true); // desktop default open
+  const [isRightMobileOpen, setIsRightMobileOpen] = useState(false);
+  const [isLeftMobileOpen, setIsLeftMobileOpen] = useState(false);
+
   const [cameraView, setCameraView] = useState(null);
   const mainCameraRef = useRef();
 
@@ -17,6 +20,11 @@ const DesignPanel = ({ project }) => {
     setIsLeftOpen(false);
     setIsRightOpen(false);
   };
+
+  const closeAllMobile = () => {
+    setIsLeftMobileOpen(false)
+    setIsRightMobileOpen(false)
+  }
 
   return (
     <div className="w-full h-[calc(100vh-144px)] relative overflow-hidden md:grid md:grid-cols-[auto_1fr_auto] md:items-stretch">
@@ -44,7 +52,7 @@ const DesignPanel = ({ project }) => {
       </div>
 
       {/* Center Grid */}
-      <div className="md:block min-w-0">
+      <div className="md:block h-full md:h-auto min-w-0">
         <GridPage
           project={project}
           cameraView={cameraView}
@@ -86,32 +94,34 @@ const DesignPanel = ({ project }) => {
       {/* Mobile: drawers */}
       <div className="md:hidden">
         <button
-          onClick={() => setIsLeftOpen(true)}
-          className="fixed bottom-4 left-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
+          onClick={() => setIsLeftMobileOpen(true)}
+          className="fixed bottom-14 left-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
           aria-label="open tools"
         >
           <i className="fi fi-rr-apps h-[18px] block text-lg"></i>
         </button>
 
         <button
-          onClick={() => setIsRightOpen(true)}
-          className="fixed bottom-4 right-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
+          onClick={() => setIsRightMobileOpen(true)}
+          className="fixed bottom-14 right-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
           aria-label="open models"
         >
           <i className="fi fi-rr-box-open h-[18px] block text-lg"></i>
         </button>
       </div>
 
-      {(isLeftOpen || isRightOpen) && (
+      {/* isRightMobileOpen || isLeftMobileOpen */}
+      {(isRightMobileOpen || isLeftMobileOpen) && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          onClick={closeAll}
+          className="fixed inset-0 bg-black/40 z-50"
+          onClick={closeAllMobile}
         />
       )}
 
+
       <div
-        className={`fixed top-0 left-0 z-50 h-full w-20 max-w-[60vw] transform transition-transform duration-300 ease-in-out md:hidden ${
-          isLeftOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 z-50 h-full w-32 max-w-[60vw] transform transition-all duration-300 ease-in-out md:hidden ${
+          isLeftMobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <LeftSidebar
@@ -122,8 +132,8 @@ const DesignPanel = ({ project }) => {
       </div>
 
       <div
-        className={`fixed top-0 right-0 z-50 h-full w-72 max-w-[85vw] transform transition-transform duration-300 ease-in-out md:hidden ${
-          isRightOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed top-0 bottom-0 z-50 min-h-full w-72 max-w-[85vw] transform transition-all duration-300 ease-in-out md:hidden ${
+          isRightMobileOpen ? "right-0" : "-right-full"
         }`}
       >
         <Sidebar />

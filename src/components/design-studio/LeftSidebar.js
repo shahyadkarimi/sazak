@@ -357,7 +357,7 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
   };
 
   return (
-    <div className="relative h-[calc(100vh-144px)] flex flex-col justify-center items-center gap-4 bg-white p-4">
+    <div className="relative h-full md:h-[calc(100vh-144px)] flex flex-col justify-center items-center gap-4 bg-white p-4">
       {typeof onToggle === "function" && (
         <button
           onClick={onToggle}

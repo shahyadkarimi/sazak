@@ -132,16 +132,20 @@ const Page = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">لیست پروژه‌ها</h1>
-          <p className="text-gray-600">لیست پروژه‌های ثبت شده</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+            لیست پروژه‌ها
+          </h1>
+          <p className="text-sm lg:text-base text-gray-600">
+            لیست پروژه‌های ثبت شده
+          </p>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
         <Input
-          className="w-72"
+          className="w-full sm:w-72"
           label="جستجو"
           placeholder="جستجو پروژه/کاربر/موبایل..."
           value={query}
@@ -150,8 +154,8 @@ const Page = () => {
             <Icon
               icon="solar:minimalistic-magnifer-broken"
               className="text-gray-600"
-              width="24"
-              height="24"
+              width="20"
+              height="20"
             />
           }
           classNames={{
@@ -164,81 +168,85 @@ const Page = () => {
         />
       </div>
 
-      <Table aria-label="projects table" removeWrapper>
-        <TableHeader>
-          {columns.map((c) => (
-            <TableColumn key={c.uid}>{c.name}</TableColumn>
-          ))}
-        </TableHeader>
-        <TableBody emptyContent="پروژه‌ای یافت نشد" items={paged}>
-          {(item) => (
-            <TableRow key={item.id}>
-              <TableCell>
-                <Image
-                  src={
-                    item.image
-                      ? `${siteURL}${item.image}`
-                      : "/assets/holder.svg"
-                  }
-                  alt={item.name}
-                  width={200}
-                  height={100}
-                  className="w-20 h-fit rounded-xl bg-gray-100 "
-                />
-              </TableCell>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell>{item.userName}</TableCell>
-              <TableCell className="">
-                {toFarsiNumber(item.userPhoneNumber)}
-              </TableCell>
-              <TableCell>{toFarsiNumber(item.objectsCount)}</TableCell>
-              <TableCell>
-                <Chip
-                  size="sm"
-                  color={item.isPublic ? "success" : "default"}
-                  variant="flat"
-                >
-                  {item.isPublic ? "عمومی" : "خصوصی"}
-                </Chip>
-              </TableCell>
-              <TableCell>
-                {new Date(item.createdAt).toLocaleDateString("fa-IR")}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Button
+      <div className="overflow-x-auto">
+        <Table aria-label="projects table" removeWrapper>
+          <TableHeader>
+            {columns.map((c) => (
+              <TableColumn key={c.uid}>{c.name}</TableColumn>
+            ))}
+          </TableHeader>
+          <TableBody emptyContent="پروژه‌ای یافت نشد" items={paged}>
+            {(item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  <Image
+                    src={item.image || "/assets/holder.svg"}
+                    alt={item.name}
+                    width={200}
+                    height={100}
+                    className="w-16 h-12 lg:w-20 lg:h-fit rounded-xl bg-gray-100"
+                  />
+                </TableCell>
+                <TableCell className="font-medium text-sm">
+                  {item.name}
+                </TableCell>
+                <TableCell className="text-sm">{item.userName}</TableCell>
+                <TableCell className="text-sm">
+                  {toFarsiNumber(item.userPhoneNumber)}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {toFarsiNumber(item.objectsCount)}
+                </TableCell>
+                <TableCell>
+                  <Chip
                     size="sm"
-                    variant="light"
-                    color="primary"
-                    onPress={() => handleEditProject(item)}
-                    className="min-w-0 px-2"
+                    color={item.isPublic ? "success" : "default"}
+                    variant="flat"
                   >
-                    <Icon
-                      icon="solar:pen-2-line-duotone"
-                      width="16"
-                      height="16"
-                    />
-                  </Button>
+                    {item.isPublic ? "عمومی" : "خصوصی"}
+                  </Chip>
+                </TableCell>
+                <TableCell className="text-sm">
+                  {new Date(item.createdAt).toLocaleDateString("fa-IR")}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1 lg:gap-2">
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="primary"
+                      onPress={() => handleEditProject(item)}
+                      className="min-w-0 px-1 lg:px-2"
+                    >
+                      <Icon
+                        icon="solar:pen-2-line-duotone"
+                        width="14"
+                        height="14"
+                        className="lg:w-4 lg:h-4"
+                      />
+                    </Button>
 
-                  <Button
-                    size="sm"
-                    variant="light"
-                    color="danger"
-                    className="min-w-0 px-2"
-                    onPress={() => handleDeleteProject(item)}
-                  >
-                    <Icon
-                      icon="solar:trash-bin-minimalistic-line-duotone"
-                      width="16"
-                      height="16"
-                    />
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="danger"
+                      className="min-w-0 px-1 lg:px-2"
+                      onPress={() => handleDeleteProject(item)}
+                    >
+                      <Icon
+                        icon="solar:trash-bin-minimalistic-line-duotone"
+                        width="14"
+                        height="14"
+                        className="lg:w-4 lg:h-4"
+                      />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <div className="flex w-full items-center justify-center">
         {/* <Pagination

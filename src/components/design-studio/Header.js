@@ -16,17 +16,17 @@ const Header = () => {
             src={user.profilePicture || "/assets/avatar.png"}
             width={150}
             height={150}
-            className="size-8 text-xs rounded-full scale-150"
+            className="size-6 lg:size-8 text-xs rounded-full scale-150"
             alt="avatar"
           />
 
           <div className="flex flex-col gap-0.5">
-            <h2 className="font-black text-gray-700">{user.fullName}</h2>
+            <h2 className="font-black text-sm md:text-base text-gray-700">{user.fullName}</h2>
             <p className="text-xs text-gray-700">خوش آمدید</p>
           </div>
         </div>
 
-        <h1 className="text-2xl font-semibold text-primaryThemeColor">
+        <h1 className="hidden md:block text-2xl font-semibold text-primaryThemeColor">
           گــروه آمــوزشـی ســازک
         </h1>
 
@@ -35,7 +35,7 @@ const Header = () => {
             src={"/assets/logo.png"}
             width={150}
             height={150}
-            className="size-8 rounded-full scale-150"
+            className="size-7 lg:size-8 rounded-full scale-150"
             alt="sazak logo"
           />
         </Link>

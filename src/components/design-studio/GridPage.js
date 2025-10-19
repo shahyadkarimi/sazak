@@ -82,14 +82,19 @@ const KeyboardController = ({ onShowHelp }) => {
 
     // Get models to copy based on selection
     let modelsToCopy = [];
-    if (selectedModelId === 'ALL') {
-      modelsToCopy = selectedModels.map(model => ({ ...model, action: "copy" }));
+    if (selectedModelId === "ALL") {
+      modelsToCopy = selectedModels.map((model) => ({
+        ...model,
+        action: "copy",
+      }));
     } else if (Array.isArray(selectedModelId)) {
       modelsToCopy = selectedModels
-        .filter(model => selectedModelId.includes(model.id))
-        .map(model => ({ ...model, action: "copy" }));
+        .filter((model) => selectedModelId.includes(model.id))
+        .map((model) => ({ ...model, action: "copy" }));
     } else {
-      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      const selectedModel = selectedModels.find(
+        (model) => model.id === selectedModelId
+      );
       if (selectedModel) {
         modelsToCopy = [{ ...selectedModel, action: "copy" }];
       }
@@ -112,18 +117,23 @@ const KeyboardController = ({ onShowHelp }) => {
     // Determine IDs to cut and get models for clipboard
     let idsToCut = [];
     let modelsToCut = [];
-    
-    if (selectedModelId === 'ALL') {
+
+    if (selectedModelId === "ALL") {
       idsToCut = selectedModels.map((m) => m.id);
-      modelsToCut = selectedModels.map(model => ({ ...model, action: "cut" }));
+      modelsToCut = selectedModels.map((model) => ({
+        ...model,
+        action: "cut",
+      }));
     } else if (Array.isArray(selectedModelId)) {
       idsToCut = [...selectedModelId];
       modelsToCut = selectedModels
-        .filter(model => selectedModelId.includes(model.id))
-        .map(model => ({ ...model, action: "cut" }));
+        .filter((model) => selectedModelId.includes(model.id))
+        .map((model) => ({ ...model, action: "cut" }));
     } else {
       idsToCut = [selectedModelId];
-      const selectedModel = selectedModels.find(model => model.id === selectedModelId);
+      const selectedModel = selectedModels.find(
+        (model) => model.id === selectedModelId
+      );
       if (selectedModel) {
         modelsToCut = [{ ...selectedModel, action: "cut" }];
       }
@@ -132,12 +142,17 @@ const KeyboardController = ({ onShowHelp }) => {
     if (modelsToCut.length > 0) {
       setClipboardModels(modelsToCut);
       pushHistory();
-      setSelectedModels(selectedModels.filter((model) => !idsToCut.includes(model.id)));
+      setSelectedModels(
+        selectedModels.filter((model) => !idsToCut.includes(model.id))
+      );
       setSelectedModelId(null);
-      toast.success(`${modelsToCut.length} مدل بریده شد و در کلیپ‌بورد قرار گرفت`, {
-        duration: 2000,
-        className: "text-sm rounded-2xl",
-      });
+      toast.success(
+        `${modelsToCut.length} مدل بریده شد و در کلیپ‌بورد قرار گرفت`,
+        {
+          duration: 2000,
+          className: "text-sm rounded-2xl",
+        }
+      );
     }
   };
 
@@ -147,10 +162,13 @@ const KeyboardController = ({ onShowHelp }) => {
 
     setIsPasteMode(!isPasteMode);
     if (!isPasteMode) {
-      toast.success(`حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`, {
-        duration: 3000,
-        className: "text-sm rounded-2xl",
-      });
+      toast.success(
+        `حالت پیست فعال شد. ${clipboardModels.length} مدل آماده پیست است. روی محل مورد نظر کلیک کنید`,
+        {
+          duration: 3000,
+          className: "text-sm rounded-2xl",
+        }
+      );
     } else {
       toast.success("حالت پیست غیرفعال شد", {
         duration: 2000,
@@ -192,12 +210,14 @@ const KeyboardController = ({ onShowHelp }) => {
         if (selectedModelId) {
           event.preventDefault();
           pushHistory();
-          if (selectedModelId === 'ALL') {
+          if (selectedModelId === "ALL") {
             setSelectedModels([]);
             setSelectedModelId(null);
           } else if (Array.isArray(selectedModelId)) {
             setSelectedModels(
-              selectedModels.filter((model) => !selectedModelId.includes(model.id))
+              selectedModels.filter(
+                (model) => !selectedModelId.includes(model.id)
+              )
             );
             setSelectedModelId(null);
           } else {
@@ -214,7 +234,7 @@ const KeyboardController = ({ onShowHelp }) => {
         event.preventDefault();
         event.stopPropagation();
         if (selectedModels.length > 0) {
-          setSelectedModelId('ALL');
+          setSelectedModelId("ALL");
           // Make sure selectedModels contains all models when selecting all
           // This ensures the drag functionality works correctly
         }
@@ -250,13 +270,21 @@ const KeyboardController = ({ onShowHelp }) => {
       }
 
       // Ctrl+Z - Undo
-      if ((event.ctrlKey || event.metaKey) && event.code === "KeyZ" && !event.shiftKey) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.code === "KeyZ" &&
+        !event.shiftKey
+      ) {
         event.preventDefault();
         undo();
       }
 
       // Ctrl+Shift+Z - Redo
-      if ((event.ctrlKey || event.metaKey) && event.code === "KeyZ" && event.shiftKey) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        event.code === "KeyZ" &&
+        event.shiftKey
+      ) {
         event.preventDefault();
         redo();
       }
@@ -303,9 +331,12 @@ const KeyboardController = ({ onShowHelp }) => {
             return np;
           };
 
-          if (selectedModelId === 'ALL') {
+          if (selectedModelId === "ALL") {
             setSelectedModels(
-              selectedModels.map((model) => ({ ...model, position: applyDelta(model.position) }))
+              selectedModels.map((model) => ({
+                ...model,
+                position: applyDelta(model.position),
+              }))
             );
           } else if (Array.isArray(selectedModelId)) {
             setSelectedModels(
@@ -381,7 +412,8 @@ const PasteHandler = () => {
   const pushHistory = useModelStore((state) => state.pushHistory);
 
   const handlePaste = (event) => {
-    if (!isPasteMode || !clipboardModels || clipboardModels.length === 0) return;
+    if (!isPasteMode || !clipboardModels || clipboardModels.length === 0)
+      return;
 
     // Get intersection point on the ground plane
     const raycaster = new THREE.Raycaster();
@@ -402,23 +434,27 @@ const PasteHandler = () => {
     if (intersectionPoint) {
       // Calculate the center point of the original selection
       const originalCenter = {
-        x: clipboardModels.reduce((sum, model) => sum + model.position[0], 0) / clipboardModels.length,
-        z: clipboardModels.reduce((sum, model) => sum + model.position[2], 0) / clipboardModels.length
+        x:
+          clipboardModels.reduce((sum, model) => sum + model.position[0], 0) /
+          clipboardModels.length,
+        z:
+          clipboardModels.reduce((sum, model) => sum + model.position[2], 0) /
+          clipboardModels.length,
       };
-      
+
       // Create new models preserving their relative positions
       const newModels = clipboardModels.map((model, index) => {
         // Calculate offset from original center
         const offsetX = model.position[0] - originalCenter.x;
         const offsetZ = model.position[2] - originalCenter.z;
-        
+
         return {
           ...model,
           id: (Date.now() + index).toString(),
           position: [
             intersectionPoint.x + offsetX,
             0,
-            intersectionPoint.z + offsetZ
+            intersectionPoint.z + offsetZ,
           ],
         };
       });
@@ -532,7 +568,7 @@ const CameraAnimator = ({ targetView, controlsRef, durationMs = 450 }) => {
 
 const CameraTracker = ({ onCameraUpdate }) => {
   const { camera } = useThree();
-  
+
   useFrame(() => {
     if (camera && onCameraUpdate) {
       onCameraUpdate(camera);
@@ -560,16 +596,16 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
   const router = useRouter();
 
-  const gridSnapSize = ['free', 0.1, 0.25, 0.5, 1, 2, 5];
+  const gridSnapSize = ["free", 0.1, 0.25, 0.5, 1, 2, 5];
 
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
   };
 
-
   useEffect(() => {
     const onReset = () => {
-      onViewChange && onViewChange({ camera: [10, 25, 10], fov: 50, immediate: false });
+      onViewChange &&
+        onViewChange({ camera: [10, 25, 10], fov: 50, immediate: false });
     };
     if (typeof window !== "undefined") {
       window.addEventListener("designStudio:resetView", onReset);
@@ -584,14 +620,14 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   // Close snap grid dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showSnapGrid && !event.target.closest('.snap-grid-dropdown')) {
+      if (showSnapGrid && !event.target.closest(".snap-grid-dropdown")) {
         setShowSnapGrid(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showSnapGrid]);
 
@@ -605,14 +641,17 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           <div className="flex items-center gap-2">
             <i className="fi fi-rr-paste size-4"></i>
             <span className="text-sm font-medium">
-              حالت پیست فعال - {clipboardModels.length} مدل آماده پیست - روی محل مورد نظر کلیک کنید
+              حالت پیست فعال - {clipboardModels.length} مدل آماده پیست - روی محل
+              مورد نظر کلیک کنید
             </span>
           </div>
         </div>
       )}
 
       <Canvas
-        className={`design-studio ${isPasteMode ? "cursor-crosshair" : ""} bg-gray-100/70`}
+        className={`design-studio ${
+          isPasteMode ? "cursor-crosshair" : ""
+        } bg-gray-100/70`}
         gl={{ preserveDrawingBuffer: true }}
         camera={{ position: [25, 45, 0], fov: 40 }}
         onContextMenu={(e) => {
@@ -628,7 +667,11 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
         }}
       >
         <CameraAnimator targetView={cameraView} controlsRef={controlsRef} />
-        <CameraTracker onCameraUpdate={(camera) => { if (mainCameraRef) mainCameraRef.current = camera; }} />
+        <CameraTracker
+          onCameraUpdate={(camera) => {
+            if (mainCameraRef) mainCameraRef.current = camera;
+          }}
+        />
         <ZoomController />
         <KeyboardController onShowHelp={setShowHelp} />
         <PasteHandler />
@@ -645,7 +688,6 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             color={model.color}
           />
         ))}
-
 
         <ModelPlacer />
 
@@ -665,27 +707,31 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             RIGHT: THREE.MOUSE.ROTATE,
           }}
         />
-
       </Canvas>
-
 
       <SelectedModelPanel />
 
       {/* ViewCube is rendered in LeftSidebar; it already syncs with main camera. */}
 
       {/* Snap Grid Dropdown */}
-      <div className="absolute bottom-16 right-4 z-50 snap-grid-dropdown">
+      <div className="absolute bottom-14 md:bottom-16 md:right-4 right-[70px] z-50 snap-grid-dropdown">
         <div className="relative">
           <button
             onClick={() => setShowSnapGrid(!showSnapGrid)}
-            className="bg-white p-3 rounded-xl shadow-lg shadow-gray-100 hover:shadow-gray-200 transition-all duration-300 flex items-center gap-2 text-gray-700 hover:text-primaryThemeColor"
+            className="bg-white p-3 h-11 md:h-auto rounded-xl shadow-lg shadow-gray-100 hover:shadow-gray-200 transition-all duration-300 flex items-center gap-2 text-gray-700 hover:text-primaryThemeColor"
             title="تنظیمات Snap Grid"
           >
             <i className="fi fi-rr-grid size-4"></i>
             <span className="text-xs font-semibold">
-              {modelOptions.snapSize === 'free' ? 'آزاد' : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
+              {modelOptions.snapSize === "free"
+                ? "آزاد"
+                : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
             </span>
-            <i className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${showSnapGrid ? 'rotate-180' : ''}`}></i>
+            <i
+              className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${
+                showSnapGrid ? "rotate-180" : ""
+              }`}
+            ></i>
           </button>
 
           {showSnapGrid && (
@@ -708,7 +754,9 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
                           : "text-gray-600 hover:text-gray-800"
                       }`}
                     >
-                      {size === 'free' ? 'آزاد' : `${toFarsiNumber(size)} میلی متر`}
+                      {size === "free"
+                        ? "آزاد"
+                        : `${toFarsiNumber(size)} میلی متر`}
                     </button>
                   ))}
                 </div>
@@ -728,9 +776,11 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             size="sm"
             isSelected={constrainToGrid}
             onValueChange={setConstrainToGrid}
-            classNames={{wrapper:"after:bg-primaryThemeColor"}}
+            classNames={{ wrapper: "after:bg-primaryThemeColor" }}
           >
-            <span className="text-xs text-gray-700">عدم خروج مدل‌ها از صفحه</span>
+            <span className="text-xs text-gray-700">
+              عدم خروج مدل‌ها از صفحه
+            </span>
           </Checkbox>
         </div>
       </div>
@@ -760,20 +810,26 @@ const StatsBar = () => {
 
   const { count, width, depth, area, maxHeight } = useMemo(() => {
     const count = selectedModels.length;
-    if (count === 0) return { count, width: 0, depth: 0, area: 0, maxHeight: 0 };
+    if (count === 0)
+      return { count, width: 0, depth: 0, area: 0, maxHeight: 0 };
 
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minZ = Infinity,
+      maxZ = -Infinity;
     let maxHeight = 0;
     for (const m of selectedModels) {
       const [x, y, z] = m.position || [0, 0, 0];
       // Treat each piece roughly as 1x1 footprint; use position as center cell
-      const half = (snap && snap !== 'free') ? Math.max(0.5, snap / 2) : 0.5;
+      const half = snap && snap !== "free" ? Math.max(0.5, snap / 2) : 0.5;
       minX = Math.min(minX, x - half);
       maxX = Math.max(maxX, x + half);
       minZ = Math.min(minZ, z - half);
       maxZ = Math.max(maxZ, z + half);
       // Estimate height from position.y or explicit size if present
-      const modelHeight = Array.isArray(m.size) ? (m.size[1] ?? 0) : (m.height ?? y ?? 0);
+      const modelHeight = Array.isArray(m.size)
+        ? m.size[1] ?? 0
+        : m.height ?? y ?? 0;
       maxHeight = Math.max(maxHeight, modelHeight);
     }
     const width = Math.max(0, maxX - minX);
@@ -793,23 +849,28 @@ const StatsBar = () => {
       <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 p-3">
         <div className="flex items-center justify-between text-xs text-gray-700">
           <div className="flex items-center gap-2">
+            <span className="font-semibold hidden md:block">تعداد قطعات:</span>
             <span className="font-semibold">تعداد قطعات:</span>
             <span>{toFarsiNumber(count)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold">عرض کل:</span>
+            <span className="font-semibold hidden md:block">عرض کل:</span>
+            <span className="font-semibold">ع.ض:</span>
             <span>{fmt(width)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold">عمق کل:</span>
+            <span className="font-semibold hidden md:block">عمق کل:</span>
+            <span className="font-semibold">ع.ک:</span>
             <span>{fmt(depth)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold">مساحت اشغال‌شده:</span>
+            <span className="font-semibold hidden md:block">مساحت اشغال‌شده:</span>
+            <span className="font-semibold">م.ا:</span>
             <span>{fmt(area)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold">بیشترین ارتفاع:</span>
+            <span className="font-semibold hidden md:block">بیشترین ارتفاع:</span>
+            <span className="font-semibold">ب.ا:</span>
             <span>{fmt(maxHeight)}</span>
           </div>
         </div>

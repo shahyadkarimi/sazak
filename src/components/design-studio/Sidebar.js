@@ -300,7 +300,7 @@ const Sidebar = ({ onToggle }) => {
 
   return (
     <>
-      <div className="relative min-w-80 max-w-80 flex flex-col gap-4 bg-white p-4 h-[calc(100vh-144px)]">
+      <div className="relative min-w-80 max-w-80 h-full flex flex-col gap-4 bg-white p-4 md:h-[calc(100vh-144px)]">
         {typeof onToggle === "function" && (
           <button
             onClick={onToggle}

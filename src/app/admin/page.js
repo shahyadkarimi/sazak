@@ -66,12 +66,12 @@ const Page = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">داشبورد ادمین</h1>
-          <p className="text-gray-600">خلاصه‌ای از وضعیت سیستم و کاربران</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">داشبورد ادمین</h1>
+          <p className="text-sm lg:text-base text-gray-600">خلاصه‌ای از وضعیت سیستم و کاربران</p>
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-xs lg:text-sm text-gray-500">
           آخرین بروزرسانی: {new Date().toLocaleDateString("fa-IR")}
         </div>
       </div>
@@ -154,16 +154,16 @@ const Page = () => {
           <h3 className="text-lg font-semibold">فعالیت ۷ روز گذشته</h3>
         </CardHeader>
         <CardBody>
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-7 gap-2">
             {stats?.last7Days?.map((day, index) => (
               <div key={index} className="text-center">
                 <div className="text-xs text-gray-500 mb-2">{toFarsiNumber(day.date)}</div>
-                <div className="bg-blue-100 rounded-lg p-2 mb-1">
-                  <div className="text-sm font-semibold text-blue-700">{toFarsiNumber(day.count)}</div>
+                <div className="bg-blue-100 rounded-lg p-1 lg:p-2 mb-1">
+                  <div className="text-xs lg:text-sm font-semibold text-blue-700">{toFarsiNumber(day.count)}</div>
                   <div className="text-xs text-blue-600">کاربر</div>
                 </div>
-                <div className="bg-green-100 rounded-lg p-2">
-                  <div className="text-sm font-semibold text-green-700">
+                <div className="bg-green-100 rounded-lg p-1 lg:p-2">
+                  <div className="text-xs lg:text-sm font-semibold text-green-700">
                     {toFarsiNumber(stats?.last7DaysProjects?.[index]?.count || 0)}
                   </div>
                   <div className="text-xs text-green-600">پروژه</div>
@@ -238,21 +238,21 @@ const Page = () => {
 
 const StatCard = ({ title, value, icon, trend, trendLabel, percentage }) => (
   <Card className="!shadow-none hover:!shadow-lg hover:!shadow-gray-200 border !transition-all">
-    <CardBody className="p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center space-x-2 space-x-reverse">
-            {icon && <span className="text-2xl flex items-center">{icon}</span>}
-            <p className="text-sm text-right text-gray-500">{title}</p>
+    <CardBody className="p-4 lg:p-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 space-x-reverse mb-2">
+            {icon && <span className="text-xl lg:text-2xl flex items-center">{icon}</span>}
+            <p className="text-xs lg:text-sm text-right text-gray-500">{title}</p>
           </div>
-          <p className="mt-2 text-right text-3xl font-bold text-gray-900">{toFarsiNumber(value)}</p>
+          <p className="text-right text-2xl lg:text-3xl font-bold text-gray-900">{toFarsiNumber(value)}</p>
           {percentage && (
-            <p className="text-sm text-right text-gray-600 mt-1">{toFarsiNumber(percentage)}% از کل</p>
+            <p className="text-xs lg:text-sm text-right text-gray-600 mt-1">{toFarsiNumber(percentage)}% از کل</p>
           )}
         </div>
         {trend !== undefined && (
-          <div className="text-right">
-            <div dir="ltr" className={`text-sm font-medium ${
+          <div className="text-right lg:text-left">
+            <div dir="ltr" className={`text-xs lg:text-sm font-medium ${
               trend >= 0 ? 'text-green-600' : 'text-red-600'
             }`}>
               {trend >= 0 ? '+' : ''}{toFarsiNumber(trend)}%

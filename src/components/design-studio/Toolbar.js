@@ -417,7 +417,8 @@ const Toolbar = ({ project }) => {
       <AutoSave project={project} />
 
       <Toaster />
-      <div className="w-full max-w-[1450px] h-16 px-4 flex items-center justify-between">
+
+      <div className="w-full max-w-[1450px] h-16 px-4 flex items-center justify-between gap-4 overflow-x-auto">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
