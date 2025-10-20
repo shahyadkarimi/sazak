@@ -6,13 +6,13 @@ import ModelControls from "./ModelControls";
 import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { calculateSnapPoints, calculatePreviewPosition } from "@/helper/snapDetection";
+import { calculateSnapPoints, calculatePreviewPosition, ultimateCollisionDetection } from "@/helper/snapDetection";
 
 const Model = ({ path, position, id, rotation, color }) => {
   const modelRef = useRef();
   const { raycaster, camera, gl } = useThree();
 
-  const { scene: adjustedScene, isValid } = useModelScene(path);
+  const { scene: adjustedScene, isValid } = useModelScene(path || null);
 
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
@@ -27,6 +27,9 @@ const Model = ({ path, position, id, rotation, color }) => {
   const setSnapPoints = useModelStore((s) => s.setSnapPoints);
   const setPreviewPosition = useModelStore((s) => s.setPreviewPosition);
   const setIsSnapping = useModelStore((s) => s.setIsSnapping);
+  const setActiveFacePreview = useModelStore((s) => s.setActiveFacePreview);
+  const setDraggedModelPreviewPosition = useModelStore((s) => s.setDraggedModelPreviewPosition);
+  const collisionMode = useModelStore((s) => s.collisionMode);
 
   const modelControls = useModelAdjustment(
     id,
@@ -276,6 +279,8 @@ const Model = ({ path, position, id, rotation, color }) => {
         setSnapPoints([]);
         setPreviewPosition(null);
         setIsSnapping(false);
+        setActiveFacePreview(null);
+        setDraggedModelPreviewPosition(null);
       }
     }
   };
@@ -293,6 +298,8 @@ const Model = ({ path, position, id, rotation, color }) => {
           setSnapPoints([]);
           setPreviewPosition(null);
           setIsSnapping(false);
+          setActiveFacePreview(null);
+          setDraggedModelPreviewPosition(null);
         }
       }
     };
@@ -339,6 +346,17 @@ const Model = ({ path, position, id, rotation, color }) => {
           proposedPosition[2] = Math.max(-limit, Math.min(limit, proposedPosition[2]));
         }
 
+        // Ultimate collision detection with all features
+        const collisionResult = ultimateCollisionDetection(
+          proposedPosition,
+          { id, position: proposedPosition, rotation, path },
+          existingModels.filter(m => m.id !== id),
+          snapSize
+        );
+        
+        // Use the collision-adjusted position
+        proposedPosition = collisionResult.position;
+
         // Handle preview mode with snap points
         if (isPreviewMode) {
           // Calculate snap points for this model
@@ -354,6 +372,15 @@ const Model = ({ path, position, id, rotation, color }) => {
           setPreviewPosition(previewResult.position);
           setIsSnapping(previewResult.isSnapped);
 
+          // Set active face preview for TinkerCAD-style highlighting
+          if (previewResult.isSnapped && previewResult.snapPoint) {
+            setActiveFacePreview(previewResult.snapPoint);
+            setDraggedModelPreviewPosition(previewResult.position);
+          } else {
+            setActiveFacePreview(null);
+            setDraggedModelPreviewPosition(null);
+          }
+
           // Use snapped position if available
           if (previewResult.isSnapped) {
             proposedPosition = previewResult.position;
@@ -363,14 +390,12 @@ const Model = ({ path, position, id, rotation, color }) => {
           setSnapPoints([]);
           setPreviewPosition(null);
           setIsSnapping(false);
+          setActiveFacePreview(null);
+          setDraggedModelPreviewPosition(null);
         }
 
-        let adjustedPosition = adjustPositionToAvoidOverlap(
-          proposedPosition,
-          id,
-          existingModels,
-          snapSize
-        );
+        // Use the collision-adjusted position
+        let adjustedPosition = proposedPosition;
 
         if (constrainToGrid) {
           const limit = 20;

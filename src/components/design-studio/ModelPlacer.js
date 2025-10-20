@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import useModelStore from "@/store/useModelStore";
+import { ultimateCollisionDetection } from "@/helper/snapDetection";
 
 const snapToGrid = ([x, y, z], step = 1) => {
   // Ensure models snap to grid lines properly
@@ -136,12 +137,15 @@ const ModelPlacer = () => {
       // Ensure Y position is exactly 0 (ground level) and snap to grid
       const baseSnapped = snapToGrid([point.x, 0, point.z], snapSize);
 
-      // اصلاح موقعیت با چک برخورد با مدل‌های قبلی
-      const adjusted = adjustPositionToAvoidOverlap(
+      // Ultimate collision detection with all features
+      const collisionResult = ultimateCollisionDetection(
         baseSnapped,
+        { id: 'new', position: baseSnapped, path: currentPlacingModel },
         selectedModels,
         snapSize
       );
+      
+      const adjusted = collisionResult.position;
 
       if (constrainToGrid) {
         const limit = 20; // match CustomGrid size/2 (size=40)

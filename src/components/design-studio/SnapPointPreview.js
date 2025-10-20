@@ -1,5 +1,5 @@
-import React from 'react';
-import { useThree } from '@react-three/fiber';
+import React, { useRef } from 'react';
+import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useModelStore from '@/store/useModelStore';
 
@@ -9,6 +9,12 @@ const SnapPointPreview = () => {
   const isPreviewMode = useModelStore((state) => state.isPreviewMode);
   const previewPosition = useModelStore((state) => state.previewPosition);
   const isSnapping = useModelStore((state) => state.isSnapping);
+  const pulseRef = useRef(0);
+
+  // Pulse animation for active snap points
+  useFrame((state, delta) => {
+    pulseRef.current += delta * 4; // Speed of pulse
+  });
 
   if (!isPreviewMode || snapPoints.length === 0) return null;
 
@@ -24,9 +30,12 @@ const SnapPointPreview = () => {
         
         const isNearby = distance < 2; // Snap distance threshold
         const isActive = isNearby && isSnapping;
+        
+        // Calculate pulse scale for animation
+        const pulseScale = isActive ? 1 + Math.sin(pulseRef.current) * 0.2 : 1;
 
         return (
-          <group key={index} position={point.position}>
+          <group key={index} position={point.position} scale={[pulseScale, pulseScale, pulseScale]}>
             {/* Snap point indicator with different shapes based on type */}
             <mesh>
               {point.type === 'corner' ? (

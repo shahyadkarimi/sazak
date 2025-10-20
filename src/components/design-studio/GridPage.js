@@ -11,6 +11,8 @@ import CustomGrid from "../home/CustomGrid";
 import SelectedModelPanel from "./SelectedModelPanel";
 import SnapPointPreview from "./SnapPointPreview";
 import ModelPreview from "./ModelPreview";
+import FaceHighlight from "./FaceHighlight";
+import GhostPreview from "./GhostPreview";
 import { useMemo } from "react";
 import {
   Checkbox,
@@ -695,6 +697,8 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
         <SnapPointPreview />
         <ModelPreview />
+        <FaceHighlight />
+        <GhostPreview />
 
         <OrbitControls
           ref={controlsRef}
@@ -850,27 +854,27 @@ const StatsBar = () => {
         <div className="flex items-center justify-between text-xs text-gray-700">
           <div className="flex items-center gap-2">
             <span className="font-semibold hidden md:block">تعداد قطعات:</span>
-            <span className="font-semibold">تعداد قطعات:</span>
+            <span className="font-semibold md:hidden">ت.ق:</span>
             <span>{toFarsiNumber(count)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold hidden md:block">عرض کل:</span>
-            <span className="font-semibold">ع.ض:</span>
+            <span className="font-semibold md:hidden">ع.ض:</span>
             <span>{fmt(width)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold hidden md:block">عمق کل:</span>
-            <span className="font-semibold">ع.ک:</span>
+            <span className="font-semibold md:hidden">ع.ک:</span>
             <span>{fmt(depth)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold hidden md:block">مساحت اشغال‌شده:</span>
-            <span className="font-semibold">م.ا:</span>
+            <span className="font-semibold md:hidden">م.ا:</span>
             <span>{fmt(area)}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold hidden md:block">بیشترین ارتفاع:</span>
-            <span className="font-semibold">ب.ا:</span>
+            <span className="font-semibold md:hidden">ب.ا:</span>
             <span>{fmt(maxHeight)}</span>
           </div>
         </div>

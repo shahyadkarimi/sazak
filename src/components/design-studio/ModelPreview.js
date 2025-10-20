@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useThree, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import useModelStore from '@/store/useModelStore';
 import { useModelScene } from '@/hooks/useModelScene';
@@ -7,12 +7,13 @@ import { getModelDimensions, getModelType } from '@/helper/snapDetection';
 
 const ModelPreview = () => {
   const currentPlacingModel = useModelStore((state) => state.currentPlacingModel);
-  const { scene: adjustedScene, isValid } = useModelScene(currentPlacingModel);
+  const { scene: adjustedScene, isValid } = useModelScene(currentPlacingModel || null);
   const previewPosition = useModelStore((state) => state.previewPosition);
   const isSnapping = useModelStore((state) => state.isSnapping);
   const isPreviewMode = useModelStore((state) => state.isPreviewMode);
   const currentPlacingModelColor = useModelStore((state) => state.currentPlacingModelColor);
   const [previewScene, setPreviewScene] = useState(null);
+  const pulseRef = useRef(0);
 
   useEffect(() => {
     if (adjustedScene && isValid) {
@@ -59,14 +60,24 @@ const ModelPreview = () => {
     }
   }, [adjustedScene, isValid, isSnapping, currentPlacingModelColor]);
 
+  // Pulse animation for snapping
+  useFrame((state, delta) => {
+    if (isSnapping) {
+      pulseRef.current += delta * 3; // Speed of pulse
+    }
+  });
+
   if (!isPreviewMode || !previewPosition || !previewScene) return null;
 
   // Get model dimensions for better preview outline
   const modelType = getModelType(currentPlacingModel);
   const modelDims = getModelDimensions(modelType);
 
+  // Calculate pulse scale for snapping animation
+  const pulseScale = isSnapping ? 1 + Math.sin(pulseRef.current) * 0.1 : 1;
+
   return (
-    <group position={previewPosition}>
+    <group position={previewPosition} scale={[pulseScale, pulseScale, pulseScale]}>
       <primitive object={previewScene} />
       
       {/* Preview outline based on actual model dimensions */}
@@ -75,7 +86,7 @@ const ModelPreview = () => {
         <meshBasicMaterial 
           color={isSnapping ? 0x00ff00 : 0xff6600}
           transparent
-          opacity={0.2}
+          opacity={isSnapping ? 0.4 : 0.2}
           wireframe
         />
       </mesh>

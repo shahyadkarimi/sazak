@@ -23,6 +23,10 @@ const useModelStore = create((set, get) => ({
   snapPoints: [], // Array of available snap points
   previewPosition: null, // Current preview position
   isSnapping: false, // Whether currently snapping to a point
+  // TinkerCAD-style face preview
+  activeFacePreview: null, // Current highlighted face
+  draggedModelPreviewPosition: null, // Preview position of dragged model
+  collisionMode: 'stack', // 'stack' | 'push' | 'block'
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
@@ -90,6 +94,11 @@ const useModelStore = create((set, get) => ({
   setSnapPoints: (points) => set({ snapPoints: points || [] }),
   setPreviewPosition: (position) => set({ previewPosition: position }),
   setIsSnapping: (value) => set({ isSnapping: !!value }),
+  
+  // TinkerCAD-style face preview controls
+  setActiveFacePreview: (face) => set({ activeFacePreview: face }),
+  setDraggedModelPreviewPosition: (position) => set({ draggedModelPreviewPosition: position }),
+  setCollisionMode: (mode) => set({ collisionMode: mode }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 
