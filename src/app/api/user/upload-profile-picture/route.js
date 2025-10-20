@@ -12,6 +12,23 @@ export async function POST(req) {
   try {
     await connectDB();
 
+    // Check for required environment variables
+    if (!process.env.LIARA_BUCKET_NAME) {
+      console.error("LIARA_BUCKET_NAME environment variable is not set");
+      return NextResponse.json(
+        { success: false, message: "تنظیمات سرور ناقص است" },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.LIARA_ENDPOINT) {
+      console.error("LIARA_ENDPOINT environment variable is not set");
+      return NextResponse.json(
+        { success: false, message: "تنظیمات سرور ناقص است" },
+        { status: 500 }
+      );
+    }
+
     const authUser = await getAuthUser(req);
     if (!authUser) {
       return NextResponse.json(
