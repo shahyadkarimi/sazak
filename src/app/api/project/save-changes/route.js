@@ -84,7 +84,7 @@ export async function POST(req) {
       const buffer = Buffer.from(arrayBuffer);
       await fs.promises.writeFile(filePath, buffer);
 
-      project.image = `/uploads/projects/${fileName}`;
+      project.image = `/api/uploads/projects/${fileName}`;
     }
 
     await project.save();

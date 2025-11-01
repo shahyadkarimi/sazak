@@ -79,10 +79,12 @@ export async function POST(req) {
 
     // Delete old profile picture if exists
     if (userDoc.profilePicture) {
+      // Handle both old (/uploads/) and new (/api/uploads/) paths
+      const relativePath = userDoc.profilePicture.replace(/^\/api\//, '/');
       const oldFilePath = path.join(
         process.cwd(),
         "public",
-        userDoc.profilePicture
+        relativePath
       );
       try {
         await import("fs").then((fs) => fs.promises.unlink(oldFilePath));
@@ -91,7 +93,7 @@ export async function POST(req) {
       }
     }
 
-    userDoc.profilePicture = `/uploads/profiles/${fileName}`;
+    userDoc.profilePicture = `/api/uploads/profiles/${fileName}`;
     await userDoc.save();
 
     const user = userDoc.toObject();

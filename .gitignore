@@ -22,6 +22,11 @@
 # production
 /build
 
+# uploads (keep folder structure but ignore uploaded files)
+/public/uploads/**
+!/public/uploads/profiles/.gitkeep
+!/public/uploads/projects/.gitkeep
+
 # misc
 .DS_Store
 *.pem
