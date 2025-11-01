@@ -3,7 +3,7 @@ import axios from "axios";
 const host =
   process.env.NODE_ENV === "development"
     ? "http://localhost:3001"
-    : "https://sazak-academy.liara.run";
+    : "https://sazaklab.ir";
 
 export const baseURL = `${host}/api`;
 export const siteURL = host;
