@@ -47,21 +47,9 @@ export async function POST(req) {
       objects = body?.objects;
     }
 
-    const project = await Project.findOne({
-      _id: projectId,
-      user: authUser.userId,
-      deletedAt: null,
-    });
-
-    if (!project) {
-      return NextResponse.json(
-        { success: false, message: "پروژه یافت نشد" },
-        { status: 404 }
-      );
-    }
-
+    const updateData = {};
     if (typeof objects !== "undefined") {
-      project.objects = objects;
+      updateData.objects = objects;
     }
 
     if (uploadedFile) {
@@ -75,7 +63,20 @@ export async function POST(req) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      const originalName = project.name;
+      const projectCheck = await Project.findOne({
+        _id: projectId,
+        user: authUser.userId,
+        deletedAt: null,
+      }).select("name");
+
+      if (!projectCheck) {
+        return NextResponse.json(
+          { success: false, message: "پروژه یافت نشد" },
+          { status: 404 }
+        );
+      }
+
+      const originalName = projectCheck.name;
       const safeName = originalName.replaceAll(" ", "-");
       const fileName = `${safeName}-${Date.now()}.png`;
       const filePath = path.join(uploadsDir, fileName);
@@ -84,10 +85,47 @@ export async function POST(req) {
       const buffer = Buffer.from(arrayBuffer);
       await fs.promises.writeFile(filePath, buffer);
 
-      project.image = `/uploads/projects/${fileName}`;
+      updateData.image = `/uploads/projects/${fileName}`;
     }
 
-    await project.save();
+    const maxRetries = 3;
+    let retries = 0;
+    let project = null;
+
+    while (retries < maxRetries && !project) {
+      try {
+        project = await Project.findOneAndUpdate(
+          {
+            _id: projectId,
+            user: authUser.userId,
+            deletedAt: null,
+          },
+          { $set: updateData },
+          { new: true, runValidators: true }
+        );
+
+        if (!project) {
+          return NextResponse.json(
+            { success: false, message: "پروژه یافت نشد" },
+            { status: 404 }
+          );
+        }
+      } catch (error) {
+        if (error.name === "VersionError" && retries < maxRetries - 1) {
+          retries++;
+          await new Promise((resolve) => setTimeout(resolve, 100 * retries));
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    if (!project) {
+      return NextResponse.json(
+        { success: false, message: "خطا هنگام ذخیره تغییرات" },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(
       { success: true, message: "تغییرات با موفقیت ذخیره شدند", project },

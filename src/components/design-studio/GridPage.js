@@ -7,26 +7,16 @@ import * as THREE from "three";
 import useModelStore from "@/store/useModelStore";
 import Model from "./Model";
 import ModelPlacer from "./ModelPlacer";
+import ModelDragPreview from "./ModelDragPreview";
 import CustomGrid from "../home/CustomGrid";
 import SelectedModelPanel from "./SelectedModelPanel";
-import SnapPointPreview from "./SnapPointPreview";
-import ModelPreview from "./ModelPreview";
-import FaceHighlight from "./FaceHighlight";
-import GhostPreview from "./GhostPreview";
 import { useMemo } from "react";
-import {
-  Checkbox,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from "@heroui/react";
 import { postData } from "@/services/API";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { toFarsiNumber } from "@/helper/helper";
+import { Physics } from "@react-three/rapier";
+import { clampPositionToGrid } from "@/helper/gridConstraints";
 
 const ZoomController = () => {
   const { camera } = useThree();
@@ -308,8 +298,9 @@ const KeyboardController = ({ onShowHelp }) => {
           event.preventDefault();
           pushHistory();
           const moveStep = event.shiftKey ? 0.5 : 1; // Shift for smaller steps
-          const applyDelta = (pos) => {
-            const np = [...pos];
+
+          const applyDelta = (model) => {
+            const np = [...model.position];
             switch (event.key) {
               case "ArrowUp":
                 np[2] -= moveStep;
@@ -324,11 +315,12 @@ const KeyboardController = ({ onShowHelp }) => {
                 np[0] += moveStep;
                 break;
             }
-            // Constrain to grid if enabled
             if (useModelStore.getState().constrainToGrid) {
-              const limit = 20; // match CustomGrid size/2
-              np[0] = Math.max(-limit, Math.min(limit, np[0]));
-              np[2] = Math.max(-limit, Math.min(limit, np[2]));
+              return clampPositionToGrid(
+                np,
+                model?.dimensions,
+                model?.rotation
+              );
             }
             return np;
           };
@@ -337,14 +329,14 @@ const KeyboardController = ({ onShowHelp }) => {
             setSelectedModels(
               selectedModels.map((model) => ({
                 ...model,
-                position: applyDelta(model.position),
+                position: applyDelta(model),
               }))
             );
           } else if (Array.isArray(selectedModelId)) {
             setSelectedModels(
               selectedModels.map((model) =>
                 selectedModelId.includes(model.id)
-                  ? { ...model, position: applyDelta(model.position) }
+                  ? { ...model, position: applyDelta(model) }
                   : model
               )
             );
@@ -353,7 +345,7 @@ const KeyboardController = ({ onShowHelp }) => {
               (model) => model.id === selectedModelId
             );
             if (selectedModel) {
-              const newPosition = applyDelta(selectedModel.position);
+              const newPosition = applyDelta(selectedModel);
               setSelectedModels(
                 selectedModels.map((model) =>
                   model.id === selectedModelId
@@ -587,11 +579,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const isPasteMode = useModelStore((state) => state.isPasteMode);
   const clipboardModels = useModelStore((state) => state.clipboardModels);
   const modelOptions = useModelStore((state) => state.modelOptions);
-  const constrainToGrid = useModelStore((state) => state.constrainToGrid);
-  const setConstrainToGrid = useModelStore((state) => state.setConstrainToGrid);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
-  const isPreviewMode = useModelStore((state) => state.isPreviewMode);
-  const setIsPreviewMode = useModelStore((state) => state.setIsPreviewMode);
   const [showHelp, setShowHelp] = useState(false);
   const [showSnapGrid, setShowSnapGrid] = useState(false);
   const controlsRef = useRef();
@@ -599,9 +587,14 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const router = useRouter();
 
   const gridSnapSize = ["free", 0.1, 0.25, 0.5, 1, 2, 5];
+  const rotationOptions = [15, 30, 45, 90, 180];
 
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
+  };
+
+  const changeRotationDegHandler = (angle) => {
+    setModelOptions({ rotationDeg: angle });
   };
 
   useEffect(() => {
@@ -659,46 +652,44 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
         onContextMenu={(e) => {
           e.preventDefault();
         }}
-        onClick={(event) => {
-          if (event.object === event.scene) {
-            const isCtrlPressed = window.isCtrlKeyPressed || false;
-            if (!isCtrlPressed) {
-              setSelectedModelId(null);
-            }
+        onPointerMissed={(event) => {
+          // وقتی روی فضای خالی کلیک می‌شود
+          const isCtrlPressed = window.isCtrlKeyPressed || false;
+          if (!isCtrlPressed) {
+            setSelectedModelId(null);
           }
         }}
       >
-        <CameraAnimator targetView={cameraView} controlsRef={controlsRef} />
-        <CameraTracker
-          onCameraUpdate={(camera) => {
-            if (mainCameraRef) mainCameraRef.current = camera;
-          }}
-        />
-        <ZoomController />
-        <KeyboardController onShowHelp={setShowHelp} />
-        <PasteHandler />
-        <ambientLight intensity={1} />
-        <directionalLight position={[10, 10, 10]} intensity={1.5} />
-
-        {selectedModels.map((model) => (
-          <Model
-            key={model.id}
-            id={model.id}
-            path={model.path}
-            position={model.position}
-            rotation={model.rotation}
-            color={model.color}
+        <Physics debug={false} gravity={[0, 0, 0]}>
+          <CameraAnimator targetView={cameraView} controlsRef={controlsRef} />
+          <CameraTracker
+            onCameraUpdate={(camera) => {
+              if (mainCameraRef) mainCameraRef.current = camera;
+            }}
           />
-        ))}
+          <ZoomController />
+          <KeyboardController onShowHelp={setShowHelp} />
+          <PasteHandler />
+          <ambientLight intensity={1} />
+          <directionalLight position={[10, 10, 10]} intensity={1.5} />
 
-        <ModelPlacer />
+          {selectedModels.map((model) => (
+            <Model
+              key={model.id}
+              id={model.id}
+              path={model.path}
+              position={model.position}
+              rotation={model.rotation}
+              color={model.color}
+            />
+          ))}
 
-        <CustomGrid />
+          <ModelPlacer />
 
-        <SnapPointPreview />
-        <ModelPreview />
-        <FaceHighlight />
-        <GhostPreview />
+          <ModelDragPreview />
+
+          <CustomGrid />
+        </Physics>
 
         <OrbitControls
           ref={controlsRef}
@@ -726,11 +717,16 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             title="تنظیمات Snap Grid"
           >
             <i className="fi fi-rr-grid size-4"></i>
-            <span className="text-xs font-semibold">
-              {modelOptions.snapSize === "free"
-                ? "آزاد"
-                : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
-            </span>
+            <div className="flex flex-col items-end">
+              <span className="text-xs font-semibold">
+                {modelOptions.snapSize === "free"
+                  ? "آزاد"
+                  : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
+              </span>
+              <span className="text-[10px] text-gray-500">
+                چرخش: {toFarsiNumber(modelOptions.rotationDeg)}°
+              </span>
+            </div>
             <i
               className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${
                 showSnapGrid ? "rotate-180" : ""
@@ -739,30 +735,60 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           </button>
 
           {showSnapGrid && (
-            <div className="absolute bottom-full right-0 mb-2 w-48 bg-white rounded-xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden">
-              <div className="p-3">
-                <div className="text-sm text-gray-700 mb-3 text-center">
-                  اندازه جا به جایی
+            <div className="absolute bottom-full right-0 mb-2 w-56 bg-white rounded-xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden max-h-[400px] flex flex-col">
+              <div 
+                className="p-3 space-y-4 overflow-y-auto"
+                style={{
+                  maxHeight: '400px',
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: '#cbd5e1 #f1f5f9'
+                }}
+              >
+                <div>
+                  <div className="text-sm text-gray-700 mb-3 text-center">
+                    اندازه جا به جایی
+                  </div>
+                  <div className="space-y-2">
+                    {gridSnapSize.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => {
+                          changeSnapSizeHandler(size);
+                        }}
+                        className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                          modelOptions.snapSize === size
+                            ? "bg-primaryThemeColor/10 text-primaryThemeColor"
+                            : "text-gray-600 hover:text-gray-800"
+                        }`}
+                      >
+                        {size === "free"
+                          ? "آزاد"
+                          : `${toFarsiNumber(size)} میلی متر`}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {gridSnapSize.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => {
-                        changeSnapSizeHandler(size);
-                        setShowSnapGrid(false);
-                      }}
-                      className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
-                        modelOptions.snapSize === size
-                          ? "bg-primaryThemeColor/10 text-primaryThemeColor"
-                          : "text-gray-600 hover:text-gray-800"
-                      }`}
-                    >
-                      {size === "free"
-                        ? "آزاد"
-                        : `${toFarsiNumber(size)} میلی متر`}
-                    </button>
-                  ))}
+                <div className="border-t border-gray-200 pt-3">
+                  <div className="text-sm text-gray-700 mb-3 text-center">
+                    درجه چرخش
+                  </div>
+                  <div className="space-y-2">
+                    {rotationOptions.map((angle) => (
+                      <button
+                        key={angle}
+                        onClick={() => {
+                          changeRotationDegHandler(angle);
+                        }}
+                        className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                          modelOptions.rotationDeg === angle
+                            ? "bg-primaryThemeColor/10 text-primaryThemeColor"
+                            : "text-gray-600 hover:text-gray-800"
+                        }`}
+                      >
+                        {toFarsiNumber(angle)}°
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -773,35 +799,6 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
       {/* Bottom Stats Bar */}
       <StatsBar />
 
-      {/* Constrain to Grid Toggle */}
-      <div className="absolute top-4 right-4 z-50">
-        <div className="bg-white/90 rounded-xl px-3 py-2 shadow-lg shadow-gray-100 border border-gray-100">
-          <Checkbox
-            size="sm"
-            isSelected={constrainToGrid}
-            onValueChange={setConstrainToGrid}
-            classNames={{ wrapper: "after:bg-primaryThemeColor" }}
-          >
-            <span className="text-xs text-gray-700">
-              عدم خروج مدل‌ها از صفحه
-            </span>
-          </Checkbox>
-        </div>
-      </div>
-
-      {/* Preview Mode Toggle */}
-      {/* <div className="absolute top-4 right-32 z-50">
-        <div className="bg-white/90 rounded-xl px-3 py-2 shadow-lg shadow-gray-100 border border-gray-100">
-          <Checkbox
-            size="sm"
-            isSelected={isPreviewMode}
-            onValueChange={setIsPreviewMode}
-            classNames={{wrapper:"after:bg-primaryThemeColor"}}
-          >
-            <span className="text-xs text-gray-700">حالت پیشنمایش اتصال</span>
-          </Checkbox>
-        </div>
-      </div> */}
     </div>
   );
 };
@@ -812,10 +809,10 @@ const StatsBar = () => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const snap = useModelStore((state) => state.modelOptions.snapSize);
 
-  const { count, width, depth, area, maxHeight } = useMemo(() => {
+  const { count, width, depth, maxHeight } = useMemo(() => {
     const count = selectedModels.length;
     if (count === 0)
-      return { count, width: 0, depth: 0, area: 0, maxHeight: 0 };
+      return { count, width: 0, depth: 0, maxHeight: 0 };
 
     let minX = Infinity,
       maxX = -Infinity,
@@ -838,8 +835,7 @@ const StatsBar = () => {
     }
     const width = Math.max(0, maxX - minX);
     const depth = Math.max(0, maxZ - minZ);
-    const area = width * depth;
-    return { count, width, depth, area, maxHeight };
+    return { count, width, depth, maxHeight };
   }, [selectedModels, snap]);
 
   const fmt = (v) => {
@@ -851,30 +847,21 @@ const StatsBar = () => {
   return (
     <div className="absolute bottom-0 left-0 right-0 z-40">
       <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 p-3">
-        <div className="flex items-center justify-between text-xs text-gray-700">
+        <div dir="ltr" className="flex flex-wrap items-center justify-between gap-4 text-xs text-gray-700">
           <div className="flex items-center gap-2">
-            <span className="font-semibold hidden md:block">تعداد قطعات:</span>
-            <span className="font-semibold md:hidden">ت.ق:</span>
+            <span className="font-semibold uppercase tracking-wide">size:</span>
             <span>{toFarsiNumber(count)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold hidden md:block">عرض کل:</span>
-            <span className="font-semibold md:hidden">ع.ض:</span>
+            <span className="font-semibold uppercase tracking-wide">x:</span>
             <span>{fmt(width)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold hidden md:block">عمق کل:</span>
-            <span className="font-semibold md:hidden">ع.ک:</span>
+            <span className="font-semibold uppercase tracking-wide">y:</span>
             <span>{fmt(depth)}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-semibold hidden md:block">مساحت اشغال‌شده:</span>
-            <span className="font-semibold md:hidden">م.ا:</span>
-            <span>{fmt(area)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold hidden md:block">بیشترین ارتفاع:</span>
-            <span className="font-semibold md:hidden">ب.ا:</span>
+            <span className="font-semibold uppercase tracking-wide">h:</span>
             <span>{fmt(maxHeight)}</span>
           </div>
         </div>

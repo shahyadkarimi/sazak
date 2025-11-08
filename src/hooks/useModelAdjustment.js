@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import * as THREE from "three";
 import { useThree } from "@react-three/fiber";
 
@@ -17,6 +17,16 @@ export const radToDeg = (rad) => {
 
 export const degToRad = (deg) => {
   return deg * (Math.PI / 180);
+};
+
+export const ensureRotationArray = (rotation) => {
+  if (!Array.isArray(rotation)) {
+    return [0, 0, 0];
+  }
+  if (rotation.length < 3) {
+    return [rotation[0] || 0, rotation[1] || 0, rotation[2] || 0];
+  }
+  return [...rotation];
 };
 
 // تابع محاسبه bounding box برای مدل‌های پیچیده
@@ -126,12 +136,13 @@ export const useModelAdjustment = (
   const [isMoving, setIsMoving] = useState(false);
   const [isRotatingY, setIsRotatingY] = useState(false);
   const [isRotatingX, setIsRotatingX] = useState(false);
+  const [isRotatingZ, setIsRotatingZ] = useState(false);
   const [lastMouse, setLastMouse] = useState({ x: null, y: null, z: null });
   const [mouseAccumulated, setMouseAccumulated] = useState({ y: 0 });
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [rotationStartAngles, setRotationStartAngles] = useState(null);
   const [rotationStartMouse, setRotationStartMouse] = useState(null);
-  const [lastRotation, setLastRotation] = useState({ x: null, y: null });
+  const [lastRotation, setLastRotation] = useState({ x: null, y: null, z: null });
 
   const rotationSnapRadians = degToRad(rotationSnapDegrees);
   const { raycaster, camera, gl } = useThree();
@@ -233,28 +244,62 @@ export const useModelAdjustment = (
     setIsAdjustingHeight(false);
   };
 
-  // دکمه‌های چرخش سریع
-  const rotateModelY = () => {
+  const startRotatingZ = (event) => {
+    const clientX = event
+      ? event.clientX || event.intersections?.[0]?.point.x
+      : 0;
+    const clientY = event
+      ? event.clientY || event.intersections?.[0]?.point.y
+      : 0;
+    const normalizedRotation = ensureRotationArray(rotation);
+    setIsRotatingZ(true);
+    setRotationStartAngles(normalizedRotation);
+    setRotationStartMouse({ x: clientX, y: clientY });
+    setLastRotation((prev) => ({ ...prev, z: normalizedRotation[2] }));
+
+    setIsAdjustingHeight(true);
+  };
+
+  const stopRotatingZ = () => {
+    setIsRotatingZ(false);
+    setRotationStartAngles(null);
+    setRotationStartMouse(null);
+
+    setIsAdjustingHeight(false);
+  };
+
+  const rotateModelZ = useCallback(() => {
+    const normalizedRotation = ensureRotationArray(rotation);
+    let currentZ = normalizeAngle(normalizedRotation[2]);
+    let newZ = snapToGrid(currentZ + rotationSnapRadians, rotationSnapRadians);
+    let newRotation = [...normalizedRotation];
+    newRotation[2] = normalizeAngle(newZ);
+    updateModelRotation(id, newRotation);
+  }, [rotation, rotationSnapRadians, id, updateModelRotation]);
+
+  const rotateModelY = useCallback(() => {
     let currentY = normalizeAngle(rotation[1]);
-    let newY = snapToGrid(currentY + Math.PI / 2, rotationSnapRadians);
+    let newY = snapToGrid(currentY + rotationSnapRadians, rotationSnapRadians);
     let newRotation = [...rotation];
     newRotation[1] = normalizeAngle(newY);
     updateModelRotation(id, newRotation);
-  };
+  }, [rotation, rotationSnapRadians, id, updateModelRotation]);
 
-  const rotateModelX = () => {
+  const rotateModelX = useCallback(() => {
     let currentX = normalizeAngle(rotation[0]);
-    let newX = snapToGrid(currentX + Math.PI / 2, rotationSnapRadians);
+    let newX = snapToGrid(currentX + rotationSnapRadians, rotationSnapRadians);
     newX = normalizeAngle(newX);
 
-    if (newX > Math.PI / 2 && newX < (3 * Math.PI) / 2) {
-      newX = newX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+    if (rotationSnapDegrees === 90) {
+      if (newX > Math.PI / 2 && newX < (3 * Math.PI) / 2) {
+        newX = newX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+      }
     }
 
     let newRotation = [...rotation];
     newRotation[0] = newX;
     updateModelRotation(id, newRotation);
-  };
+  }, [rotation, rotationSnapRadians, rotationSnapDegrees, id, updateModelRotation]);
 
   // Effect برای تنظیم ارتفاع
   useEffect(() => {
@@ -398,7 +443,6 @@ export const useModelAdjustment = (
     mouseSensitivity,
   ]);
 
-  // Effect برای چرخش X
   useEffect(() => {
     if (!isRotatingX || !rotationStartMouse || !rotationStartAngles) return;
 
@@ -409,12 +453,14 @@ export const useModelAdjustment = (
       let snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
       snappedRotation = normalizeAngle(snappedRotation);
 
-      if (
-        snappedRotation > Math.PI / 2 &&
-        snappedRotation < (3 * Math.PI) / 2
-      ) {
-        snappedRotation =
-          snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+      if (rotationSnapDegrees === 90) {
+        if (
+          snappedRotation > Math.PI / 2 &&
+          snappedRotation < (3 * Math.PI) / 2
+        ) {
+          snappedRotation =
+            snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+        }
       }
 
       let newRotation = [...rotationStartAngles];
@@ -431,27 +477,57 @@ export const useModelAdjustment = (
     id,
     updateModelRotation,
     rotationSnapRadians,
+    rotationSnapDegrees,
     mouseSensitivity,
   ]);
 
-  // Effect برای توقف با رها کردن موس
+  useEffect(() => {
+    if (!isRotatingZ || !rotationStartMouse || !rotationStartAngles) return;
+
+    const handleMouseMove = (event) => {
+      const deltaX = event.clientX - rotationStartMouse.x;
+      const rotationDelta = (deltaX / 200) * (Math.PI / 2) * mouseSensitivity;
+      const normalizedStartAngles = ensureRotationArray(rotationStartAngles);
+      let currentZ = normalizedStartAngles[2];
+      const totalRotation = currentZ + rotationDelta;
+      const snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
+      let newRotation = [...normalizedStartAngles];
+      newRotation[2] = normalizeAngle(snappedRotation);
+      updateModelRotation(id, newRotation);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [
+    isRotatingZ,
+    rotationStartMouse,
+    rotationStartAngles,
+    id,
+    updateModelRotation,
+    rotationSnapRadians,
+    rotationSnapDegrees,
+    mouseSensitivity,
+  ]);
+
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isAdjustingHeight) stopAdjustHeight();
       if (isMoving) stopMoving();
       if (isRotatingY) stopRotatingY();
       if (isRotatingX) stopRotatingX();
+      if (isRotatingZ) stopRotatingZ();
     };
 
     window.addEventListener("mouseup", handleGlobalMouseUp);
     return () => window.removeEventListener("mouseup", handleGlobalMouseUp);
-  }, [isAdjustingHeight, isMoving, isRotatingY, isRotatingX]);
+  }, [isAdjustingHeight, isMoving, isRotatingY, isRotatingX, isRotatingZ]);
 
   return {
     isAdjustingHeight,
     isMoving,
     isRotatingY,
     isRotatingX,
+    isRotatingZ,
     startAdjustHeight,
     stopAdjustHeight,
     startMoving,
@@ -460,7 +536,10 @@ export const useModelAdjustment = (
     stopRotatingY,
     startRotatingX,
     stopRotatingX,
+    startRotatingZ,
+    stopRotatingZ,
     rotateModelX,
     rotateModelY,
+    rotateModelZ,
   };
 };

@@ -27,6 +27,7 @@ const useModelStore = create((set, get) => ({
   activeFacePreview: null, // Current highlighted face
   draggedModelPreviewPosition: null, // Preview position of dragged model
   collisionMode: 'stack', // 'stack' | 'push' | 'block'
+  draggedModelId: null, // ID of model currently being dragged
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
@@ -49,6 +50,13 @@ const useModelStore = create((set, get) => ({
     set((state) => ({
       selectedModels: state.selectedModels.map((model) =>
         model.id === id ? { ...model, rotation: newRotation } : model
+      ),
+    })),
+
+  updateModelDimensions: (id, dimensions) =>
+    set((state) => ({
+      selectedModels: state.selectedModels.map((model) =>
+        model.id === id ? { ...model, dimensions } : model
       ),
     })),
 
@@ -99,6 +107,7 @@ const useModelStore = create((set, get) => ({
   setActiveFacePreview: (face) => set({ activeFacePreview: face }),
   setDraggedModelPreviewPosition: (position) => set({ draggedModelPreviewPosition: position }),
   setCollisionMode: (mode) => set({ collisionMode: mode }),
+  setDraggedModelId: (id) => set({ draggedModelId: id }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 

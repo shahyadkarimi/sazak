@@ -1,16 +1,5 @@
 "use client";
 
-/**
- * Custom hook to handle unsaved changes detection and warning modal
- *
- * Features:
- * - Detects changes in selectedModels compared to initial project state
- * - Shows warning modal when user tries to navigate away with unsaved changes
- * - Handles browser close/refresh with beforeunload event
- * - Provides save and discard options
- * - Updates initial state after successful save
- */
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import useModelStore from "@/store/useModelStore";
@@ -235,18 +224,10 @@ const useUnsavedChanges = (project) => {
       console.log('Back button pressed, checking for unsaved changes...');
       if (checkForUnsavedChanges()) {
         console.log('Unsaved changes detected, showing modal');
-        // Push the current state back to prevent navigation
-        window.history.pushState(null, "", window.location.href);
+        // Prevent default navigation
         setShowWarning(true);
       }
     };
-
-    // Add a dummy state to enable popstate detection
-    try {
-      window.history.pushState({ preventBack: true }, "", window.location.href);
-    } catch (error) {
-      console.warn("History API not available:", error);
-    }
 
     // Override router.push to check for unsaved changes
     const originalPush = router.push;

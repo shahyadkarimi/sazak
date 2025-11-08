@@ -24,45 +24,84 @@ import toast, { Toaster } from "react-hot-toast";
 const AutoSave = ({ project }) => {
   const { selectedModels } = useModelStore();
   const { id } = useParams();
+  const [hasInitialSave, setHasInitialSave] = useState(false);
+  const isSavingRef = React.useRef(false);
+
+  const takeCanvasBlob = useCallback(() =>
+    new Promise((resolve) => {
+      const canvas = document.querySelector(".design-studio canvas");
+      if (!canvas) return resolve(null);
+      canvas.toBlob((blob) => resolve(blob), "image/png");
+    }), []);
+
+  const performSave = useCallback(async () => {
+    if (isSavingRef.current) return;
+
+    isSavingRef.current = true;
+    try {
+      const imageBlob = await takeCanvasBlob();
+      const form = new FormData();
+      form.append("projectId", id);
+      form.append("objects", JSON.stringify(selectedModels));
+      if (imageBlob) {
+        const file = new File(
+          [imageBlob],
+          `${project?.name || "project"}-${Date.now()}.png`,
+          { type: "image/png" }
+        );
+        form.append("image", file);
+      }
+
+      await postData("/project/save-changes", form, undefined, "multipart");
+    } catch (e) {
+      if (e?.response?.status !== 500) {
+        toast.error("خطا هنگام ذخیره تغییرات", {
+          duration: 3500,
+          className: "text-sm rounded-2xl",
+        });
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [id, selectedModels, project?.name, takeCanvasBlob]);
 
   useEffect(() => {
-    if (!project) return;
+    if (project?.id) {
+      setHasInitialSave(false);
+      isSavingRef.current = false;
+    }
+  }, [project?.id]);
 
-    const takeCanvasBlob = () =>
-      new Promise((resolve) => {
-        const canvas = document.querySelector(".design-studio canvas");
-        if (!canvas) return resolve(null);
-        canvas.toBlob((blob) => resolve(blob), "image/png");
-      });
+  useEffect(() => {
+    if (!project || !id) return;
+
+    const checkAndSave = () => {
+      const canvas = document.querySelector(".design-studio canvas");
+      if (canvas && selectedModels && !hasInitialSave) {
+        performSave();
+        setHasInitialSave(true);
+      }
+    };
+
+    const timeoutId = setTimeout(checkAndSave, 1000);
+
+    const intervalId = setInterval(checkAndSave, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [project, id, selectedModels, hasInitialSave, performSave]);
+
+  useEffect(() => {
+    if (!project || !hasInitialSave) return;
 
     const intervalId = setInterval(() => {
-      (async () => {
-        try {
-          const imageBlob = await takeCanvasBlob();
-          const form = new FormData();
-          form.append("projectId", id);
-          form.append("objects", JSON.stringify(selectedModels));
-          if (imageBlob) {
-            const file = new File(
-              [imageBlob],
-              `${project?.name || "project"}-${Date.now()}.png`,
-              { type: "image/png" }
-            );
-            form.append("image", file);
-          }
-
-          await postData("/project/save-changes", form, undefined, "multipart");
-        } catch (e) {
-          toast.error("خطا هنگام ذخیره تغییرات", {
-            duration: 3500,
-            className: "text-sm rounded-2xl",
-          });
-        }
-      })();
+      performSave();
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [id, selectedModels]);
+  }, [project, hasInitialSave, performSave]);
 
   return null;
 };
@@ -79,6 +118,8 @@ const Toolbar = ({ project }) => {
     setClipboardModels,
     undo,
     redo,
+    constrainToGrid,
+    setConstrainToGrid,
   } = useModelStore();
   const [loading, setLoading] = useState(false);
   const [confirmAutoSave, setConfirmAutoSave] = useState(0);
@@ -562,6 +603,21 @@ const Toolbar = ({ project }) => {
 
         {/* other tools */}
         <div className="flex items-end gap-3">
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip content="عدم خروج مدل‌ها از صفحه" placement="bottom" size="sm">
+              <button
+                onClick={() => setConstrainToGrid(!constrainToGrid)}
+                className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
+                  constrainToGrid
+                    ? "bg-primaryThemeColor text-white"
+                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                }`}
+              >
+                <i className="fi fi-rr-square-l -scale-y-100 size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
+
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="یادداشت" placement="bottom" size="sm">
               <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">

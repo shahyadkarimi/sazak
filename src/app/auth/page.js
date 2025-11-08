@@ -1,9 +1,8 @@
 import Image from "next/image";
 import React from "react";
-import LoginForm from "./LoginForm";
 import Link from "next/link";
 import { Icon } from "@iconify/react";
-import AuthSlider from "@/components/auth/AuthSlider";
+import AuthContent from "./AuthContent";
 
 export const metadata = {
   title: "آموزشگاه رباتیک سازک - ورود به حساب کاربری",
@@ -31,45 +30,41 @@ export const metadata = {
 
 const Page = () => {
   return (
-    <div className="w-full min-h-screen flex overflow-x-hidden">
-      <div className="w-[55%] min-h-full flex justify-center items-center">
-        <div className="w-full max-w-[425px]">
-          <LoginForm />
+    <div className="w-full min-h-screen flex justify-center items-center overflow-x-hidden relative p-6">
+      {/* Header with logo and back button */}
+      <div className="absolute top-6 left-6 right-6 flex items-center justify-between z-10">
+        {/* logo */}
+        <div className="flex items-center gap-4">
+          <Image
+            src={"/assets/logo.png"}
+            width={150}
+            height={150}
+            className="size-10 rounded-full scale-150"
+            alt="sazak logo"
+          />
+
+          <div className="flex flex-col gap-0.5">
+            <p className="text-xs text-gray-700">آموزشگاه رباتیک</p>
+            <h2 className="text-xl font-black text-primaryThemeColor">
+              سازک
+            </h2>
+          </div>
         </div>
+        
+        {/* go home */}
+        <Link
+          href={"/"}
+          className="text-xs  text-primaryThemeColor font-semibold h-10 rounded-xl bg-primaryThemeColor/5 px-6 flex items-center justify-center gap-2"
+        >
+          <span>بازگشت به وبسایت</span>
+
+          <Icon icon="solar:arrow-left-linear" width="20" height="20" />
+        </Link>
       </div>
 
-      <div className="w-[45%] min-h-full auth-bg relative p-10 flex flex-col justify-between gap-4">
-        <div className="w-full flex items-center justify-between relative">
-          {/* logo */}
-          <div className="flex items-center gap-4">
-            <Image
-              src={"/assets/logo.png"}
-              width={150}
-              height={150}
-              className="size-10 rounded-full scale-150"
-              alt="sazak logo"
-            />
-
-            <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-gray-700">آموزشگاه رباتیک</p>
-              <h2 className="text-xl font-black text-primaryThemeColor">
-                سازک
-              </h2>
-            </div>
-          </div>
-          
-          {/* go home */}
-          <Link
-            href={"/"}
-            className="text-xs  text-primaryThemeColor font-semibold h-10 rounded-xl bg-primaryThemeColor/5 px-6 flex items-center justify-center gap-2"
-          >
-            <span>بازگشت به وبسایت</span>
-
-            <Icon icon="solar:arrow-left-linear" width="20" height="20" />
-          </Link>
-        </div>
-
-        <AuthSlider />
+      {/* Main content */}
+      <div className="w-full max-w-[425px]">
+        <AuthContent />
       </div>
     </div>
   );

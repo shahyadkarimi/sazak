@@ -220,7 +220,7 @@ export const findNearestSnapPoint = (position, snapPoints, snapDistance = 2) => 
 };
 
 /**
- * Enhanced collision detection with precise stacking
+ * Enhanced collision detection with precise stacking and overlap prevention
  * @param {Array} newPos - New position [x, y, z]
  * @param {Object} currentModel - Current model being moved
  * @param {Array} allModels - All existing models
@@ -228,58 +228,384 @@ export const findNearestSnapPoint = (position, snapPoints, snapDistance = 2) => 
  * @returns {Object} { position, isStacked, stackHeight, collisionModel }
  */
 export const checkCollisionAndStack = (newPos, currentModel, allModels, snapSize = 1) => {
-  const currentModelType = getModelType(currentModel.path);
-  const currentModelDims = getModelDimensions(currentModelType);
-  
-  // Create bounding box for current model at new position
-  const currentModelBox = new THREE.Box3().setFromCenterAndSize(
-    new THREE.Vector3(newPos[0], newPos[1], newPos[2]),
-    new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
-  );
+  // Use real dimensions from store if available, otherwise use default
+  const originalModel = allModels.find(m => m.id === currentModel.id);
+  const currentModelDims = (currentModel.dimensions || (originalModel && originalModel.dimensions))
+    ? (currentModel.dimensions || originalModel.dimensions)
+    : getModelDimensions(getModelType(currentModel.path));
   
   let maxStackHeight = 0;
   let collisionModel = null;
   let isStacked = false;
   let finalPosition = [...newPos];
   
-  // Check collision with all other models
+  const tolerance = 0.02;
+  const snapThreshold = 0.4; // Distance for snapping
+  const minGap = 0.02; // Minimum gap to prevent penetration
+  
+  // First pass: find all models that have horizontal overlap to calculate max stack height
+  // Use ground level Y for overlap check (not newPos[1] which might be at wrong height)
+  let maxTopY = 0;
+  let hasHorizontalOverlap = false;
+  const groundLevelY = currentModelDims.y / 2;
+  
   for (const model of allModels) {
     if (model.id === currentModel.id) continue;
     
-    const modelType = getModelType(model.path);
-    const modelDims = getModelDimensions(modelType);
-    
-    // Create bounding box for existing model
+    const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
     const modelBox = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
       new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
     );
     
-    // Check horizontal collision (X and Z axes) with small tolerance
-    const tolerance = 0.01; // Small tolerance for precise positioning
-    const horizontalCollision = 
-      currentModelBox.min.x < modelBox.max.x + tolerance &&
-      currentModelBox.max.x > modelBox.min.x - tolerance &&
-      currentModelBox.min.z < modelBox.max.z + tolerance &&
-      currentModelBox.max.z > modelBox.min.z - tolerance;
+    // Check overlap at ground level, not at current Y position
+    const currentBox = new THREE.Box3().setFromCenterAndSize(
+      new THREE.Vector3(newPos[0], groundLevelY, newPos[2]),
+      new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+    );
     
-    if (horizontalCollision) {
-      // Calculate precise stack height - place current model exactly on top
-      const stackHeight = modelBox.max.y + (currentModelDims.y / 2);
-      maxStackHeight = Math.max(maxStackHeight, stackHeight);
+    const hOverlap = 
+      currentBox.min.x < modelBox.max.x - tolerance &&
+      currentBox.max.x > modelBox.min.x + tolerance &&
+      currentBox.min.z < modelBox.max.z - tolerance &&
+      currentBox.max.z > modelBox.min.z + tolerance;
+    
+    if (hOverlap) {
+      hasHorizontalOverlap = true;
+      // Find the top of this model (including if it's stacked on others)
+      const topY = modelBox.max.y;
+      maxTopY = Math.max(maxTopY, topY);
       collisionModel = model;
+    }
+  }
+  
+  // If there's horizontal overlap, stack on top
+  if (hasHorizontalOverlap) {
+    isStacked = true;
+    // Calculate stack height: top of highest model + half current model height + gap
+    maxStackHeight = maxTopY + (currentModelDims.y / 2) + minGap;
+    
+    // Keep X and Z position
+    finalPosition[0] = newPos[0];
+    finalPosition[2] = newPos[2];
+    
+    if (snapSize > 0) {
+      finalPosition[0] = Math.round(finalPosition[0] / snapSize) * snapSize;
+      finalPosition[2] = Math.round(finalPosition[2] / snapSize) * snapSize;
+    }
+  } else {
+    // No horizontal overlap - ensure we're not stacked and return to ground
+    isStacked = false;
+    maxStackHeight = 0;
+    finalPosition[1] = groundLevelY; // Set to ground level immediately
+    
+    // Keep X and Z position
+    finalPosition[0] = newPos[0];
+    finalPosition[2] = newPos[2];
+    
+    if (snapSize > 0) {
+      finalPosition[0] = Math.round(finalPosition[0] / snapSize) * snapSize;
+      finalPosition[2] = Math.round(finalPosition[2] / snapSize) * snapSize;
+    }
+    
+    // Return early - no need to check for snap or other collisions
+    return {
+      position: finalPosition,
+      isStacked: false,
+      stackHeight: 0,
+      collisionModel: null
+    };
+  }
+  
+  // Check collision with all other models for snap and additional checks
+  // (Only if we have horizontal overlap from first pass)
+  for (const model of allModels) {
+    if (model.id === currentModel.id) continue;
+    
+    const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+    
+    // Create bounding boxes - use ground level for current model to check horizontal overlap
+    const currentBox = new THREE.Box3().setFromCenterAndSize(
+      new THREE.Vector3(newPos[0], groundLevelY, newPos[2]),
+      new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+    );
+    
+    const modelBox = new THREE.Box3().setFromCenterAndSize(
+      new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
+      new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
+    );
+    
+    // Check overlaps - horizontal overlap at ground level
+    const horizontalOverlap = 
+      currentBox.min.x < modelBox.max.x - tolerance &&
+      currentBox.max.x > modelBox.min.x + tolerance &&
+      currentBox.min.z < modelBox.max.z - tolerance &&
+      currentBox.max.z > modelBox.min.z + tolerance;
+    
+    // Check vertical overlap - use proposed stack height for current model
+    const proposedY = maxStackHeight > 0 ? maxStackHeight : groundLevelY;
+    const proposedBox = new THREE.Box3().setFromCenterAndSize(
+      new THREE.Vector3(newPos[0], proposedY, newPos[2]),
+      new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+    );
+    
+    const verticalOverlap = 
+      proposedBox.min.y < modelBox.max.y - tolerance &&
+      proposedBox.max.y > modelBox.min.y + tolerance;
+    
+    // Calculate distances
+    const dx = newPos[0] - model.position[0];
+    const dz = newPos[2] - model.position[2];
+    const distX = Math.abs(dx);
+    const distZ = Math.abs(dz);
+    
+    const minSepX = (currentModelDims.x / 2) + (modelDims.x / 2);
+    const minSepZ = (currentModelDims.z / 2) + (modelDims.z / 2);
+    
+    // If overlapping horizontally, always stack on top (prevent penetration)
+    if (horizontalOverlap) {
+      // Always stack on top of the model - ensure no penetration
+      const stackHeight = modelBox.max.y + (currentModelDims.y / 2) + minGap;
+      maxStackHeight = Math.max(maxStackHeight, stackHeight);
+      if (!collisionModel) collisionModel = model;
       isStacked = true;
       
-      // Snap to exact grid position for precise alignment
+      // Keep X and Z position (align horizontally)
+      finalPosition[0] = newPos[0];
+      finalPosition[2] = newPos[2];
+      
       if (snapSize > 0) {
-        finalPosition[0] = Math.round(newPos[0] / snapSize) * snapSize;
-        finalPosition[2] = Math.round(newPos[2] / snapSize) * snapSize;
+        finalPosition[0] = Math.round(finalPosition[0] / snapSize) * snapSize;
+        finalPosition[2] = Math.round(finalPosition[2] / snapSize) * snapSize;
+      }
+    }
+    // If close enough, snap and potentially stack (only if no horizontal overlap)
+    else if (!horizontalOverlap) {
+      const snapX = distX >= minSepX - snapThreshold && distX <= minSepX + snapThreshold;
+      const snapZ = distZ >= minSepZ - snapThreshold && distZ <= minSepZ + snapThreshold;
+      
+      if (snapX || snapZ) {
+        // Snap to face
+        if (snapX) {
+          finalPosition[0] = model.position[0] + (dx > 0 ? minSepX : -minSepX);
+        }
+        if (snapZ) {
+          finalPosition[2] = model.position[2] + (dz > 0 ? minSepZ : -minSepZ);
+        }
+        
+        if (snapSize > 0) {
+          finalPosition[0] = Math.round(finalPosition[0] / snapSize) * snapSize;
+          finalPosition[2] = Math.round(finalPosition[2] / snapSize) * snapSize;
+        }
+        
+        // Check if now tightly attached (both axes snapped)
+        const newDx = finalPosition[0] - model.position[0];
+        const newDz = finalPosition[2] - model.position[2];
+        const newDistX = Math.abs(newDx);
+        const newDistZ = Math.abs(newDz);
+        
+        const isTightlyAttached = 
+          Math.abs(newDistX - minSepX) < 0.1 && Math.abs(newDistZ - minSepZ) < 0.1;
+        
+        if (isTightlyAttached) {
+          // Check if this creates horizontal overlap after snapping
+          const snappedBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(finalPosition[0], groundLevelY, finalPosition[2]),
+            new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+          );
+          
+          const snappedHOverlap = 
+            snappedBox.min.x < modelBox.max.x - tolerance &&
+            snappedBox.max.x > modelBox.min.x + tolerance &&
+            snappedBox.min.z < modelBox.max.z - tolerance &&
+            snappedBox.max.z > modelBox.min.z + tolerance;
+          
+          if (snappedHOverlap) {
+            // Stack on top - ensure no penetration
+            const stackHeight = modelBox.max.y + (currentModelDims.y / 2) + minGap;
+            maxStackHeight = Math.max(maxStackHeight, stackHeight);
+            if (!collisionModel) collisionModel = model;
+            isStacked = true;
+          }
+        }
       }
     }
   }
   
-  // Set final Y position
-  finalPosition[1] = isStacked ? maxStackHeight : newPos[1];
+  // Set Y position - ensure it's always above any overlapping models
+  if (isStacked) {
+    // Double-check: make sure we're above all horizontally overlapping models
+    let finalStackHeight = maxStackHeight;
+    
+    for (const model of allModels) {
+      if (model.id === currentModel.id) continue;
+      
+      const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+      const modelBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
+        new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
+      );
+      
+      const testBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(finalPosition[0], finalStackHeight, finalPosition[2]),
+        new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+      );
+      
+      const hOverlap = 
+        testBox.min.x < modelBox.max.x - tolerance &&
+        testBox.max.x > modelBox.min.x + tolerance &&
+        testBox.min.z < modelBox.max.z - tolerance &&
+        testBox.max.z > modelBox.min.z + tolerance;
+      
+      if (hOverlap) {
+        // Make sure we're above this model - prevent any penetration
+        const requiredHeight = modelBox.max.y + (currentModelDims.y / 2) + minGap;
+        finalStackHeight = Math.max(finalStackHeight, requiredHeight);
+        
+        // Also check if current model's bottom would penetrate this model's top
+        const currentModelBottom = finalStackHeight - (currentModelDims.y / 2);
+        if (currentModelBottom < modelBox.max.y + minGap) {
+          finalStackHeight = modelBox.max.y + (currentModelDims.y / 2) + minGap;
+        }
+      }
+    }
+    
+    finalPosition[1] = finalStackHeight;
+    
+    // Verify no overlap after stacking
+    for (const model of allModels) {
+      if (model.id === currentModel.id) continue;
+      
+      const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+      const stackedBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(finalPosition[0], finalPosition[1], finalPosition[2]),
+        new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+      );
+      const otherBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
+        new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
+      );
+      
+      const hOverlap = 
+        stackedBox.min.x < otherBox.max.x - tolerance &&
+        stackedBox.max.x > otherBox.min.x + tolerance &&
+        stackedBox.min.z < otherBox.max.z - tolerance &&
+        stackedBox.max.z > otherBox.min.z + tolerance;
+      
+      const vOverlap = 
+        stackedBox.min.y < otherBox.max.y - tolerance &&
+        stackedBox.max.y > otherBox.min.y + tolerance;
+      
+      if (hOverlap && vOverlap) {
+        // There's still penetration - increase height to prevent it
+        const requiredHeight = otherBox.max.y + (currentModelDims.y / 2) + minGap;
+        finalStackHeight = Math.max(finalStackHeight, requiredHeight);
+        finalPosition[1] = finalStackHeight;
+        
+        // Re-check with new height
+        const newStackedBox = new THREE.Box3().setFromCenterAndSize(
+          new THREE.Vector3(finalPosition[0], finalPosition[1], finalPosition[2]),
+          new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+        );
+        
+        const stillOverlapping = 
+          newStackedBox.min.y < otherBox.max.y - tolerance &&
+          newStackedBox.max.y > otherBox.min.y + tolerance;
+        
+        if (stillOverlapping) {
+          // If still overlapping after height adjustment, push away horizontally
+          const dx = finalPosition[0] - model.position[0];
+          const dz = finalPosition[2] - model.position[2];
+          const minSepX = (currentModelDims.x / 2) + (modelDims.x / 2);
+          const minSepZ = (currentModelDims.z / 2) + (modelDims.z / 2);
+          
+          const overlapX = Math.min(
+            newStackedBox.max.x - otherBox.min.x,
+            otherBox.max.x - newStackedBox.min.x
+          );
+          const overlapZ = Math.min(
+            newStackedBox.max.z - otherBox.min.z,
+            otherBox.max.z - newStackedBox.min.z
+          );
+          
+          if (overlapX > overlapZ) {
+            // Push in Z direction
+            finalPosition[2] = model.position[2] + (dz > 0 ? minSepZ + 0.02 : -(minSepZ + 0.02));
+          } else {
+            // Push in X direction
+            finalPosition[0] = model.position[0] + (dx > 0 ? minSepX + 0.02 : -(minSepX + 0.02));
+          }
+          
+          if (snapSize > 0) {
+            finalPosition[0] = Math.round(finalPosition[0] / snapSize) * snapSize;
+            finalPosition[2] = Math.round(finalPosition[2] / snapSize) * snapSize;
+          }
+          
+          // Re-check horizontal overlap after pushing
+          const pushedBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(finalPosition[0], groundLevelY, finalPosition[2]),
+            new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+          );
+          
+          const stillHOverlap = 
+            pushedBox.min.x < otherBox.max.x - tolerance &&
+            pushedBox.max.x > otherBox.min.x + tolerance &&
+            pushedBox.min.z < otherBox.max.z - tolerance &&
+            pushedBox.max.z > otherBox.min.z + tolerance;
+          
+          if (!stillHOverlap) {
+            // No longer overlapping horizontally - return to ground
+            finalPosition[1] = currentModelDims.y / 2;
+            isStacked = false;
+            maxStackHeight = 0;
+          }
+        }
+      }
+    }
+  } else {
+    // No stack - check if there's any horizontal overlap
+    // If no overlap, return to ground level
+    let hasAnyHorizontalOverlap = false;
+    
+    for (const model of allModels) {
+      if (model.id === currentModel.id) continue;
+      
+      const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+      const modelBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
+        new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
+      );
+      
+      // Use ground level Y for overlap check to see if models overlap horizontally
+      const groundLevelY = currentModelDims.y / 2;
+      const currentBox = new THREE.Box3().setFromCenterAndSize(
+        new THREE.Vector3(finalPosition[0], groundLevelY, finalPosition[2]),
+        new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
+      );
+      
+      const hOverlap = 
+        currentBox.min.x < modelBox.max.x - tolerance &&
+        currentBox.max.x > modelBox.min.x + tolerance &&
+        currentBox.min.z < modelBox.max.z - tolerance &&
+        currentBox.max.z > modelBox.min.z + tolerance;
+      
+      if (hOverlap) {
+        hasAnyHorizontalOverlap = true;
+        // If there's horizontal overlap, stack on top
+        const stackHeight = modelBox.max.y + (currentModelDims.y / 2) + minGap;
+        maxStackHeight = Math.max(maxStackHeight, stackHeight);
+        isStacked = true;
+      }
+    }
+    
+    if (isStacked) {
+      finalPosition[1] = maxStackHeight;
+    } else {
+      // No horizontal overlap - return to ground level
+      // Ground level is half the model height (so bottom of model is at y=0)
+      finalPosition[1] = currentModelDims.y / 2;
+    }
+  }
   
   return {
     position: finalPosition,
@@ -298,8 +624,8 @@ export const checkCollisionAndStack = (newPos, currentModel, allModels, snapSize
  * @returns {Object} { position, isFloating, groundLevel }
  */
 export const checkFloatingAndGround = (position, currentModel, allModels, snapSize = 1) => {
-  const currentModelType = getModelType(currentModel.path);
-  const currentModelDims = getModelDimensions(currentModelType);
+  // Use real dimensions from store if available, otherwise use default
+  const currentModelDims = currentModel.dimensions || getModelDimensions(getModelType(currentModel.path));
   
   // Create bounding box for current model
   const currentModelBox = new THREE.Box3().setFromCenterAndSize(
@@ -308,14 +634,14 @@ export const checkFloatingAndGround = (position, currentModel, allModels, snapSi
   );
   
   let maxGroundLevel = 0;
-  let isFloating = true;
+  let isFloating = false;
   
   // Check if model is floating above any other model
   for (const model of allModels) {
     if (model.id === currentModel.id) continue;
     
-    const modelType = getModelType(model.path);
-    const modelDims = getModelDimensions(modelType);
+    // Use real dimensions from store if available, otherwise use default
+    const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
     
     // Create bounding box for existing model
     const modelBox = new THREE.Box3().setFromCenterAndSize(
@@ -331,20 +657,14 @@ export const checkFloatingAndGround = (position, currentModel, allModels, snapSi
       currentModelBox.max.z > modelBox.min.z;
     
     if (horizontalOverlap) {
-      // Model is above another model, check if it's floating
+      // Model is above another model, calculate ground level
       const groundLevel = modelBox.max.y + (currentModelDims.y / 2);
       maxGroundLevel = Math.max(maxGroundLevel, groundLevel);
-      
-      // If current model is higher than it should be, it's floating
-      if (currentModelBox.min.y > modelBox.max.y + 0.1) {
-        isFloating = true;
-      } else {
-        isFloating = false;
-      }
+      isFloating = true;
     }
   }
   
-  // If floating, pull it down to the ground level
+  // If has overlap, place model on top
   if (isFloating && maxGroundLevel > 0) {
     return {
       position: [position[0], maxGroundLevel, position[2]],
@@ -353,10 +673,12 @@ export const checkFloatingAndGround = (position, currentModel, allModels, snapSi
     };
   }
   
+  // No overlap - model should be at ground level (y = dimensions.y / 2)
+  const groundLevel = (currentModelDims.y / 2);
   return {
-    position: position,
+    position: [position[0], groundLevel, position[2]],
     isFloating: false,
-    groundLevel: 0
+    groundLevel: groundLevel
   };
 };
 
@@ -373,25 +695,25 @@ export const enhancedCollisionDetection = (newPos, currentModel, allModels, snap
   // First check for stacking collision
   const stackResult = checkCollisionAndStack(newPos, currentModel, allModels, snapSize);
   
-  // If not stacked, check for floating
-  if (!stackResult.isStacked) {
-    const floatingResult = checkFloatingAndGround(newPos, currentModel, allModels, snapSize);
-    
-    if (floatingResult.isFloating) {
-      return {
-        position: floatingResult.position,
-        isStacked: false,
-        isGrounded: true,
-        collisionModel: null
-      };
-    }
+  // Always check for floating to ensure proper ground placement
+  const floatingResult = checkFloatingAndGround(newPos, currentModel, allModels, snapSize);
+  
+  // If stacked, use stack position
+  if (stackResult.isStacked) {
+    return {
+      position: stackResult.position,
+      isStacked: true,
+      isGrounded: true,
+      collisionModel: stackResult.collisionModel
+    };
   }
   
+  // Otherwise use floating/ground result
   return {
-    position: stackResult.position,
-    isStacked: stackResult.isStacked,
-    isGrounded: !stackResult.isStacked,
-    collisionModel: stackResult.collisionModel
+    position: floatingResult.position,
+    isStacked: false,
+    isGrounded: !floatingResult.isFloating,
+    collisionModel: null
   };
 };
 
@@ -460,24 +782,7 @@ export const ultimateCollisionDetection = (newPos, currentModel, allModels, snap
   // Step 1: Enhanced collision detection (stacking + grounding)
   const collisionResult = enhancedCollisionDetection(newPos, currentModel, allModels, snapSize);
   
-  // Step 2: If not stacked, try to snap to nearest model
-  if (!collisionResult.isStacked) {
-    const snapResult = snapToNearestModel(collisionResult.position, currentModel, allModels, snapSize, 1.5);
-    
-    if (snapResult.isSnapped) {
-      // Re-check collision with snapped position
-      const finalCollision = enhancedCollisionDetection(snapResult.position, currentModel, allModels, snapSize);
-      
-      return {
-        position: finalCollision.position,
-        isStacked: finalCollision.isStacked,
-        isGrounded: finalCollision.isGrounded,
-        isSnapped: true,
-        collisionModel: finalCollision.collisionModel
-      };
-    }
-  }
-  
+  // Return simple result without snapping to nearest model (removed for better movement)
   return {
     position: collisionResult.position,
     isStacked: collisionResult.isStacked,

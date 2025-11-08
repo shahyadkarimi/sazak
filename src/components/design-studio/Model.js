@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
-import { useModelAdjustment, adjustPositionToAvoidOverlap } from "@/hooks/useModelAdjustment";
+import { useModelAdjustment } from "@/hooks/useModelAdjustment";
 import ModelControls from "./ModelControls";
 import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { calculateSnapPoints, calculatePreviewPosition, ultimateCollisionDetection } from "@/helper/snapDetection";
+import { RigidBody } from "@react-three/rapier";
+import { checkCollisionAndStack, checkFloatingAndGround } from "@/helper/snapDetection";
+import { clampPositionToGrid } from "@/helper/gridConstraints";
 
 const Model = ({ path, position, id, rotation, color }) => {
   const modelRef = useRef();
@@ -23,13 +25,8 @@ const Model = ({ path, position, id, rotation, color }) => {
   const modelOptions = useModelStore((s) => s.modelOptions);
   const setModelsRef = useModelStore((s) => s.setModelsRef);
   const pushHistory = useModelStore((s) => s.pushHistory);
-  const isPreviewMode = useModelStore((s) => s.isPreviewMode);
-  const setSnapPoints = useModelStore((s) => s.setSnapPoints);
-  const setPreviewPosition = useModelStore((s) => s.setPreviewPosition);
-  const setIsSnapping = useModelStore((s) => s.setIsSnapping);
-  const setActiveFacePreview = useModelStore((s) => s.setActiveFacePreview);
-  const setDraggedModelPreviewPosition = useModelStore((s) => s.setDraggedModelPreviewPosition);
-  const collisionMode = useModelStore((s) => s.collisionMode);
+  const updateModelDimensions = useModelStore((s) => s.updateModelDimensions);
+  const setDraggedModelId = useModelStore((s) => s.setDraggedModelId);
 
   const modelControls = useModelAdjustment(
     id,
@@ -48,6 +45,12 @@ const Model = ({ path, position, id, rotation, color }) => {
   );
   const constrainToGrid = useModelStore((s) => s.constrainToGrid);
 
+  // Get dimensions from store for collision
+  const modelDimensions = (() => {
+    const model = existingModels.find(m => m.id === id);
+    return model?.dimensions || null;
+  })();
+
   const isSelected =
     selectedModelId === id ||
     selectedModelId === 'ALL' ||
@@ -58,6 +61,8 @@ const Model = ({ path, position, id, rotation, color }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPosition, setDragStartPosition] = useState(null);
   const [dragStartMouse, setDragStartMouse] = useState(null);
+  const [isPointerDown, setIsPointerDown] = useState(false);
+  const [initialMousePos, setInitialMousePos] = useState(null);
 
   useEffect(() => {
     if (adjustedScene) {
@@ -95,8 +100,29 @@ const Model = ({ path, position, id, rotation, color }) => {
         }
       });
       setClonedSceneState(clone);
+      
+      // Store the dimensions in the store (dimensions are in world space after scale)
+      const dimensions = {
+        x: box.max.x - box.min.x,
+        y: box.max.y - box.min.y,
+        z: box.max.z - box.min.z
+      };
+      updateModelDimensions(id, dimensions);
     }
-  }, [adjustedScene]);
+  }, [adjustedScene, id, updateModelDimensions]);
+
+  useEffect(() => {
+    if (!constrainToGrid || !modelDimensions) return;
+    const clampedPosition = clampPositionToGrid(position, modelDimensions, rotation);
+
+    if (
+      clampedPosition[0] !== position[0] ||
+      clampedPosition[1] !== position[1] ||
+      clampedPosition[2] !== position[2]
+    ) {
+      updateModelPosition(id, clampedPosition);
+    }
+  }, [constrainToGrid, modelDimensions, position, rotation, id, updateModelPosition]);
 
   // تغییر رنگ و حالت ترنسپرنت (فقط بردر)
   useEffect(() => {
@@ -136,8 +162,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         
         if (!isTransparent && isDragging) {
           if (child.material.emissive) {
-            // Different colors for preview mode vs normal drag
-            const dragColor = isPreviewMode ? 0x00aaff : 0x00ff00; // Blue for preview, green for normal
+            const dragColor = 0x00ff00; // Green for drag
             child.material.emissive = new THREE.Color(dragColor);
             child.material.emissiveIntensity = 0.4; // نوردهی بیشتر
           }
@@ -170,9 +195,7 @@ const Model = ({ path, position, id, rotation, color }) => {
   }, [modelControls.isAdjustingHeight, modelControls.isMoving, isDragging]);
 
 
-  // انتخاب فقط با کلیک راست انجام می‌شود (در handleRightClick)
-
-  // Handle right-click: select model (with multi-select) and open context menu
+  // Handle right-click: open context menu only (selection is done with left click)
   const handleRightClick = (event) => {
     event.stopPropagation();
     if (typeof event.preventDefault === 'function') {
@@ -180,8 +203,38 @@ const Model = ({ path, position, id, rotation, color }) => {
     } else if (event.nativeEvent && typeof event.nativeEvent.preventDefault === 'function') {
       event.nativeEvent.preventDefault();
     }
-    const isCtrl = event.ctrlKey || event.metaKey;
+    
+    // فقط منوی زمینه را نشان بده، انتخاب نکن
+    setShowContextMenu(true);
+  };
 
+  // Handle mouse hover for visual feedback
+  const handlePointerOver = (event) => {
+    event.stopPropagation();
+    setIsHovered(true);
+  };
+
+  const handlePointerOut = (event) => {
+    event.stopPropagation();
+    setIsHovered(false);
+  };
+
+  // Handle pointer down - selection only, drag starts on move
+  const handlePointerDown = (event) => {
+    event.stopPropagation();
+    // جلوگیری از رفتار پیش‌فرض در صورت موجود بودن
+    if (typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    } else if (event.nativeEvent && typeof event.nativeEvent.preventDefault === 'function') {
+      event.nativeEvent.preventDefault();
+    }
+    // فقط با کلیک چپ
+    const btn = (event.button !== undefined) ? event.button : event.nativeEvent?.button;
+    if (btn !== 0) return;
+
+    // انتخاب مدل با کلیک چپ
+    const isCtrl = event.ctrlKey || event.metaKey;
+    
     // Normalize current selection to array for easier ops
     let currentSelection = [];
     if (selectedModelId === 'ALL') {
@@ -208,81 +261,69 @@ const Model = ({ path, position, id, rotation, color }) => {
     }
 
     setSelectedModelId(nextSelection);
-    setShowContextMenu(true);
-  };
 
-  // Handle mouse hover for visual feedback
-  const handlePointerOver = (event) => {
-    event.stopPropagation();
-    setIsHovered(true);
-  };
-
-  const handlePointerOut = (event) => {
-    event.stopPropagation();
-    setIsHovered(false);
-  };
-
-  // Handle drag start
-  const handlePointerDown = (event) => {
-    event.stopPropagation();
-    // جلوگیری از رفتار پیش‌فرض در صورت موجود بودن
-    if (typeof event.preventDefault === 'function') {
-      event.preventDefault();
-    } else if (event.nativeEvent && typeof event.nativeEvent.preventDefault === 'function') {
-      event.nativeEvent.preventDefault();
-    }
-    // فقط با کلیک چپ درگ شروع شود
-    const btn = (event.button !== undefined) ? event.button : event.nativeEvent?.button;
-    if (btn !== 0) return;
-
-    // Snapshot before starting a drag move
-    pushHistory();
-
-    setIsDragging(true);
-    setDragStartPosition([...position]);
-
-    // Store initial mouse position for drag calculation
-    const mouse = new THREE.Vector2();
-    mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
-    mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
-
-    raycaster.setFromCamera(mouse, camera);
-    const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
-    const initialIntersection = new THREE.Vector3();
-    raycaster.ray.intersectPlane(tempPlane, initialIntersection);
-
-    setDragStartMouse({
-      x: initialIntersection.x,
-      y: initialIntersection.z,
+    // ذخیره موقعیت اولیه ماوس برای تشخیص درگ
+    setIsPointerDown(true);
+    setInitialMousePos({
       clientX: event.clientX,
       clientY: event.clientY
     });
   };
 
-  // Handle drag move - this is now handled by the global mouse move handler
+  // Handle pointer move - start drag if mouse moved enough
   const handlePointerMove = (event) => {
-    // The global mouse move handler takes care of all drag movement
-    // This local handler is kept for potential future use but doesn't do anything
-    // to avoid conflicts with the global handler
-  };
+    if (!isPointerDown || !initialMousePos) return;
+    
+    // بررسی اینکه آیا ماوس به اندازه کافی حرکت کرده یا نه
+    const moveThreshold = 5; // پیکسل
+    const deltaX = Math.abs(event.clientX - initialMousePos.clientX);
+    const deltaY = Math.abs(event.clientY - initialMousePos.clientY);
+    
+    if (deltaX > moveThreshold || deltaY > moveThreshold) {
+      // شروع درگ
+      if (!isDragging) {
+        pushHistory();
+        setIsDragging(true);
+        setDraggedModelId(id);
+        setDragStartPosition([...position]);
 
-  // Handle drag end
-  const handlePointerUp = (event) => {
-    if (isDragging) {
-      event.stopPropagation();
-      setIsDragging(false);
-      setDragStartPosition(null);
-      setDragStartMouse(null);
-      
-      // Clear preview state when drag ends
-      if (isPreviewMode) {
-        setSnapPoints([]);
-        setPreviewPosition(null);
-        setIsSnapping(false);
-        setActiveFacePreview(null);
-        setDraggedModelPreviewPosition(null);
+        // Store initial mouse position for drag calculation
+        const mouse = new THREE.Vector2();
+        mouse.x = (initialMousePos.clientX / gl.domElement.clientWidth) * 2 - 1;
+        mouse.y = -(initialMousePos.clientY / gl.domElement.clientHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+        const initialIntersection = new THREE.Vector3();
+        raycaster.ray.intersectPlane(tempPlane, initialIntersection);
+
+        setDragStartMouse({
+          x: initialIntersection.x,
+          y: initialIntersection.z,
+          clientX: initialMousePos.clientX,
+          clientY: initialMousePos.clientY
+        });
       }
     }
+  };
+
+  // Handle pointer up
+  const handlePointerUp = (event) => {
+    // همیشه propagation را متوقف کن تا onClick در Canvas اجرا نشود
+    event.stopPropagation();
+    
+    if (isDragging) {
+      setIsDragging(false);
+      setDraggedModelId(null);
+      setDragStartPosition(null);
+      setDragStartMouse(null);
+    } else {
+      // اگر درگ انجام نشده (یعنی فقط کلیک ساده بوده)، 
+      // انتخاب را نگه دار و propagation را متوقف کن
+      // تا onClick در Canvas انتخاب را clear نکند
+    }
+    setIsPointerDown(false);
+    setInitialMousePos(null);
   };
 
   // Global mouse up handler for drag end
@@ -290,28 +331,61 @@ const Model = ({ path, position, id, rotation, color }) => {
     const handleGlobalMouseUp = () => {
       if (isDragging) {
         setIsDragging(false);
+        setDraggedModelId(null);
         setDragStartPosition(null);
         setDragStartMouse(null);
-        
-        // Clear preview state when drag ends
-        if (isPreviewMode) {
-          setSnapPoints([]);
-          setPreviewPosition(null);
-          setIsSnapping(false);
-          setActiveFacePreview(null);
-          setDraggedModelPreviewPosition(null);
-        }
       }
+      setIsPointerDown(false);
+      setInitialMousePos(null);
     };
 
-    if (isDragging) {
+    if (isDragging || isPointerDown) {
       window.addEventListener('mouseup', handleGlobalMouseUp);
     }
 
     return () => {
       window.removeEventListener('mouseup', handleGlobalMouseUp);
     };
-  }, [isDragging, isPreviewMode, setSnapPoints, setPreviewPosition, setIsSnapping]);
+  }, [isDragging, isPointerDown]);
+
+  // Global mouse move handler to detect drag start
+  useEffect(() => {
+    if (!isPointerDown || !initialMousePos || isDragging) return;
+
+    const handleGlobalMouseMoveForDragStart = (event) => {
+      const moveThreshold = 5; // پیکسل
+      const deltaX = Math.abs(event.clientX - initialMousePos.clientX);
+      const deltaY = Math.abs(event.clientY - initialMousePos.clientY);
+      
+      if (deltaX > moveThreshold || deltaY > moveThreshold) {
+        // شروع درگ
+        pushHistory();
+        setIsDragging(true);
+        setDraggedModelId(id);
+        setDragStartPosition([...position]);
+
+        // Store initial mouse position for drag calculation
+        const mouse = new THREE.Vector2();
+        mouse.x = (initialMousePos.clientX / gl.domElement.clientWidth) * 2 - 1;
+        mouse.y = -(initialMousePos.clientY / gl.domElement.clientHeight) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+        const initialIntersection = new THREE.Vector3();
+        raycaster.ray.intersectPlane(tempPlane, initialIntersection);
+
+        setDragStartMouse({
+          x: initialIntersection.x,
+          y: initialIntersection.z,
+          clientX: initialMousePos.clientX,
+          clientY: initialMousePos.clientY
+        });
+      }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMoveForDragStart);
+    return () => window.removeEventListener('mousemove', handleGlobalMouseMoveForDragStart);
+  }, [isPointerDown, initialMousePos, isDragging, id, position, pushHistory, raycaster, camera, gl]);
 
   // Global mouse move to keep dragging even when cursor leaves the model
   useEffect(() => {
@@ -338,93 +412,68 @@ const Model = ({ path, position, id, rotation, color }) => {
         const snappedX = snapSize > 0 ? Math.round(newX / snapSize) * snapSize : newX;
         const snappedZ = snapSize > 0 ? Math.round(newZ / snapSize) * snapSize : newZ;
 
+        // Use current Y for collision detection to avoid flickering
         let proposedPosition = [snappedX, position[1], snappedZ];
 
         if (constrainToGrid) {
-          const limit = 20; // match CustomGrid size/2 (size=40)
-          proposedPosition[0] = Math.max(-limit, Math.min(limit, proposedPosition[0]));
-          proposedPosition[2] = Math.max(-limit, Math.min(limit, proposedPosition[2]));
+          proposedPosition = clampPositionToGrid(
+            proposedPosition,
+            modelDimensions,
+            rotation
+          );
         }
 
-        // Ultimate collision detection with all features
-        const collisionResult = ultimateCollisionDetection(
+        // Check collision and stack if needed
+        const collisionResult = checkCollisionAndStack(
           proposedPosition,
-          { id, position: proposedPosition, rotation, path },
-          existingModels.filter(m => m.id !== id),
+          { id, position: proposedPosition, rotation, path, dimensions: modelDimensions },
+          existingModels,
           snapSize
         );
         
-        // Use the collision-adjusted position
-        proposedPosition = collisionResult.position;
+        // Use collision result position - it already handles ground level correctly
+        let adjustedPosition = collisionResult.position;
 
-        // Handle preview mode with snap points
-        if (isPreviewMode) {
-          // Calculate snap points for this model
-          const snapPoints = calculateSnapPoints(
-            { id, position: proposedPosition, rotation },
-            existingModels.filter(m => m.id !== id),
-            2
-          );
-          setSnapPoints(snapPoints);
-
-          // Calculate preview position with snapping
-          const previewResult = calculatePreviewPosition(proposedPosition, snapPoints, 2);
-          setPreviewPosition(previewResult.position);
-          setIsSnapping(previewResult.isSnapped);
-
-          // Set active face preview for TinkerCAD-style highlighting
-          if (previewResult.isSnapped && previewResult.snapPoint) {
-            setActiveFacePreview(previewResult.snapPoint);
-            setDraggedModelPreviewPosition(previewResult.position);
-          } else {
-            setActiveFacePreview(null);
-            setDraggedModelPreviewPosition(null);
-          }
-
-          // Use snapped position if available
-          if (previewResult.isSnapped) {
-            proposedPosition = previewResult.position;
-          }
+        if (!collisionResult.isStacked) {
+          adjustedPosition[1] = 0;
         } else {
-          // Clear preview state when not in preview mode
-          setSnapPoints([]);
-          setPreviewPosition(null);
-          setIsSnapping(false);
-          setActiveFacePreview(null);
-          setDraggedModelPreviewPosition(null);
+          adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
         }
 
-        // Use the collision-adjusted position
-        let adjustedPosition = proposedPosition;
-
         if (constrainToGrid) {
-          const limit = 20;
-          adjustedPosition = [
-            Math.max(-limit, Math.min(limit, adjustedPosition[0])),
-            adjustedPosition[1],
-            Math.max(-limit, Math.min(limit, adjustedPosition[2]))
-          ];
+          adjustedPosition = clampPositionToGrid(
+            adjustedPosition,
+            modelDimensions,
+            rotation
+          );
         }
 
         // Check if multiple models are selected and move them together
         if (selectedModelId === 'ALL') {
-          // Move all models
+          // Move all models - but they each need their own collision check
+          // For simplicity, just move them relative to the current model's movement
           const deltaX = adjustedPosition[0] - position[0];
           const deltaZ = adjustedPosition[2] - position[2];
+          const deltaY = adjustedPosition[1] - position[1];
           
           const updatedModels = existingModels.map(model => {
             const nextX = model.position[0] + deltaX;
             const nextZ = model.position[2] + deltaZ;
-            let clampedX = nextX;
-            let clampedZ = nextZ;
+            const nextY = model.position[1] + deltaY;
+            let nextPosition = [nextX, nextY, nextZ];
+            if (!collisionResult.isStacked) {
+              nextPosition[1] = Math.max(0, model.position[1] + deltaY);
+            }
             if (constrainToGrid) {
-              const limit = 20;
-              clampedX = Math.max(-limit, Math.min(limit, nextX));
-              clampedZ = Math.max(-limit, Math.min(limit, nextZ));
+              nextPosition = clampPositionToGrid(
+                nextPosition,
+                model.dimensions,
+                model.rotation
+              );
             }
             return {
               ...model,
-              position: [clampedX, model.position[1], clampedZ]
+              position: nextPosition
             };
           });
           
@@ -433,19 +482,25 @@ const Model = ({ path, position, id, rotation, color }) => {
           // Move multiple selected models
           const deltaX = adjustedPosition[0] - position[0];
           const deltaZ = adjustedPosition[2] - position[2];
+          const deltaY = adjustedPosition[1] - position[1];
           
           const updatedModels = existingModels.map(model => {
             if (selectedModelId.includes(model.id)) {
               const nextX = model.position[0] + deltaX;
               const nextZ = model.position[2] + deltaZ;
-              let clampedX = nextX;
-              let clampedZ = nextZ;
-              if (constrainToGrid) {
-                const limit = 20;
-                clampedX = Math.max(-limit, Math.min(limit, nextX));
-                clampedZ = Math.max(-limit, Math.min(limit, nextZ));
+              const nextY = model.position[1] + deltaY;
+              let nextPosition = [nextX, nextY, nextZ];
+              if (!collisionResult.isStacked) {
+                nextPosition[1] = Math.max(0, model.position[1] + deltaY);
               }
-              return { ...model, position: [clampedX, model.position[1], clampedZ] };
+              if (constrainToGrid) {
+                nextPosition = clampPositionToGrid(
+                  nextPosition,
+                  model.dimensions,
+                  model.rotation
+                );
+              }
+              return { ...model, position: nextPosition };
             }
             return model;
           });
@@ -453,6 +508,18 @@ const Model = ({ path, position, id, rotation, color }) => {
           useModelStore.setState({ selectedModels: updatedModels });
         } else {
           // Single model selection - update this model's position
+          if (constrainToGrid) {
+            adjustedPosition = clampPositionToGrid(
+              adjustedPosition,
+              modelDimensions,
+              rotation
+            );
+          }
+          if (!collisionResult.isStacked) {
+            adjustedPosition[1] = 0;
+          } else {
+            adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
+          }
           updateModelPosition(id, adjustedPosition);
         }
       }
@@ -460,7 +527,7 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid, isPreviewMode, setSnapPoints, setPreviewPosition, setIsSnapping, rotation]);
+  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid, rotation]);
 
 
   // حذف مدل
@@ -492,11 +559,27 @@ const Model = ({ path, position, id, rotation, color }) => {
 
   if (!isValid || !clonedSceneState) return null;
 
+  // Half-size for cuboid collider (Rapier expects half-extents)
+  const halfSize = modelDimensions 
+    ? [modelDimensions.x / 2, modelDimensions.y / 2, modelDimensions.z / 2]
+    : [0.5, 0.5, 0.5];
+
   return (
-    <group ref={modelRef} position={position}>
+    <RigidBody 
+      ref={modelRef}
+      type="kinematic"
+      position={position}
+      rotation={rotation}
+      colliders="cuboid"
+      args={halfSize}
+      lockRotations={true}
+      lockTranslations={true}
+      // Prevent physics-based movement - we handle collisions in code
+      collisionGroups={0}
+      solverGroups={0}
+    >
       <primitive
         object={clonedSceneState}
-        rotation={rotation}
         // حذف انتخاب با کلیک چپ؛ انتخاب با راست‌کلیک انجام می‌شود
         onContextMenu={handleRightClick}
         onPointerOver={handlePointerOver}
@@ -511,6 +594,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         position={position}
         isSelected={isSelected}
         controls={controlsWithDelete}
+        isDragging={isDragging}
       />
 
       <ContextMenu
@@ -518,7 +602,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         isVisible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
       />
-    </group>
+    </RigidBody>
   );
 };
 

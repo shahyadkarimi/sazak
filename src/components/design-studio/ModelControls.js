@@ -4,7 +4,7 @@ import MoveIcon from "../icons/MoveIcon";
 import RotateIcon from "../icons/RotateIcon";
 import DeleteIcon from "../icons/DeleteIcon";
 
-const ModelControls = ({ position, isSelected, controls }) => {
+const ModelControls = ({ position, isSelected, controls, isDragging }) => {
   const {
     startAdjustHeight,
     stopAdjustHeight,
@@ -18,10 +18,12 @@ const ModelControls = ({ position, isSelected, controls }) => {
 
   const buttonStyle = {};
 
+  if (isDragging) return null;
+
   return isSelected ? (
     <>
       <Html
-        position={[position[0], position[1], position[2]]}
+        position={[position[0], position[1] - 10, position[2]]}
         style={{
           pointerEvents: "auto",
           userSelect: "none",
@@ -30,10 +32,10 @@ const ModelControls = ({ position, isSelected, controls }) => {
         className="min-w-fit"
       >
         <div
-          className="w-[360px] flex justify-between items-center gap-3 text-xs text-gray-800 "
+          className="w-fit flex justify-between items-center gap-3 text-xs text-gray-800 "
           onMouseDown={(e) => e.stopPropagation()}
         >
-          {/* دکمه تنظیم ارتفاع */}
+
           <button
             style={{ ...buttonStyle, cursor: "ns-resize" }}
             onMouseDown={startAdjustHeight}
@@ -44,18 +46,7 @@ const ModelControls = ({ position, isSelected, controls }) => {
             <HeightIcon width={16} height={16} />
             <span>ارتفاع</span>
           </button>
-          {/* دکمه جابجایی */}
-          <button
-            style={{ ...buttonStyle, cursor: "move" }}
-            onMouseDown={startMoving}
-            onMouseUp={stopMoving}
-            title="جابجایی"
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-white shadow-lg"
-          >
-            <MoveIcon />
-            <span>جابجایی</span>
-          </button>
-          {/* دکمه چرخش حول محور Y با موس */}
+
           <button
             style={{ ...buttonStyle, cursor: "ew-resize" }}
             onMouseDown={startRotatingY}
@@ -66,7 +57,7 @@ const ModelControls = ({ position, isSelected, controls }) => {
             <RotateIcon />
             <span>چرخش Y</span>
           </button>
-          {/* دکمه چرخش حول محور X با موس */}
+
           <button
             style={{ ...buttonStyle, cursor: "ns-resize" }}
             onMouseDown={startRotatingX}
@@ -77,7 +68,7 @@ const ModelControls = ({ position, isSelected, controls }) => {
             <RotateIcon />
             <span>چرخش X</span>
           </button>
-          {/* دکمه حذف */}
+
           {/* <button
             style={buttonStyle}
             onClick={controls.deleteModel}

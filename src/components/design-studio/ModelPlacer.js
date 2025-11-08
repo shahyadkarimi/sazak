@@ -5,66 +5,12 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import useModelStore from "@/store/useModelStore";
-import { ultimateCollisionDetection } from "@/helper/snapDetection";
 
 const snapToGrid = ([x, y, z], step = 1) => {
   // Ensure models snap to grid lines properly
   const snappedX = Math.round(x / step) * step;
   const snappedZ = Math.round(z / step) * step;
   return [snappedX, y, snappedZ];
-};
-
-// تابع بررسی برخورد مدل جدید با مدل‌های قبلی و اصلاح موقعیت برای نچسبیدن به هم
-const adjustPositionToAvoidOverlap = (pos, models, snapSize = 1) => {
-  const step = snapSize;
-  let adjustedPos = new THREE.Vector3(...pos);
-
-  for (const model of models) {
-    const modelPos = new THREE.Vector3(...model.position);
-
-    // Use proper collision detection with 1x1x1 grid cells
-    const modelBox = new THREE.Box3().setFromCenterAndSize(
-      modelPos,
-      new THREE.Vector3(step, step, step)
-    );
-
-    // جعبه مدل جدید روی موقعیت پیشنهادی
-    let newBox = new THREE.Box3().setFromCenterAndSize(
-      adjustedPos,
-      new THREE.Vector3(step, step, step)
-    );
-
-    if (modelBox.intersectsBox(newBox)) {
-      // وقتی برخورد داریم، مدل جدید را دقیقاً کنار مدل قبلی می‌چسبانیم
-      // Find the nearest available position on the grid
-
-      // Check horizontal direction first
-      if (adjustedPos.x < modelPos.x) {
-        adjustedPos.x = modelBox.min.x - step;
-      } else {
-        adjustedPos.x = modelBox.max.x + step;
-      }
-
-      // If still colliding on Z axis, adjust Z position
-      newBox = new THREE.Box3().setFromCenterAndSize(
-        adjustedPos,
-        new THREE.Vector3(step, step, step)
-      );
-      
-      if (modelBox.intersectsBox(newBox)) {
-        if (adjustedPos.z < modelPos.z) {
-          adjustedPos.z = modelBox.min.z - step;
-        } else {
-          adjustedPos.z = modelBox.max.z + step;
-        }
-      }
-
-      // Keep the same Y position (ground level)
-      adjustedPos.y = 0;
-    }
-  }
-
-  return [adjustedPos.x, adjustedPos.y, adjustedPos.z];
 };
 
 const ModelPlacer = () => {
@@ -137,15 +83,8 @@ const ModelPlacer = () => {
       // Ensure Y position is exactly 0 (ground level) and snap to grid
       const baseSnapped = snapToGrid([point.x, 0, point.z], snapSize);
 
-      // Ultimate collision detection with all features
-      const collisionResult = ultimateCollisionDetection(
-        baseSnapped,
-        { id: 'new', position: baseSnapped, path: currentPlacingModel },
-        selectedModels,
-        snapSize
-      );
-      
-      const adjusted = collisionResult.position;
+      // Physics will handle collision detection automatically
+      let adjusted = baseSnapped;
 
       if (constrainToGrid) {
         const limit = 20; // match CustomGrid size/2 (size=40)
@@ -188,20 +127,7 @@ const ModelPlacer = () => {
         camera
       );
 
-      const intersects = raycaster.intersectObjects(
-        scene.children.filter(
-          (child) =>
-            child !== previewModel &&
-            (child.isMesh || child === planeRef.current)
-        ),
-        true
-      );
-
-      if (intersects.length === 0) {
-        setSelectedModelId(null);
-      } else if (intersects[0].object === planeRef.current) {
-        setSelectedModelId(null);
-      }
+      // انتخاب مدل clear نمی‌شود - فقط برای قرار دادن مدل جدید استفاده می‌شود
     }
   };
 
