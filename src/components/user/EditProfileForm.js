@@ -2,12 +2,13 @@
 
 import { postData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
-import { Button, cn, Input, Spinner } from "@heroui/react";
+import { Button, cn, Input, Spinner, Select, SelectItem } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
+import { iranProvinces } from "@/constants/locations";
 
 const EditProfileForm = () => {
   const { user, setUser } = useUserStore();
@@ -33,6 +34,11 @@ const EditProfileForm = () => {
     defaultValues: {
       name: "",
       familyName: "",
+      email: "",
+      address: "",
+      province: "",
+      city: "",
+      birthDate: "",
       password: "",
     },
   });
@@ -40,8 +46,27 @@ const EditProfileForm = () => {
   useEffect(() => {
     setValue("name", user.name);
     setValue("familyName", user.familyName);
+    setValue("email", user.email || "");
+    setValue("address", user.address || "");
+    setValue("province", user.province || "");
+    setValue("city", user.city || "");
+    setValue("birthDate", user.birthDate || "");
     setProfilePicture(user.profilePicture || "/assets/avatar.png");
   }, [user]);
+
+  const selectedProvince = watch("province");
+  const selectedCity = watch("city");
+  const availableCities = useMemo(() => {
+    if (!selectedProvince) {
+      return selectedCity ? [selectedCity] : [];
+    }
+    const province = iranProvinces.find((item) => item.name === selectedProvince);
+    const base = province ? [...province.cities] : [];
+    if (selectedCity && !base.includes(selectedCity)) {
+      base.push(selectedCity);
+    }
+    return base;
+  }, [selectedProvince, selectedCity]);
 
   const showPasswordToggle = () => setShowPassword(!showPassword);
 
@@ -222,6 +247,164 @@ const EditProfileForm = () => {
               isInvalid={errors.familyName ? true : false}
               errorMessage="نام خانوادگی الزامی است"
               {...register("familyName", { required: true })}
+            />
+          )}
+        />
+
+        <Controller
+          name="email"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              type="email"
+              placeholder="ایمیل خود را وارد کنید"
+              variant="bordered"
+              labelPlacement="outside"
+              value={value || ""}
+              onBlur={onBlur}
+              onChange={onChange}
+              startContent={
+                <Icon
+                  icon="solar:letter-linear"
+                  className="text-gray-600"
+                  width="24"
+                  height="24"
+                />
+              }
+              classNames={{
+                input:
+                  "placeholder:font-light text-base placeholder:text-gray-600",
+                inputWrapper:
+                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              }}
+              isInvalid={errors.email ? true : false}
+              errorMessage={errors?.email?.message}
+            />
+          )}
+        />
+
+        <Controller
+          name="address"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              type="text"
+              placeholder="آدرس محل سکونت را وارد کنید"
+              variant="bordered"
+              labelPlacement="outside"
+              value={value || ""}
+              onBlur={onBlur}
+              onChange={onChange}
+              startContent={
+                <Icon
+                  icon="solar:home-2-linear"
+                  className="text-gray-600"
+                  width="24"
+                  height="24"
+                />
+              }
+              classNames={{
+                input:
+                  "placeholder:font-light text-base placeholder:text-gray-600",
+                inputWrapper:
+                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              }}
+              isInvalid={errors.address ? true : false}
+              errorMessage={errors?.address?.message}
+            />
+          )}
+        />
+
+        <Controller
+          name="province"
+          control={control}
+          render={({ field: { value } }) => (
+            <Select
+              placeholder="استان محل سکونت را انتخاب کنید"
+              selectedKeys={value ? new Set([value]) : new Set()}
+              onSelectionChange={(keys) => {
+                const selectedValue = Array.from(keys)[0] ?? "";
+                setValue("province", selectedValue, { shouldValidate: true });
+                setValue("city", "", { shouldValidate: true });
+                clearErrors(["province", "city"]);
+              }}
+              labelPlacement="outside"
+              variant="bordered"
+              classNames={{
+                trigger:
+                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              }}
+              isInvalid={errors.province ? true : false}
+              errorMessage={errors?.province?.message}
+            >
+              {iranProvinces.map((item) => (
+                <SelectItem key={item.name} value={item.name}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </Select>
+          )}
+        />
+
+        <Controller
+          name="city"
+          control={control}
+          render={({ field: { value } }) => (
+            <Select
+              placeholder="شهر محل سکونت را انتخاب کنید"
+              selectedKeys={value ? new Set([value]) : new Set()}
+              onSelectionChange={(keys) => {
+                const selectedValue = Array.from(keys)[0] ?? "";
+                setValue("city", selectedValue, { shouldValidate: true });
+                clearErrors("city");
+              }}
+              labelPlacement="outside"
+              variant="bordered"
+              classNames={{
+                trigger:
+                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              }}
+              isDisabled={!selectedProvince}
+              isInvalid={errors.city ? true : false}
+              errorMessage={errors?.city?.message}
+            >
+              {availableCities.map((city) => (
+                <SelectItem key={city} value={city}>
+                  {city}
+                </SelectItem>
+              ))}
+            </Select>
+          )}
+        />
+
+        <Controller
+          name="birthDate"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <Input
+              type="date"
+              placeholder="تاریخ تولد"
+              variant="bordered"
+              labelPlacement="outside"
+              value={value || ""}
+              onBlur={onBlur}
+              onChange={onChange}
+              startContent={
+                <Icon
+                  icon="solar:calendar-linear"
+                  className="text-gray-600"
+                  width="24"
+                  height="24"
+                />
+              }
+              classNames={{
+                input:
+                  "placeholder:font-light text-base placeholder:text-gray-600",
+                inputWrapper:
+                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              }}
+              isInvalid={errors.birthDate ? true : false}
+              errorMessage={errors?.birthDate?.message}
             />
           )}
         />

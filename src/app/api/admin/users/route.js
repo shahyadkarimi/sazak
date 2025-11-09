@@ -30,7 +30,7 @@ export async function GET(req) {
       deletedAt: null,
       isDeleted: { $ne: true }
     })
-      .select("_id name familyName phoneNumber role isActive createdAt")
+      .select("_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -61,6 +61,12 @@ export async function GET(req) {
       phoneNumber: u.phoneNumber,
       role: u.role,
       isActive: u.isActive,
+      email: u.email ?? "",
+      address: u.address ?? "",
+      province: u.province ?? "",
+      city: u.city ?? "",
+      birthDate: u.birthDate ?? "",
+      profilePicture: u.profilePicture ?? "",
       createdAt: u.createdAt,
     }));
 
@@ -150,6 +156,12 @@ export async function POST(req) {
       phoneNumber: newUser.phoneNumber,
       role: newUser.role,
       isActive: newUser.isActive,
+      email: newUser.email ?? "",
+      address: newUser.address ?? "",
+      province: newUser.province ?? "",
+      city: newUser.city ?? "",
+      birthDate: newUser.birthDate ?? "",
+      profilePicture: newUser.profilePicture ?? "",
       createdAt: newUser.createdAt,
     };
 

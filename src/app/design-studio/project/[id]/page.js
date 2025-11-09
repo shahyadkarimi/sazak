@@ -7,7 +7,10 @@ import React from "react";
 
 const Page = async ({ params }) => {
   const { id } = await params;
-  const token = (await cookies()).get("token")?.value;
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get("impersonation_token")?.value ||
+    cookieStore.get("token")?.value;
 
   const fetchData = async () => {
     try {
@@ -15,6 +18,7 @@ const Page = async ({ params }) => {
         headers: {
           "x-auth-token": token,
         },
+        cache: "no-store",
       });
 
       const project = await projectRes.json();

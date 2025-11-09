@@ -2,6 +2,7 @@ import { getAuthUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function PATCH(req, { params }) {
   try {
@@ -15,7 +16,9 @@ export async function PATCH(req, { params }) {
       );
     }
 
-    const requester = await User.findById(authUser.userId).lean();
+    const requester = await User.findById(authUser.userId)
+      .select("name familyName phoneNumber role")
+      .lean();
     if (!requester || requester.role !== "admin") {
       return NextResponse.json(
         { success: false, message: "دسترسی غیرمجاز" },
@@ -55,6 +58,25 @@ export async function PATCH(req, { params }) {
     }
 
     await User.findByIdAndUpdate(id, { isActive });
+
+    await createLog(LogActions.ADMIN_USER_TOGGLE_STATUS, {
+      performedBy: {
+        userId: requester._id,
+        name: requester.name,
+        familyName: requester.familyName,
+        phoneNumber: requester.phoneNumber,
+        role: requester.role,
+      },
+      target: {
+        type: "user",
+        userId: user._id.toString(),
+        phoneNumber: user.phoneNumber,
+      },
+      metadata: {
+        isActive,
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       {

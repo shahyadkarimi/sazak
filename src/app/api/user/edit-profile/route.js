@@ -4,6 +4,7 @@ import User from "@/models/User";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { updateProfileSchema } from "@/lib/validation";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -19,7 +20,17 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    const { name, familyName, password, profilePicture } = updateProfileSchema.parse(body);
+    const {
+      name,
+      familyName,
+      email,
+      address,
+      province,
+      city,
+      birthDate,
+      password,
+      profilePicture,
+    } = updateProfileSchema.parse(body);
 
     const userDoc = await User.findById(authUser.userId);
 
@@ -30,18 +41,76 @@ export async function POST(req) {
       );
     }
 
-    if (name) userDoc.name = name;
-    if (familyName) userDoc.familyName = familyName;
+    const updatedFields = {};
+
+    if (name) {
+      userDoc.name = name;
+      updatedFields.name = name;
+    }
+    if (familyName) {
+      userDoc.familyName = familyName;
+      updatedFields.familyName = familyName;
+    }
     if (password && password.trim() !== "") {
       userDoc.password = await bcrypt.hash(password, 10);
+      updatedFields.passwordChanged = true;
     }
-    if (profilePicture) userDoc.profilePicture = profilePicture;
+    if (profilePicture) {
+      userDoc.profilePicture = profilePicture;
+      updatedFields.profilePicture = profilePicture;
+    }
+    if (email !== undefined) {
+      const normalized = email === "" ? null : email;
+      userDoc.email = normalized;
+      updatedFields.email = normalized;
+    }
+    if (address !== undefined) {
+      const normalized = address === "" ? null : address;
+      userDoc.address = normalized;
+      updatedFields.address = normalized;
+    }
+    if (province !== undefined) {
+      const normalized = province === "" ? null : province;
+      userDoc.province = normalized;
+      updatedFields.province = normalized;
+    }
+    if (city !== undefined) {
+      const normalized = city === "" ? null : city;
+      userDoc.city = normalized;
+      updatedFields.city = normalized;
+    }
+    if (birthDate !== undefined) {
+      const normalized = birthDate === "" ? null : birthDate;
+      userDoc.birthDate = normalized;
+      updatedFields.birthDate = normalized;
+    }
 
     await userDoc.save();
 
     const user = userDoc.toObject();
     delete user.password;
     delete user.__v;
+
+    if (Object.keys(updatedFields).length > 0) {
+      await createLog(LogActions.USER_PROFILE_UPDATE, {
+        performedBy: {
+          userId: userDoc._id,
+          name: userDoc.name,
+          familyName: userDoc.familyName,
+          phoneNumber: userDoc.phoneNumber,
+          role: userDoc.role,
+        },
+        target: {
+          type: "user",
+          userId: userDoc._id.toString(),
+          phoneNumber: userDoc.phoneNumber,
+        },
+        metadata: {
+          updatedFields,
+        },
+        request: req,
+      });
+    }
 
     return NextResponse.json(
       {
@@ -55,6 +124,11 @@ export async function POST(req) {
           phoneNumber: user.phoneNumber,
           role: user.role,
           profilePicture: user.profilePicture,
+          email: user.email,
+          address: user.address,
+          province: user.province,
+          city: user.city,
+          birthDate: user.birthDate,
           createdAt: user.createdAt,
         },
       },

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { loginSchema } from "@/lib/validation";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -44,6 +45,25 @@ export async function POST(req) {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+
+    await createLog(LogActions.USER_LOGIN, {
+      performedBy: {
+        userId: user._id,
+        name: user.name,
+        familyName: user.familyName,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
+      target: {
+        type: "user",
+        userId: user._id.toString(),
+        phoneNumber: user.phoneNumber,
+      },
+      metadata: {
+        method: "password",
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       {

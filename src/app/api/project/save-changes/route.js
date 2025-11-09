@@ -4,7 +4,6 @@ import Project from "@/models/Project";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
-
 export async function POST(req) {
   try {
     await connectDB();

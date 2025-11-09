@@ -8,6 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { useSettings } from "@/hooks/useSettings";
 
 export const menu = [
   { title: "داشبورد", path: "/user", icon: "solar:home-smile-broken" },
@@ -29,6 +30,7 @@ const Sidebar = () => {
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { settings } = useSettings();
 
   const logoutHandler = () => {
     setLoading(true);
@@ -47,16 +49,20 @@ const Sidebar = () => {
         {/* logo */}
         <div className="flex items-center gap-2 pb-4 border-b">
           <Image
-            src={"/assets/logo.png"}
+            src={settings.logo || "/assets/logo.png"}
             width={150}
             height={150}
             className="size-12 rounded-full"
-            alt="sazak logo"
+            alt={settings.siteName || "site logo"}
           />
 
           <div className="flex flex-col">
-            <p className="text-xs text-gray-700">آموزشگاه رباتیک</p>
-            <h2 className="font-extrabold text-primaryThemeColor">سازک</h2>
+            <p className="text-xs text-gray-700">
+              {settings.siteDescription || "آموزشگاه رباتیک"}
+            </p>
+            <h2 className="font-extrabold text-primaryThemeColor">
+              {settings.siteName || "سازک"}
+            </h2>
           </div>
         </div>
 

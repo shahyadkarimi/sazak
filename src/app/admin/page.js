@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Spinner, Card, CardBody, CardHeader } from "@heroui/react";
+import { Spinner, Card, CardBody, CardHeader, Chip } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useUserStore } from "@/store/UserInfo";
 import { toFarsiNumber } from "@/helper/helper";
+import { LogActionLabels } from "@/constants/logActions";
+
+const targetTypeLabels = {
+  user: "کاربر",
+  project: "پروژه",
+  auth: "احراز هویت",
+};
 
 const Page = () => {
   const { user } = useUserStore();
@@ -12,29 +19,35 @@ const Page = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [error, setError] = useState("");
+  const [logs, setLogs] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const [statsRes, usersRes] = await Promise.all([
+        const [statsRes, usersRes, logsRes] = await Promise.all([
           fetch("/api/admin/stats", {
             headers: { "x-auth-token": token ?? "" },
           }),
           fetch("/api/admin/users", {
             headers: { "x-auth-token": token ?? "" },
           }),
+          fetch("/api/admin/logs?page=1&limit=6", {
+            headers: { "x-auth-token": token ?? "" },
+          }),
         ]);
 
         const statsData = await statsRes.json();
         const usersData = await usersRes.json();
+        const logsData = await logsRes.json();
 
-        if (!statsData.success || !usersData.success) {
+        if (!statsData.success || !usersData.success || !logsData.success) {
           throw new Error("خطا در دریافت اطلاعات");
         }
 
         setStats(statsData.stats);
         setUsers(usersData.users);
+        setLogs(logsData.logs || []);
       } catch (err) {
         setError("خطا در بارگذاری اطلاعات");
       } finally {
@@ -230,6 +243,81 @@ const Page = () => {
           </CardBody>
         </Card>
       </div>
+
+      <Card className="!shadow-none hover:!shadow-lg hover:!shadow-gray-200 border !transition-all">
+        <CardHeader>
+          <div>
+            <h3 className="text-lg font-semibold">فعالیت‌های اخیر سیستم</h3>
+            <p className="text-sm text-gray-500">
+              آخرین فعالیت‌های مهم برای پایش سریع
+            </p>
+          </div>
+        </CardHeader>
+        <CardBody>
+          {logs.length === 0 ? (
+            <div className="text-sm text-gray-500">
+              فعالیتی برای نمایش وجود ندارد.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {logs.map((log) => {
+                const label = LogActionLabels[log.action] || log.action;
+                const actorName = log.performedBy
+                  ? [log.performedBy.name, log.performedBy.familyName].filter(Boolean).join(" ") ||
+                    log.performedBy.username ||
+                    log.performedBy.userName ||
+                    log.performedBy.fullName ||
+                    ""
+                  : "";
+                const actor = actorName || (log.performedBy ? "کاربر" : "سیستم");
+                const targetName = log.target
+                  ? log.target.name ||
+                    log.target.userName ||
+                    log.target.ownerName ||
+                    (log.target.firstName && log.target.lastName
+                      ? `${log.target.firstName} ${log.target.lastName}`
+                      : log.target.firstName || log.target.lastName) ||
+                    log.target.fullName ||
+                    ""
+                  : "";
+                const targetType = log.target?.type;
+                const targetLabel = targetType ? targetTypeLabels[targetType] || targetType : "";
+                const target = targetName || targetLabel;
+
+                return (
+                  <div
+                    key={log.id}
+                    className="flex items-start justify-between rounded-lg border border-gray-100 bg-gray-50 p-3"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primaryThemeColor/10 text-primaryThemeColor">
+                        <Icon icon="solar:history-line-duotone" className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium text-gray-900">{label}</span>
+                          <span className="text-xs text-gray-500">
+                            توسط {actor}
+                            {target ? ` — ${target}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-1 text-xs text-gray-500">
+                      <span>{new Date(log.createdAt).toLocaleString("fa-IR")}</span>
+                      {log.context?.ip && (
+                        <Chip size="sm" variant="flat">
+                          IP: {log.context.ip}
+                        </Chip>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
 
     </div>

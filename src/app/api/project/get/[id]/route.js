@@ -1,6 +1,7 @@
 import connectDB from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import Project from "@/models/Project";
+import User from "@/models/User";
 import { NextResponse } from "next/server";
 
 export async function GET(req, { params }) {
@@ -18,10 +19,17 @@ export async function GET(req, { params }) {
 
     const { id } = params;
 
-    const project = await Project.findOne({
-      _id: id,
-      user: authUser.userId,
-    }).select("-__v -user")
+    const requestUser = await User.findById(authUser.userId)
+      .select("role")
+      .lean();
+
+    const projectQuery = { _id: id };
+
+    if (requestUser?.role !== "admin") {
+      projectQuery.user = authUser.userId;
+    }
+
+    const project = await Project.findOne(projectQuery).select("-__v -user");
 
     if (!project) {
       return NextResponse.json(

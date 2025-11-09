@@ -24,6 +24,7 @@ import { siteURL } from "@/services/API";
 import Image from "next/image";
 import EditProjectModal from "@/components/admin/EditProjectModal";
 import DeleteProjectModal from "@/components/admin/DeleteProjectModal";
+import { useRouter } from "next/navigation";
 
 const columns = [
   { name: "تصویر پروژه", uid: "image" },
@@ -49,6 +50,7 @@ const Page = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {
@@ -222,6 +224,28 @@ const Page = () => {
                         icon="solar:pen-2-line-duotone"
                         width="14"
                         height="14"
+                        className="lg:w-4 lg:h-4"
+                      />
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="secondary"
+                      className="min-w-0 px-1 lg:px-2"
+                      onPress={() =>
+                        typeof window !== "undefined" &&
+                        window.open(
+                          `/design-studio/project/${item.id}`,
+                          "_blank",
+                          "noopener,noreferrer"
+                        )
+                      }
+                    >
+                      <Icon
+                        icon="solar:ruler-cross-pen-broken"
+                        width="16"
+                        height="16"
                         className="lg:w-4 lg:h-4"
                       />
                     </Button>

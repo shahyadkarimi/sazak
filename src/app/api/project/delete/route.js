@@ -2,6 +2,7 @@ import { getAuthUser } from "@/lib/auth";
 import connectDB from "@/lib/db";
 import Project from "@/models/Project";
 import { NextResponse } from "next/server";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -36,6 +37,22 @@ export async function POST(req) {
 
     project.deletedAt = new Date();
     await project.save();
+
+    await createLog(LogActions.PROJECT_DELETE, {
+      performedBy: {
+        userId: authUser.userId,
+      },
+      target: {
+        type: "project",
+        projectId: project._id.toString(),
+        ownerId: authUser.userId,
+        name: project.name,
+      },
+      metadata: {
+        deletedAt: project.deletedAt,
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       { success: true, message: "پروژه با موفقیت حذف شد" },

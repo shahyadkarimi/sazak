@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Icon } from "@iconify/react";
 import { cn } from "@heroui/react";
 import Image from "next/image";
+import { useSettings } from "@/hooks/useSettings";
 
 const navItems = [
   {
@@ -14,7 +15,6 @@ const navItems = [
     path: "/admin",
     icon: "solar:widget-5-line-duotone",
   },
-
   {
     title: "کاربران",
     path: "/admin/users",
@@ -24,6 +24,16 @@ const navItems = [
     title: "پروژه‌ها",
     path: "/admin/projects",
     icon: "solar:folder-with-files-line-duotone",
+  },
+  {
+    title: "فعالیت‌های اخیر",
+    path: "/admin/logs",
+    icon: "solar:history-line-duotone",
+  },
+  {
+    title: "تنظیمات",
+    path: "/admin/settings",
+    icon: "solar:settings-line-duotone",
   },
 ];
 
@@ -43,6 +53,7 @@ const helpItems = [
 const Sidebar = ({ isOpen, onClose }) => {
   const [openMenu, setOpenMenu] = useState({});
   const [selectedMenu, setSelectedMenu] = useState({});
+  const { settings } = useSettings();
 
   const pathname = usePathname();
 
@@ -62,15 +73,15 @@ const Sidebar = ({ isOpen, onClose }) => {
       <div className="flex h-16 items-center justify-center border-b px-4">
         <Link href={"admin"} className="flex items-center gap-4">
           <Image
-            src={"/assets/logo.png"}
+            src={settings.logo || "/assets/logo.png"}
             width={150}
             height={150}
             className="size-8 rounded-full scale-150"
-            alt="sazak logo"
+            alt={settings.siteName || "site logo"}
           />
 
           <div className="flex flex-col">
-            <h2 className="font-black text-primaryThemeColor">سازک</h2>
+            <h2 className="font-black text-primaryThemeColor">{settings.siteName || "سازک"}</h2>
             <p className="text-xs text-gray-700">پنل مدیریت</p>
           </div>
         </Link>

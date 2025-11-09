@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyOTPSchema } from "@/lib/validation";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -42,6 +43,21 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+
+    await createLog(LogActions.AUTH_VERIFY_OTP, {
+      performedBy: {
+        phoneNumber,
+      },
+      target: {
+        type: "auth",
+        phoneNumber,
+      },
+      metadata: {
+        code,
+        verificationSource: "sms",
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       { success: true, message: "کد فعال‌سازی معتبر است" },

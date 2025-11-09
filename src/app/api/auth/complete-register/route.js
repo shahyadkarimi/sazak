@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { registerSchema } from "@/lib/validation";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -33,6 +34,25 @@ export async function POST(req) {
       familyName,
       phoneNumber,
       password: hashedPassword,
+    });
+
+    await createLog(LogActions.USER_REGISTER, {
+      performedBy: {
+        userId: newUser._id,
+        name: newUser.name,
+        familyName: newUser.familyName,
+        phoneNumber: newUser.phoneNumber,
+        role: newUser.role,
+      },
+      target: {
+        type: "user",
+        userId: newUser._id.toString(),
+        phoneNumber: newUser.phoneNumber,
+      },
+      metadata: {
+        message: "ثبت نام کاربر جدید",
+      },
+      request: req,
     });
 
     const token = jwt.sign(

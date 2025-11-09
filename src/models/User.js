@@ -31,6 +31,26 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    email: {
+      type: String,
+      default: null,
+    },
+    address: {
+      type: String,
+      default: null,
+    },
+    province: {
+      type: String,
+      default: null,
+    },
+    city: {
+      type: String,
+      default: null,
+    },
+    birthDate: {
+      type: String,
+      default: null,
+    },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

@@ -26,6 +26,7 @@ import EditUserModal from "@/components/admin/EditUserModal";
 import DeleteUserModal from "@/components/admin/DeleteUserModal";
 import AddUserModal from "@/components/admin/AddUserModal";
 import toast from "react-hot-toast";
+import { useUserStore } from "@/store/UserInfo";
 
 const columns = [
   { name: "نام", uid: "name" },
@@ -38,6 +39,7 @@ const columns = [
 ];
 
 const Page = () => {
+  const { setUser } = useUserStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [users, setUsers] = useState([]);
@@ -54,6 +56,7 @@ const Page = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [impersonatingId, setImpersonatingId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -151,6 +154,73 @@ const Page = () => {
     }
   };
 
+  const getStoredToken = () => {
+    if (typeof window === "undefined") return "";
+
+    try {
+      const localToken =
+        localStorage.getItem("impersonation_token") ||
+        localStorage.getItem("token");
+
+      if (localToken) {
+        return localToken;
+      }
+
+      const cookieString = document.cookie || "";
+      const cookies = cookieString.split(";").map((cookie) => cookie.trim());
+      const impersonationCookie = cookies.find((cookie) =>
+        cookie.startsWith("impersonation_token=")
+      );
+
+      if (impersonationCookie) {
+        const [, value] = impersonationCookie.split("=");
+        try {
+          return decodeURIComponent(value);
+        } catch (error) {
+          return value;
+        }
+      }
+
+      return "";
+    } catch (error) {
+      return "";
+    }
+  };
+
+  const handleImpersonateUser = async (user) => {
+    const token = getStoredToken();
+
+    setImpersonatingId(user.id);
+
+    try {
+      const response = await fetch(`/api/admin/users/${user.id}/impersonate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-auth-token": token,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        toast.error(data.message || "خطا هنگام ورود به حساب کاربر");
+        return;
+      }
+
+      localStorage.setItem("impersonation_token", data.token);
+      setUser({})
+
+      toast.success("ورود به حساب کاربر انجام شد؛ در حال تازه‌سازی...");
+      window.location.href = "/auth/impersonate?token=" + encodeURIComponent(data.token);
+    } catch (error) {
+      console.error("Impersonation error:", error);
+      toast.error("خطا هنگام ورود به حساب کاربر");
+    } finally {
+      setImpersonatingId(null);
+    }
+  };
+
   const handleEditSuccess = (updatedUser) => {
     setUsers((prevUsers) =>
       prevUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
@@ -227,8 +297,11 @@ const Page = () => {
           />
           <div className="flex gap-2">
             <Select
-              selectedKeys={[role]}
-              onChange={(e) => setRole(e.target.value)}
+              selectedKeys={new Set([role])}
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] ?? "all";
+                setRole(value);
+              }}
               className="w-full sm:w-40"
               label="نقش"
               labelPlacement="outside"
@@ -248,8 +321,11 @@ const Page = () => {
               </SelectItem>
             </Select>
             <Select
-              selectedKeys={[status]}
-              onChange={(e) => setStatus(e.target.value)}
+              selectedKeys={new Set([status])}
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] ?? "all";
+                setStatus(value);
+              }}
               className="w-full sm:w-40"
               label="وضعیت"
               labelPlacement="outside"
@@ -302,6 +378,21 @@ const Page = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 lg:gap-2">
+                    <Button
+                      size="sm"
+                      variant="light"
+                      color="secondary"
+                      className="min-w-0 px-1 lg:px-2"
+                      onPress={() => handleImpersonateUser(item)}
+                      isLoading={impersonatingId === item.id}
+                    >
+                      <Icon
+                        icon="solar:login-3-line-duotone"
+                        width="14"
+                        height="14"
+                        className="lg:w-4 lg:h-4"
+                      />
+                    </Button>
                     <Button
                       size="sm"
                       variant="light"

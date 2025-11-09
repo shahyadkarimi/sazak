@@ -3,6 +3,7 @@ import connectDB from "@/lib/db";
 import User from "@/models/User";
 import Project from "@/models/Project";
 import { NextResponse } from "next/server";
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function DELETE(req, { params }) {
   try {
@@ -35,9 +36,30 @@ export async function DELETE(req, { params }) {
     }
 
     // Soft delete by setting deletedAt
+    const deletedAt = new Date();
     await Project.findByIdAndUpdate(id, { 
-      deletedAt: new Date(),
+      deletedAt,
       isDeleted: true 
+    });
+
+    await createLog(LogActions.ADMIN_PROJECT_DELETE, {
+      performedBy: {
+        userId: requester._id,
+        name: requester.name,
+        familyName: requester.familyName,
+        phoneNumber: requester.phoneNumber,
+        role: requester.role,
+      },
+      target: {
+        type: "project",
+        projectId: project._id.toString(),
+        ownerId: project.user?.toString?.(),
+        name: project.name,
+      },
+      metadata: {
+        deletedAt,
+      },
+      request: req,
     });
 
     return NextResponse.json(
@@ -90,6 +112,25 @@ export async function PATCH(req, { params }) {
     if (typeof isPublic === "boolean") updateData.isPublic = isPublic;
 
     await Project.findByIdAndUpdate(id, updateData);
+
+    await createLog(LogActions.PROJECT_UPDATE, {
+      performedBy: {
+        userId: requester._id,
+        name: requester.name,
+        familyName: requester.familyName,
+        phoneNumber: requester.phoneNumber,
+        role: requester.role,
+      },
+      target: {
+        type: "project",
+        projectId: project._id.toString(),
+        ownerId: project.user?.toString?.(),
+      },
+      metadata: {
+        updatedFields: updateData,
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       {

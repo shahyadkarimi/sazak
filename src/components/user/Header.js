@@ -1,14 +1,39 @@
 "use client";
 
 import { greetByTime, toFarsiNumber } from "@/helper/helper";
+import { clearImpersonation } from "@/lib/auth";
+import { getData } from "@/services/API";
 import { useUserStore } from "@/store/UserInfo";
 import { Button } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import React from "react";
 
 const Header = ({ onOpenSidebar }) => {
-  const { user } = useUserStore();
+  const { user, setUser } = useUserStore();
+  const router = useRouter();
+
+  const isImpersonating =
+    typeof window !== "undefined" &&
+    (localStorage.getItem("isImpersonating") === "true" ||
+      (document?.cookie || "").includes("impersonated=true"));
+
+  const exitImpersonation = async () => {
+    try {
+      localStorage.removeItem("impersonation_token");
+
+      clearImpersonation();
+
+      getData("/user/profile").then((res) => {
+        setUser(res.data.user);
+        router.push("/admin");
+      });
+
+    } catch (error) {
+      console.error("Failed to exit impersonation:", error);
+    }
+  };
 
   return (
     <div className="w-full h-20 bg-white flex items-center justify-between px-3 sm:px-4 lg:px-8">
@@ -57,14 +82,26 @@ const Header = ({ onOpenSidebar }) => {
           <Icon icon="solar:user-rounded-broken" width="24" height="24" />
         </Button>
 
-        {user.role === "admin" && <Button
-          as={Link}
-          href="/admin"
-          className="bg-white h-11 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
-        >
-          <Icon icon="solar:laptop-2-broken" width="24" height="24" />
-          <span className="text-xs">پنل مدیریت </span>
-        </Button>}
+        {isImpersonating ? (
+          <Button
+            onPress={exitImpersonation}
+            className="bg-danger text-white h-11 px-4 rounded-2xl hover:opacity-90 transition-all duration-300"
+          >
+            <Icon icon="solar:logout-3-bold" width="22" height="22" />
+            <span className="text-xs sm:text-sm">خروج از حالت ورود</span>
+          </Button>
+        ) : (
+          user.role === "admin" && (
+            <Button
+              as={Link}
+              href="/admin"
+              className="bg-white h-11 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
+            >
+              <Icon icon="solar:laptop-2-broken" width="24" height="24" />
+              <span className="text-xs">پنل مدیریت </span>
+            </Button>
+          )
+        )}
       </div>
     </div>
   );

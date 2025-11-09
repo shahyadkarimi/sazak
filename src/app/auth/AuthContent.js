@@ -3,9 +3,11 @@
 import React, { useState } from "react";
 import LoginForm from "./LoginForm";
 import { Icon } from "@iconify/react";
+import { useSettings } from "@/hooks/useSettings";
 
 const AuthContent = () => {
   const [showLogin, setShowLogin] = useState(false);
+  const { settings } = useSettings();
 
   if (!showLogin) {
     return (
@@ -15,7 +17,7 @@ const AuthContent = () => {
             خوش آمدید
           </h1>
           <p className="text-lg text-gray-600 max-w-md">
-            به آموزشگاه رباتیک سازک خوش آمدید
+            به {settings.siteName || "آموزشگاه رباتیک سازک"} خوش آمدید
             <br />
             برای شروع طراحی و استفاده از امکانات، وارد حساب کاربری خود شوید
           </p>
@@ -36,4 +38,3 @@ const AuthContent = () => {
 };
 
 export default AuthContent;
-

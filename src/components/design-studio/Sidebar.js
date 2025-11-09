@@ -258,7 +258,7 @@ const Sidebar = ({ onToggle }) => {
       ["connector", "L", "U"].includes(m.type)
     ),
     plate: modelList.filter((m) => m.type === "plate"),
-    screw: modelList.filter((m) => m.type === "bar"),
+    screw: modelList.filter((m) => m.type === "screw"),
   };
 
   const colors = [

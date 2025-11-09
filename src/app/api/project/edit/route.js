@@ -3,7 +3,7 @@ import { getAuthUser } from "@/lib/auth";
 import Project from "@/models/Project";
 import { NextResponse } from "next/server";
 import { editProjectSchema } from "@/lib/validation";
-
+import { createLog, LogActions } from "@/lib/logger";
 
 export async function POST(req) {
   try {
@@ -33,6 +33,24 @@ export async function POST(req) {
         { status: 404 }
       );
     }
+
+    await createLog(LogActions.PROJECT_UPDATE, {
+      performedBy: {
+        userId: authUser.userId,
+      },
+      target: {
+        type: "project",
+        projectId: project._id.toString(),
+        ownerId: authUser.userId,
+      },
+      metadata: {
+        updatedFields: {
+          ...(name !== undefined && { name }),
+          ...(description !== undefined && { description }),
+        },
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       { success: true, message: "پروژه بروزرسانی شد", project },

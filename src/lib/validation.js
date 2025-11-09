@@ -31,6 +31,20 @@ export const loginSchema = z.object({
 export const updateProfileSchema = z.object({
   name: z.string().min(1, "نام الزامی است").optional(),
   familyName: z.string().min(1, "نام خانوادگی الزامی است").optional(),
+  email: z
+    .string()
+    .trim()
+    .email("ایمیل نامعتبر است")
+    .optional()
+    .or(z.literal("")),
+  address: z.string().trim().max(500, "آدرس نباید بیشتر از ۵۰۰ کاراکتر باشد").optional().or(z.literal("")),
+  province: z.string().trim().max(100, "استان نامعتبر است").optional().or(z.literal("")),
+  city: z.string().trim().max(100, "شهر نامعتبر است").optional().or(z.literal("")),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "تاریخ تولد نامعتبر است")
+    .optional()
+    .or(z.literal("")),
   password: z
     .string()
     .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
@@ -55,6 +69,20 @@ export const editProjectSchema = z.object({
 export const userUpdateSchema = z.object({
   name: z.string().min(1, "نام الزامی است").optional(),
   familyName: z.string().min(1, "نام خانوادگی الزامی است").optional(),
+  email: z
+    .string()
+    .trim()
+    .email("ایمیل نامعتبر است")
+    .optional()
+    .or(z.literal("")),
+  address: z.string().trim().max(500, "آدرس نباید بیشتر از ۵۰۰ کاراکتر باشد").optional().or(z.literal("")),
+  province: z.string().trim().max(100, "استان نامعتبر است").optional().or(z.literal("")),
+  city: z.string().trim().max(100, "شهر نامعتبر است").optional().or(z.literal("")),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "تاریخ تولد نامعتبر است")
+    .optional()
+    .or(z.literal("")),
   phoneNumber: z
     .string()
     .min(1, "شماره موبایل الزامی است")
@@ -62,6 +90,13 @@ export const userUpdateSchema = z.object({
     .optional(),
   role: z.enum(["user", "admin"]).optional(),
   isActive: z.boolean().optional(),
+  password: z
+    .string()
+    .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
+    .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
+    .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد")
+    .optional()
+    .or(z.literal("")),
 });
 
 export const addUserSchema = z.object({

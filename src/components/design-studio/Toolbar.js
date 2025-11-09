@@ -24,84 +24,45 @@ import toast, { Toaster } from "react-hot-toast";
 const AutoSave = ({ project }) => {
   const { selectedModels } = useModelStore();
   const { id } = useParams();
-  const [hasInitialSave, setHasInitialSave] = useState(false);
-  const isSavingRef = React.useRef(false);
-
-  const takeCanvasBlob = useCallback(() =>
-    new Promise((resolve) => {
-      const canvas = document.querySelector(".design-studio canvas");
-      if (!canvas) return resolve(null);
-      canvas.toBlob((blob) => resolve(blob), "image/png");
-    }), []);
-
-  const performSave = useCallback(async () => {
-    if (isSavingRef.current) return;
-
-    isSavingRef.current = true;
-    try {
-      const imageBlob = await takeCanvasBlob();
-      const form = new FormData();
-      form.append("projectId", id);
-      form.append("objects", JSON.stringify(selectedModels));
-      if (imageBlob) {
-        const file = new File(
-          [imageBlob],
-          `${project?.name || "project"}-${Date.now()}.png`,
-          { type: "image/png" }
-        );
-        form.append("image", file);
-      }
-
-      await postData("/project/save-changes", form, undefined, "multipart");
-    } catch (e) {
-      if (e?.response?.status !== 500) {
-        toast.error("خطا هنگام ذخیره تغییرات", {
-          duration: 3500,
-          className: "text-sm rounded-2xl",
-        });
-      }
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [id, selectedModels, project?.name, takeCanvasBlob]);
 
   useEffect(() => {
-    if (project?.id) {
-      setHasInitialSave(false);
-      isSavingRef.current = false;
-    }
-  }, [project?.id]);
+    if (!project) return;
 
-  useEffect(() => {
-    if (!project || !id) return;
-
-    const checkAndSave = () => {
-      const canvas = document.querySelector(".design-studio canvas");
-      if (canvas && selectedModels && !hasInitialSave) {
-        performSave();
-        setHasInitialSave(true);
-      }
-    };
-
-    const timeoutId = setTimeout(checkAndSave, 1000);
-
-    const intervalId = setInterval(checkAndSave, 500);
-
-    return () => {
-      clearTimeout(timeoutId);
-      clearInterval(intervalId);
-    };
-  }, [project, id, selectedModels, hasInitialSave, performSave]);
-
-  useEffect(() => {
-    if (!project || !hasInitialSave) return;
+    const takeCanvasBlob = () =>
+      new Promise((resolve) => {
+        const canvas = document.querySelector(".design-studio canvas");
+        if (!canvas) return resolve(null);
+        canvas.toBlob((blob) => resolve(blob), "image/png");
+      });
 
     const intervalId = setInterval(() => {
-      performSave();
+      (async () => {
+        try {
+          const imageBlob = await takeCanvasBlob();
+          const form = new FormData();
+          form.append("projectId", id);
+          form.append("objects", JSON.stringify(selectedModels));
+          if (imageBlob) {
+            const file = new File(
+              [imageBlob],
+              `${project?.name || "project"}-${Date.now()}.png`,
+              { type: "image/png" }
+            );
+            form.append("image", file);
+          }
+
+          await postData("/project/save-changes", form, undefined, "multipart");
+        } catch (e) {
+          toast.error("خطا هنگام ذخیره تغییرات", {
+            duration: 3500,
+            className: "text-sm rounded-2xl",
+          });
+        }
+      })();
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [project, hasInitialSave, performSave]);
+  }, [id, selectedModels]);
 
   return null;
 };

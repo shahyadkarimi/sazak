@@ -11,7 +11,10 @@ import ProjectActions from "./project/my-projects/ProjectActions";
 
 const Page = async () => {
   const { user } = await getUser();
-  const token = (await cookies()).get("token")?.value;
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get("impersonation_token")?.value ||
+    cookieStore.get("token")?.value;
 
   const fetchStats = async () => {
     try {
@@ -19,6 +22,7 @@ const Page = async () => {
         headers: {
           "x-auth-token": token,
         },
+        cache: "no-store",
       });
 
       const { stats } = await userStatsRes.json();
@@ -37,6 +41,7 @@ const Page = async () => {
         headers: {
           "x-auth-token": token,
         },
+        cache: "no-store",
       });
 
       const { projects } = await myProjectsRes.json();
@@ -48,7 +53,7 @@ const Page = async () => {
   };
 
   const { myProjects } = await fetchProjects();
-
+  console.log(user);
   const daysSinceCreated = Math.max(
     0,
     Math.floor(

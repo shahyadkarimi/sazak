@@ -4,9 +4,11 @@ import { useUserStore } from "@/store/UserInfo";
 import Image from "next/image";
 import Link from "next/link";
 import React from "react";
+import { useSettings } from "@/hooks/useSettings";
 
 const Header = () => {
   const { user } = useUserStore();
+  const { settings } = useSettings();
 
   return (
     <div className="w-full bg-white flex justify-center items-center">
@@ -27,16 +29,16 @@ const Header = () => {
         </div>
 
         <h1 className="hidden md:block text-2xl font-semibold text-primaryThemeColor">
-          گــروه آمــوزشـی ســازک
+          {settings.siteName || "سازک"}
         </h1>
 
         <Link href={"/user"}>
           <Image
-            src={"/assets/logo.png"}
+            src={settings.logo || "/assets/logo.png"}
             width={150}
             height={150}
             className="size-7 lg:size-8 rounded-full scale-150"
-            alt="sazak logo"
+            alt={settings.siteName || "site logo"}
           />
         </Link>
       </div>

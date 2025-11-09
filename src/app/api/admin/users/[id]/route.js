@@ -3,6 +3,8 @@ import connectDB from "@/lib/db";
 import User from "@/models/User";
 import { NextResponse } from "next/server";
 import { validateUserUpdate } from "@/lib/validation";
+import { createLog, LogActions } from "@/lib/logger";
+import bcrypt from "bcryptjs";
 
 export async function PUT(req, { params }) {
   try {
@@ -16,7 +18,9 @@ export async function PUT(req, { params }) {
       );
     }
 
-    const requester = await User.findById(authUser.userId).lean();
+    const requester = await User.findById(authUser.userId)
+      .select("name familyName phoneNumber role")
+      .lean();
     if (!requester || requester.role !== "admin") {
       return NextResponse.json(
         { success: false, message: "دسترسی غیرمجاز" },
@@ -49,18 +53,83 @@ export async function PUT(req, { params }) {
     }
 
     // Update user fields
-    const updateData = {};
-    if (body.name) updateData.name = body.name;
-    if (body.familyName) updateData.familyName = body.familyName;
-    if (body.phoneNumber) updateData.phoneNumber = body.phoneNumber;
-    if (body.role) updateData.role = body.role;
-    if (typeof body.isActive === "boolean") updateData.isActive = body.isActive;
+    const updatedFields = {};
+    if (body.name) {
+      user.name = body.name;
+      updatedFields.name = body.name;
+    }
+    if (body.familyName) {
+      user.familyName = body.familyName;
+      updatedFields.familyName = body.familyName;
+    }
+    if (body.phoneNumber) {
+      user.phoneNumber = body.phoneNumber;
+      updatedFields.phoneNumber = body.phoneNumber;
+    }
+    if (body.role) {
+      user.role = body.role;
+      updatedFields.role = body.role;
+    }
+    if (typeof body.isActive === "boolean") {
+      user.isActive = body.isActive;
+      updatedFields.isActive = body.isActive;
+    }
+    if (body.email !== undefined) {
+      const normalized = body.email === "" ? null : body.email;
+      user.email = normalized;
+      updatedFields.email = normalized;
+    }
+    if (body.address !== undefined) {
+      const normalized = body.address === "" ? null : body.address;
+      user.address = normalized;
+      updatedFields.address = normalized;
+    }
+    if (body.province !== undefined) {
+      const normalized = body.province === "" ? null : body.province;
+      user.province = normalized;
+      updatedFields.province = normalized;
+    }
+    if (body.city !== undefined) {
+      const normalized = body.city === "" ? null : body.city;
+      user.city = normalized;
+      updatedFields.city = normalized;
+    }
+    if (body.birthDate !== undefined) {
+      const normalized = body.birthDate === "" ? null : body.birthDate;
+      user.birthDate = normalized;
+      updatedFields.birthDate = normalized;
+    }
+    if (body.password && body.password.trim() !== "") {
+      user.password = await bcrypt.hash(body.password, 10);
+      updatedFields.passwordChanged = true;
+    }
 
-    await User.findByIdAndUpdate(id, updateData);
+    await user.save();
 
     const updatedUser = await User.findById(id)
-      .select("_id name familyName phoneNumber role isActive createdAt")
+      .select(
+        "_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture"
+      )
       .lean();
+
+    await createLog(LogActions.ADMIN_USER_UPDATE, {
+      performedBy: {
+        userId: requester._id,
+        name: requester.name,
+        familyName: requester.familyName,
+        phoneNumber: requester.phoneNumber,
+        role: requester.role,
+      },
+      target: {
+        type: "user",
+        userId: updatedUser._id.toString(),
+        phoneNumber: updatedUser.phoneNumber,
+      },
+      metadata: {
+        updatedFields,
+      },
+      request: req,
+    });
 
     return NextResponse.json(
       {
@@ -74,6 +143,12 @@ export async function PUT(req, { params }) {
           phoneNumber: updatedUser.phoneNumber,
           role: updatedUser.role,
           isActive: updatedUser.isActive,
+          email: updatedUser.email ?? "",
+          address: updatedUser.address ?? "",
+          province: updatedUser.province ?? "",
+          city: updatedUser.city ?? "",
+          birthDate: updatedUser.birthDate ?? "",
+          profilePicture: updatedUser.profilePicture ?? "",
           createdAt: updatedUser.createdAt,
         },
       },

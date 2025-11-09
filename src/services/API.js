@@ -18,6 +18,18 @@ const servicesApi = axios.create({
   },
 });
 
+const getStoredToken = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const localToken =
+      localStorage.getItem("impersonation_token") ||
+      localStorage.getItem("token");
+
+  return localToken;
+};
+
 // post method
 const postData = async (
   param,
@@ -27,7 +39,7 @@ const postData = async (
   withToken = true
 ) => {
   if (withToken) {
-    let token = localStorage.getItem("token");
+    let token = getStoredToken();
     const res = await servicesApi.post(param, data, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -48,7 +60,7 @@ const postData = async (
 // get method
 const getData = async (param, data, headers, withToken = true) => {
   if (withToken) {
-    let token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     const res = await servicesApi.get(param, {
       params: data,
@@ -67,7 +79,7 @@ const getData = async (param, data, headers, withToken = true) => {
 // patch method
 const patchData = async (param, data, withToken = true) => {
   if (withToken) {
-    let token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     const res = await servicesApi.patch(param, data, {
       headers: { Authorization: `Bearer ${token}` },
@@ -83,7 +95,7 @@ const patchData = async (param, data, withToken = true) => {
 // patch method
 const putData = async (param, data, withToken = true) => {
   if (withToken) {
-    let token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     const res = await servicesApi.put(param, data, {
       headers: { Authorization: `Bearer ${token}` },
@@ -99,7 +111,7 @@ const putData = async (param, data, withToken = true) => {
 // delete method
 const deleteData = async (param, data, withToken = true) => {
   if (withToken) {
-    let token = localStorage.getItem("token");
+    const token = getStoredToken();
 
     const res = await servicesApi.delete(param, {
       headers: { Authorization: `Bearer ${token}` },

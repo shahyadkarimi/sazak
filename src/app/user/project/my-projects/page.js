@@ -8,7 +8,10 @@ import React from "react";
 import ProjectActions from "./ProjectActions";
 
 const Page = async () => {
-  const token = (await cookies()).get("token")?.value;
+  const cookieStore = await cookies();
+  const token =
+    cookieStore.get("impersonation_token")?.value ||
+    cookieStore.get("token")?.value;
 
   const fetchProjects = async () => {
     try {
@@ -16,6 +19,7 @@ const Page = async () => {
         headers: {
           "x-auth-token": token,
         },
+        cache: "no-store",
       });
 
       const { projects } = await myProjectsRes.json();

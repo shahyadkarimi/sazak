@@ -159,8 +159,11 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
 
             <Select
               label="نقش کاربر"
-              selectedKeys={[formData.role]}
-              onChange={(e) => handleChange("role", e.target.value)}
+              selectedKeys={formData.role ? new Set([formData.role]) : new Set()}
+              onSelectionChange={(keys) => {
+                const value = Array.from(keys)[0] ?? "user";
+                handleChange("role", value);
+              }}
               labelPlacement="outside"
               classNames={{
                 trigger: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",

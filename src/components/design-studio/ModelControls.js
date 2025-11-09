@@ -14,6 +14,8 @@ const ModelControls = ({ position, isSelected, controls, isDragging }) => {
     stopRotatingY,
     startRotatingX,
     stopRotatingX,
+    startRotatingZ,
+    stopRotatingZ,
   } = controls;
 
   const buttonStyle = {};
@@ -67,6 +69,17 @@ const ModelControls = ({ position, isSelected, controls, isDragging }) => {
           >
             <RotateIcon />
             <span>چرخش X</span>
+          </button>
+
+          <button
+            style={{ ...buttonStyle, cursor: "grab" }}
+            onMouseDown={startRotatingZ}
+            onMouseUp={stopRotatingZ}
+            title="چرخش حول محور Z"
+            className="min-w-fit flex items-center gap-1 px-3 py-2 rounded-xl bg-white shadow-lg"
+          >
+            <RotateIcon />
+            <span>چرخش Z</span>
           </button>
 
           {/* <button
