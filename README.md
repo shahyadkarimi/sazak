@@ -34,3 +34,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Deploy on cPanel
+
+### Important Notes for cPanel Deployment:
+
+1. **Static Files**: Make sure the `public/uploads` folder exists and has proper permissions (chmod 755)
+2. **File Uploads**: User uploaded files are stored in `public/uploads/profiles/`
+3. **Server Configuration**: Ensure your server is configured to serve files from the `public` directory
+
+### Common Issues:
+
+- **Uploaded images not displaying**: Check that the `public/uploads` folder exists and has proper read permissions
+- **404 errors for uploads**: Verify that your web server (Apache/Nginx) is configured to serve static files from the public directory
+- **Permission denied**: Run `chmod -R 755 public/uploads` to fix permissions
