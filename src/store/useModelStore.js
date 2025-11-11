@@ -14,21 +14,12 @@ const useModelStore = create((set, get) => ({
   _historyPast: [],
   _historyFuture: [],
   modelOptions: {
-    snapSize: 0.1,
+    snapSize: 0.5,
     rotationDeg: 45,
   },
   modelsRef: {},
   zoomLevel: 50, // FOV value for camera zoom
   constrainToGrid: false,
-  // Preview mode for snap-to-attach functionality
-  isPreviewMode: true,
-  snapPoints: [], // Array of available snap points
-  previewPosition: null, // Current preview position
-  isSnapping: false, // Whether currently snapping to a point
-  // TinkerCAD-style face preview
-  activeFacePreview: null, // Current highlighted face
-  draggedModelPreviewPosition: null, // Preview position of dragged model
-  collisionMode: 'stack', // 'stack' | 'push' | 'block'
   draggedModelId: null, // ID of model currently being dragged
   activeControlMode: null, // 'height' | 'rotateY' | 'rotateX' | 'rotateZ' | null
 
@@ -106,16 +97,6 @@ const useModelStore = create((set, get) => ({
 
   setConstrainToGrid: (value) => set({ constrainToGrid: !!value }),
   
-  // Preview mode controls
-  setIsPreviewMode: (value) => set({ isPreviewMode: !!value }),
-  setSnapPoints: (points) => set({ snapPoints: points || [] }),
-  setPreviewPosition: (position) => set({ previewPosition: position }),
-  setIsSnapping: (value) => set({ isSnapping: !!value }),
-  
-  // TinkerCAD-style face preview controls
-  setActiveFacePreview: (face) => set({ activeFacePreview: face }),
-  setDraggedModelPreviewPosition: (position) => set({ draggedModelPreviewPosition: position }),
-  setCollisionMode: (mode) => set({ collisionMode: mode }),
   setDraggedModelId: (id) => set({ draggedModelId: id }),
   setActiveControlMode: (mode) => set({ activeControlMode: mode }),
   

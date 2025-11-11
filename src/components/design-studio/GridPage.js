@@ -7,7 +7,6 @@ import * as THREE from "three";
 import useModelStore from "@/store/useModelStore";
 import Model from "./Model";
 import ModelPlacer from "./ModelPlacer";
-import ModelDragPreview from "./ModelDragPreview";
 import CustomGrid from "../home/CustomGrid";
 import SelectedModelPanel from "./SelectedModelPanel";
 import { useMemo } from "react";
@@ -15,7 +14,6 @@ import { postData } from "@/services/API";
 import toast, { Toaster } from "react-hot-toast";
 import { useRouter } from "next/navigation";
 import { toFarsiNumber } from "@/helper/helper";
-import { Physics } from "@react-three/rapier";
 import { clampPositionToGrid } from "@/helper/gridConstraints";
 import HeightIcon from "../icons/HeightIcon";
 import RotateIcon from "../icons/RotateIcon";
@@ -663,7 +661,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
           }
         }}
       >
-        <Physics debug={false} gravity={[0, 0, 0]}>
+        <>
           <CameraAnimator targetView={cameraView} controlsRef={controlsRef} />
           <CameraTracker
             onCameraUpdate={(camera) => {
@@ -689,10 +687,8 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
           <ModelPlacer />
 
-          <ModelDragPreview />
-
           <CustomGrid />
-        </Physics>
+        </>
 
         <OrbitControls
           ref={controlsRef}

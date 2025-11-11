@@ -7,8 +7,6 @@ import ModelControls from "./ModelControls";
 import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { RigidBody } from "@react-three/rapier";
-import { checkCollisionAndStack, checkFloatingAndGround } from "@/helper/snapDetection";
 import { clampPositionToGrid } from "@/helper/gridConstraints";
 
 const Model = ({ path, position, id, rotation, color }) => {
@@ -168,14 +166,6 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     const currentPosition = positionRef.current;
     const currentRotation = rotationRef.current;
-    const snapSize = modelOptions.snapSize === 'free' ? 0.1 : modelOptions.snapSize;
-
-    const collisionResult = checkCollisionAndStack(
-      currentPosition,
-      { id, position: currentPosition, rotation: currentRotation, path, dimensions: modelDimensions },
-      existingModels,
-      snapSize
-    );
 
     let targetY = currentPosition[1];
     
@@ -184,14 +174,12 @@ const Model = ({ path, position, id, rotation, color }) => {
       if (Math.abs(currentPosition[1] - targetY) < 0.001) {
         return;
       }
-    } else if (!collisionResult.isStacked) {
-      if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
-        targetY = baseHeightRef.current;
+    } else {
+      if (currentPosition[1] > 0) {
+        targetY = currentPosition[1];
       } else {
         targetY = 0;
       }
-    } else {
-      targetY = Math.max(0, collisionResult.position[1]);
     }
 
     const tempGroup = new THREE.Group();
@@ -207,17 +195,12 @@ const Model = ({ path, position, id, rotation, color }) => {
     if (minY < -0.001) {
       isAdjustingRef.current = true;
       const offset = -minY;
-      if (!collisionResult.isStacked) {
-        targetY = offset;
-      } else {
-        const baseHeight = baseHeightRef.current >= 0 ? baseHeightRef.current : targetY;
-        targetY = baseHeight + offset;
-      }
+      targetY = offset;
       updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
       setTimeout(() => {
         isAdjustingRef.current = false;
       }, 50);
-    } else if (!collisionResult.isStacked && Math.abs(currentPosition[1] - targetY) > 0.001) {
+    } else if (Math.abs(currentPosition[1] - targetY) > 0.001) {
       isAdjustingRef.current = true;
       updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
       setTimeout(() => {
@@ -271,8 +254,32 @@ const Model = ({ path, position, id, rotation, color }) => {
           if (edge) edge.visible = true;
         } else {
           // Opaque with selected color
-          if (child.material?.color && color) {
-            child.material.color = new THREE.Color(color);
+          if (color) {            
+            const selectedColor = new THREE.Color(color);
+            
+            if (isSelected || isDragging) {
+              const hsl = { h: 0, s: 0, l: 0 };
+              selectedColor.getHSL(hsl);
+              hsl.l = Math.min(1, hsl.l * 1.5);
+              const brightenedColor = new THREE.Color();
+              brightenedColor.setHSL(hsl.h, hsl.s, hsl.l);
+              
+              if (child.material.color) {
+                child.material.color.copy(brightenedColor);
+              }
+              if (child.material.emissive !== undefined) {
+                child.material.emissive.copy(brightenedColor);
+                child.material.emissiveIntensity = 0.6;
+              }
+            } else {
+              if (child.material.color) {
+                child.material.color.copy(selectedColor);
+              }
+              if (child.material.emissive !== undefined) {
+                child.material.emissive.copy(selectedColor);
+                child.material.emissiveIntensity = 0.5;
+              }
+            }
           }
           if (child.material) {
             child.material.transparent = false;
@@ -282,33 +289,9 @@ const Model = ({ path, position, id, rotation, color }) => {
           }
           if (edge) edge.visible = false;
         }
-        
-        if (!isTransparent && isDragging) {
-          if (child.material.emissive) {
-            const dragColor = 0x00ff00; // Green for drag
-            child.material.emissive = new THREE.Color(dragColor);
-            child.material.emissiveIntensity = 0.4; // نوردهی بیشتر
-          }
-        } else if (!isTransparent && isSelected) {
-          if (child.material.emissive) {
-            // هنگام انتخاب کمی درخشش با رنگ انتخابی (برای ترنسپرنت هم لبه‌ها کافی هستند)
-            child.material.emissive = new THREE.Color(color || 0x000000);
-            child.material.emissiveIntensity = 0.3; // نوردهی ملایم
-          }
-        } else if (!isTransparent && isHovered) {
-          if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(color || 0x000000);
-            child.material.emissiveIntensity = 0.2; // نوردهی ملایم
-          }
-        } else if (!isTransparent) {
-          if (child.material.emissive) {
-            child.material.emissive = new THREE.Color(color || 0x000000);
-            child.material.emissiveIntensity = 0.5; // نوردهی ملایم
-          }
-        }
       }
     });
-  }, [isSelected, isHovered, isDragging, clonedSceneState, color]);
+  }, [isSelected, isDragging, clonedSceneState, color]);
 
   // اطلاع به استور درباره درحال تنظیم بودن مدل
   useEffect(() => {
@@ -647,17 +630,9 @@ const Model = ({ path, position, id, rotation, color }) => {
           );
         }
 
-        // Check collision and stack if needed
-        const collisionResult = checkCollisionAndStack(
-          proposedPosition,
-          { id, position: proposedPosition, rotation, path, dimensions: modelDimensions },
-          existingModels,
-          snapSize
-        );
+        let adjustedPosition = [...proposedPosition];
         
-        let adjustedPosition = collisionResult.position;
-        
-        if (!constrainToGrid && !collisionResult.isStacked) {
+        if (!constrainToGrid) {
           adjustedPosition[1] = position[1];
         }
 
@@ -666,14 +641,12 @@ const Model = ({ path, position, id, rotation, color }) => {
           
           if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
             targetY = baseHeightRef.current;
-          } else if (!collisionResult.isStacked) {
+          } else {
             if (constrainToGrid) {
               targetY = 0;
             } else {
-              targetY = position[1];
+              targetY = position[1] > 0 ? position[1] : 0;
             }
-          } else {
-            targetY = Math.max(0, adjustedPosition[1]);
           }
 
           const tempGroup = new THREE.Group();
@@ -687,28 +660,19 @@ const Model = ({ path, position, id, rotation, color }) => {
           
           if (minY < -0.001) {
             const offset = -minY;
-            if (!collisionResult.isStacked) {
-              if (constrainToGrid) {
-                adjustedPosition[1] = offset;
-              } else {
-                adjustedPosition[1] = position[1] + offset;
-              }
+            if (constrainToGrid) {
+              adjustedPosition[1] = offset;
             } else {
-              const baseHeight = baseHeightRef.current >= 0 ? baseHeightRef.current : adjustedPosition[1];
-              adjustedPosition[1] = baseHeight + offset;
+              adjustedPosition[1] = position[1] + offset;
             }
           } else {
             adjustedPosition[1] = targetY;
           }
         } else {
-          if (!collisionResult.isStacked) {
-            if (constrainToGrid) {
-              adjustedPosition[1] = 0;
-            } else {
-              adjustedPosition[1] = position[1];
-            }
+          if (constrainToGrid) {
+            adjustedPosition[1] = 0;
           } else {
-            adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
+            adjustedPosition[1] = position[1];
           }
         }
 
@@ -825,28 +789,14 @@ const Model = ({ path, position, id, rotation, color }) => {
 
   if (!isValid || !clonedSceneState) return null;
 
-  // Half-size for cuboid collider (Rapier expects half-extents)
-  const halfSize = modelDimensions 
-    ? [modelDimensions.x / 2, modelDimensions.y / 2, modelDimensions.z / 2]
-    : [0.5, 0.5, 0.5];
-
   return (
-    <RigidBody 
+    <group
       ref={modelRef}
-      type="kinematic"
       position={position}
       rotation={rotation}
-      colliders="cuboid"
-      args={halfSize}
-      lockRotations={true}
-      lockTranslations={true}
-      // Prevent physics-based movement - we handle collisions in code
-      collisionGroups={0}
-      solverGroups={0}
     >
       <primitive
         object={clonedSceneState}
-        // حذف انتخاب با کلیک چپ؛ انتخاب با راست‌کلیک انجام می‌شود
         onContextMenu={handleRightClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
@@ -868,7 +818,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         isVisible={showContextMenu}
         onClose={() => setShowContextMenu(false)}
       />
-    </RigidBody>
+    </group>
   );
 };
 
