@@ -26,6 +26,21 @@ const navItems = [
     icon: "solar:folder-with-files-line-duotone",
   },
   {
+    title: "قطعات",
+    path: "#",
+    icon: "solar:layers-line-duotone",
+    subMenu: [
+      {
+        title: "همه قطعات",
+        path: "/admin/parts",
+      },
+      {
+        title: "دسته بندی ها",
+        path: "/admin/parts/categories",
+      },
+    ],
+  },
+  {
     title: "فعالیت‌های اخیر",
     path: "/admin/logs",
     icon: "solar:history-line-duotone",
@@ -51,17 +66,35 @@ const helpItems = [
 ];
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const [openMenu, setOpenMenu] = useState({});
+  const [openMenu, setOpenMenu] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState({});
   const { settings } = useSettings();
 
   const pathname = usePathname();
 
+  React.useEffect(() => {
+    const activeMenu = navItems.find((item) => {
+      if (item.subMenu) {
+        return item.subMenu.some(
+          (sub) => pathname === sub.path || pathname.startsWith(sub.path + "/")
+        );
+      }
+      return pathname === item.path;
+    });
+
+    if (activeMenu && activeMenu.subMenu) {
+      setSelectedMenu(activeMenu);
+      setOpenMenu(true);
+    }
+  }, [pathname]);
+
   const openMenuHandler = (e, menu) => {
-    if (menu.title === selectedMenu.title) {
-      menu.subMenu && setOpenMenu(!openMenu);
-    } else {
-      menu.subMenu && setOpenMenu(true);
+    if (menu.subMenu) {
+      if (menu.title === selectedMenu.title) {
+        setOpenMenu((prev) => !prev);
+      } else {
+        setOpenMenu(true);
+      }
     }
     setSelectedMenu(menu);
   };

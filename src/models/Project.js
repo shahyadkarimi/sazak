@@ -7,6 +7,8 @@ const objectSchema = new mongoose.Schema(
     color: { type: String, default: "#ffffff" },
     position: { type: Array, default: [0, 0, 0] },
     rotation: { type: Array, default: [0, 0, 0] },
+    width: { type: Number, default: null },
+    height: { type: Number, default: null },
   },
   { timestamps: true }
 );

@@ -17,6 +17,9 @@ import { useRouter } from "next/navigation";
 import { toFarsiNumber } from "@/helper/helper";
 import { Physics } from "@react-three/rapier";
 import { clampPositionToGrid } from "@/helper/gridConstraints";
+import HeightIcon from "../icons/HeightIcon";
+import RotateIcon from "../icons/RotateIcon";
+import { Tooltip } from "@heroui/react";
 
 const ZoomController = () => {
   const { camera } = useThree();
@@ -447,7 +450,7 @@ const PasteHandler = () => {
           id: (Date.now() + index).toString(),
           position: [
             intersectionPoint.x + offsetX,
-            0,
+            model.position[1],
             intersectionPoint.z + offsetZ,
           ],
         };
@@ -615,7 +618,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   // Close snap grid dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showSnapGrid && !event.target.closest(".snap-grid-dropdown")) {
+      if (showSnapGrid && !event.target.closest(".snap-grid-selector")) {
         setShowSnapGrid(false);
       }
     };
@@ -708,162 +711,309 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
 
       {/* ViewCube is rendered in LeftSidebar; it already syncs with main camera. */}
 
-      {/* Snap Grid Dropdown */}
-      <div className="absolute bottom-14 md:bottom-16 md:right-4 right-[70px] z-50 snap-grid-dropdown">
-        <div className="relative">
-          <button
-            onClick={() => setShowSnapGrid(!showSnapGrid)}
-            className="bg-white p-3 h-11 md:h-auto rounded-xl shadow-lg shadow-gray-100 hover:shadow-gray-200 transition-all duration-300 flex items-center gap-2 text-gray-700 hover:text-primaryThemeColor"
-            title="تنظیمات Snap Grid"
-          >
-            <i className="fi fi-rr-grid size-4"></i>
-            <div className="flex flex-col items-end">
-              <span className="text-xs font-semibold">
-                {modelOptions.snapSize === "free"
-                  ? "آزاد"
-                  : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
-              </span>
-              <span className="text-[10px] text-gray-500">
-                چرخش: {toFarsiNumber(modelOptions.rotationDeg)}°
-              </span>
-            </div>
-            <i
-              className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${
-                showSnapGrid ? "rotate-180" : ""
-              }`}
-            ></i>
-          </button>
-
-          {showSnapGrid && (
-            <div className="absolute bottom-full right-0 mb-2 w-56 bg-white rounded-xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden max-h-[400px] flex flex-col">
-              <div 
-                className="p-3 space-y-4 overflow-y-auto"
-                style={{
-                  maxHeight: '400px',
-                  scrollbarWidth: 'thin',
-                  scrollbarColor: '#cbd5e1 #f1f5f9'
-                }}
-              >
-                <div>
-                  <div className="text-sm text-gray-700 mb-3 text-center">
-                    اندازه جا به جایی
-                  </div>
-                  <div className="space-y-2">
-                    {gridSnapSize.map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => {
-                          changeSnapSizeHandler(size);
-                        }}
-                        className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
-                          modelOptions.snapSize === size
-                            ? "bg-primaryThemeColor/10 text-primaryThemeColor"
-                            : "text-gray-600 hover:text-gray-800"
-                        }`}
-                      >
-                        {size === "free"
-                          ? "آزاد"
-                          : `${toFarsiNumber(size)} میلی متر`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="text-sm text-gray-700 mb-3 text-center">
-                    درجه چرخش
-                  </div>
-                  <div className="space-y-2">
-                    {rotationOptions.map((angle) => (
-                      <button
-                        key={angle}
-                        onClick={() => {
-                          changeRotationDegHandler(angle);
-                        }}
-                        className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
-                          modelOptions.rotationDeg === angle
-                            ? "bg-primaryThemeColor/10 text-primaryThemeColor"
-                            : "text-gray-600 hover:text-gray-800"
-                        }`}
-                      >
-                        {toFarsiNumber(angle)}°
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Stats Bar */}
-      <StatsBar />
-
+      {/* Combined Bottom Bar: Control Buttons, Stats, and Snap Selector */}
+      <BottomBar
+        showSnapGrid={showSnapGrid}
+        setShowSnapGrid={setShowSnapGrid}
+        changeSnapSizeHandler={changeSnapSizeHandler}
+        changeRotationDegHandler={changeRotationDegHandler}
+        gridSnapSize={gridSnapSize}
+        rotationOptions={rotationOptions}
+      />
     </div>
   );
 };
 
 export default GridPage;
 
-const StatsBar = () => {
+const ControlButtons = ({ disabled }) => {
+  const activeControlMode = useModelStore((state) => state.activeControlMode);
+  const setActiveControlMode = useModelStore(
+    (state) => state.setActiveControlMode
+  );
+
+  return (
+    <div className="flex items-center gap-2">
+      <Tooltip content="ارتفاع" placement="top" size="sm">
+        <button
+          onClick={() =>
+            !disabled &&
+            setActiveControlMode(
+              activeControlMode === "height" ? null : "height"
+            )
+          }
+          disabled={disabled}
+          className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
+            disabled
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : activeControlMode === "height"
+              ? "bg-primaryThemeColor text-white"
+              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+          }`}
+        >
+          <HeightIcon width={16} height={16} />
+        </button>
+      </Tooltip>
+      <Tooltip content="چرخش Y" placement="top" size="sm">
+        <button
+          onClick={() =>
+            !disabled &&
+            setActiveControlMode(
+              activeControlMode === "rotateY" ? null : "rotateY"
+            )
+          }
+          disabled={disabled}
+          className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
+            disabled
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : activeControlMode === "rotateY"
+              ? "bg-primaryThemeColor text-white"
+              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+          }`}
+        >
+          <RotateIcon />
+        </button>
+      </Tooltip>
+      <Tooltip content="چرخش X" placement="top" size="sm">
+        <button
+          onClick={() =>
+            !disabled &&
+            setActiveControlMode(
+              activeControlMode === "rotateX" ? null : "rotateX"
+            )
+          }
+          disabled={disabled}
+          className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
+            disabled
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : activeControlMode === "rotateX"
+              ? "bg-primaryThemeColor text-white"
+              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+          }`}
+        >
+          <RotateIcon className="-scale-x-100" />
+        </button>
+      </Tooltip>
+      <Tooltip content="چرخش Z" placement="top" size="sm">
+        <button
+          onClick={() =>
+            !disabled &&
+            setActiveControlMode(
+              activeControlMode === "rotateZ" ? null : "rotateZ"
+            )
+          }
+          disabled={disabled}
+          className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
+            disabled
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : activeControlMode === "rotateZ"
+              ? "bg-primaryThemeColor text-white"
+              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+          }`}
+        >
+          <RotateIcon className="-rotate-90" />
+        </button>
+      </Tooltip>
+    </div>
+  );
+};
+
+const BottomBar = ({
+  showSnapGrid,
+  setShowSnapGrid,
+  changeSnapSizeHandler,
+  changeRotationDegHandler,
+  gridSnapSize,
+  rotationOptions,
+}) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
+  const selectedModelId = useModelStore((state) => state.selectedModelId);
   const snap = useModelStore((state) => state.modelOptions.snapSize);
+  const modelOptions = useModelStore((state) => state.modelOptions);
+
+  const hasSelectedModel =
+    selectedModelId !== null && selectedModelId !== undefined;
 
   const { count, width, depth, maxHeight } = useMemo(() => {
     const count = selectedModels.length;
-    if (count === 0)
-      return { count, width: 0, depth: 0, maxHeight: 0 };
+    if (count === 0) return { count, width: 0, depth: 0, maxHeight: 0 };
 
-    let minX = Infinity,
-      maxX = -Infinity,
-      minZ = Infinity,
-      maxZ = -Infinity;
-    let maxHeight = 0;
+    let totalWidth = 0;
+    let totalLength = 0;
+    let maxHeight = -Infinity;
+    
     for (const m of selectedModels) {
+      if (m.width && typeof m.width === "number" && m.width > 0) {
+        totalWidth += m.width;
+      }
+      if (m.length && typeof m.length === "number" && m.length > 0) {
+        totalLength += m.length;
+      }
+
       const [x, y, z] = m.position || [0, 0, 0];
-      // Treat each piece roughly as 1x1 footprint; use position as center cell
-      const half = snap && snap !== "free" ? Math.max(0.5, snap / 2) : 0.5;
-      minX = Math.min(minX, x - half);
-      maxX = Math.max(maxX, x + half);
-      minZ = Math.min(minZ, z - half);
-      maxZ = Math.max(maxZ, z + half);
-      // Estimate height from position.y or explicit size if present
-      const modelHeight = Array.isArray(m.size)
-        ? m.size[1] ?? 0
-        : m.height ?? y ?? 0;
-      maxHeight = Math.max(maxHeight, modelHeight);
+      const modelY = y || 0;
+      if (
+        m.dimensions &&
+        typeof m.dimensions.y === "number" &&
+        m.dimensions.y > 0
+      ) {
+        if (modelY > 0.001) {
+          const topY = modelY + m.dimensions.y / 2;
+          maxHeight = Math.max(maxHeight, topY);
+        } else {
+          maxHeight = Math.max(maxHeight, m.dimensions.y);
+        }
+      } else if (modelY > 0) {
+        maxHeight = Math.max(maxHeight, modelY);
+      }
     }
-    const width = Math.max(0, maxX - minX);
-    const depth = Math.max(0, maxZ - minZ);
-    return { count, width, depth, maxHeight };
+    
+    if (!isFinite(maxHeight) || maxHeight < 0) maxHeight = 0;
+    
+    if (totalWidth === 0 && totalLength === 0) {
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
+      for (const m of selectedModels) {
+        const [x, y, z] = m.position || [0, 0, 0];
+        const snapSize = snap && snap !== "free" ? snap : 0.1;
+        const half = Math.max(0.5, snapSize / 2);
+        minX = Math.min(minX, x - half);
+        maxX = Math.max(maxX, x + half);
+        minZ = Math.min(minZ, z - half);
+        maxZ = Math.max(maxZ, z + half);
+      }
+      totalWidth = Math.max(0, maxX - minX);
+      totalLength = Math.max(0, maxZ - minZ);
+    }
+    
+    return { count, width: totalWidth, depth: totalLength, maxHeight };
   }, [selectedModels, snap]);
 
   const fmt = (v) => {
     if (!isFinite(v)) return "0";
     const n = Math.round(v * 100) / 100;
-    return toFarsiNumber(n);
+    return n
   };
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-40">
-      <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg border border-gray-100 p-3">
-        <div dir="ltr" className="flex flex-wrap items-center justify-between gap-4 text-xs text-gray-700">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wide">size:</span>
-            <span>{toFarsiNumber(count)}</span>
+      <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg shadow-gray-200/80 border border-gray-100 p-3">
+        <div className="flex items-center justify-between gap-3 md:gap-4 flex-wrap">
+          {/* Snap Grid Selector */}
+          <div className="relative snap-grid-selector">
+            <button
+              onClick={() => setShowSnapGrid(!showSnapGrid)}
+              className="bg-gray-200/90 p-2 h-9 rounded-xl transition-all duration-300 flex items-center gap-2 text-gray-700 hover:text-primaryThemeColor"
+              title="تنظیمات Snap Grid"
+            >
+              <i className="fi fi-rr-grid size-4"></i>
+              <div className="flex flex-col items-end">
+                <span className="text-xs font-semibold">
+                  {modelOptions.snapSize === "free"
+                    ? "آزاد"
+                    : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
+                </span>
+                <span className="text-[10px] text-gray-500">
+                  چرخش: {toFarsiNumber(modelOptions.rotationDeg)}°
+                </span>
+              </div>
+              <i
+                className={`fi fi-rr-angle-small-down size-3 transition-transform duration-200 ${
+                  showSnapGrid ? "rotate-180" : ""
+                }`}
+              ></i>
+            </button>
+
+            {showSnapGrid && (
+              <div className="absolute bottom-full right-0 mb-2 w-56 bg-white rounded-xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden max-h-[400px] flex flex-col">
+                <div
+                  className="p-3 space-y-4 overflow-y-auto"
+                  style={{
+                    maxHeight: "400px",
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#cbd5e1 #f1f5f9",
+                  }}
+                >
+                  <div>
+                    <div className="text-sm text-gray-700 mb-3 text-center">
+                      اندازه جا به جایی
+                    </div>
+                    <div className="space-y-2">
+                      {gridSnapSize.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            changeSnapSizeHandler(size);
+                          }}
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                            modelOptions.snapSize === size
+                              ? "bg-primaryThemeColor/10 text-primaryThemeColor"
+                              : "text-gray-600 hover:text-gray-800"
+                          }`}
+                        >
+                          {size === "free"
+                            ? "آزاد"
+                            : `${toFarsiNumber(size)} میلی متر`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    <div className="text-sm text-gray-700 mb-3 text-center">
+                      درجه چرخش
+                    </div>
+                    <div className="space-y-2">
+                      {rotationOptions.map((angle) => (
+                        <button
+                          key={angle}
+                          onClick={() => {
+                            changeRotationDegHandler(angle);
+                          }}
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                            modelOptions.rotationDeg === angle
+                              ? "bg-primaryThemeColor/10 text-primaryThemeColor"
+                              : "text-gray-600 hover:text-gray-800"
+                          }`}
+                        >
+                          {toFarsiNumber(angle)}°
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wide">x:</span>
-            <span>{fmt(width)}</span>
+
+          {/* Stats */}
+          <div
+            dir="ltr"
+            className="flex items-center gap-3 md:gap-6 text-sm text-gray-700 flex-wrap"
+          >
+            <div className="flex items-center gap-2">
+              <span className="font-semibold uppercase tracking-wide">
+                size:
+              </span>
+              <span>{count}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold uppercase tracking-wide">x:</span>
+              <span>{fmt(width)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold uppercase tracking-wide">y:</span>
+              <span>{fmt(depth)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold uppercase tracking-wide">h:</span>
+              <span>{fmt(maxHeight)}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wide">y:</span>
-            <span>{fmt(depth)}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold uppercase tracking-wide">h:</span>
-            <span>{fmt(maxHeight)}</span>
-          </div>
+
+          {/* Control Buttons */}
+          <ControlButtons disabled={!hasSelectedModel} />
         </div>
       </div>
     </div>

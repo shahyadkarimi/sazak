@@ -34,20 +34,25 @@ export const getModelDimensions = (modelType, baseSize = 1) => {
 export const applyRotationToDimensions = (dims, rotation) => {
   const [rotX, rotY, rotZ] = rotation;
   
-  // For 90-degree rotations, swap dimensions appropriately
   const absRotY = Math.abs(rotY) % (Math.PI / 2);
   const absRotX = Math.abs(rotX) % (Math.PI / 2);
+  const absRotZ = Math.abs(rotZ) % (Math.PI / 2);
   
   let rotatedDims = { ...dims };
   
-  // Y-axis rotation (most common for robotic parts)
-  if (Math.abs(absRotY - Math.PI / 2) < 0.1) {
-    rotatedDims = { x: dims.z, y: dims.y, z: dims.x };
-  }
+  const isRotZ90 = Math.abs(absRotZ - Math.PI / 2) < 0.1;
+  const isRotY90 = Math.abs(absRotY - Math.PI / 2) < 0.1;
+  const isRotX90 = Math.abs(absRotX - Math.PI / 2) < 0.1;
   
-  // X-axis rotation (flipping)
-  if (Math.abs(absRotX - Math.PI / 2) < 0.1) {
+  if (isRotZ90 && !isRotY90 && !isRotX90) {
+    rotatedDims = { x: dims.y, y: dims.x, z: dims.z };
+  } else if (isRotY90 && !isRotZ90 && !isRotX90) {
+    rotatedDims = { x: dims.z, y: dims.y, z: dims.x };
+  } else if (isRotX90 && !isRotZ90 && !isRotY90) {
     rotatedDims = { x: dims.x, y: dims.z, z: dims.y };
+  } else if (absRotZ > 0.1 || absRotY > 0.1 || absRotX > 0.1) {
+    const maxDim = Math.max(dims.x, dims.y, dims.z);
+    rotatedDims = { x: maxDim, y: maxDim, z: maxDim };
   }
   
   return rotatedDims;
@@ -228,23 +233,28 @@ export const findNearestSnapPoint = (position, snapPoints, snapDistance = 2) => 
  * @returns {Object} { position, isStacked, stackHeight, collisionModel }
  */
 export const checkCollisionAndStack = (newPos, currentModel, allModels, snapSize = 1) => {
-  // Use real dimensions from store if available, otherwise use default
   const originalModel = allModels.find(m => m.id === currentModel.id);
-  const currentModelDims = (currentModel.dimensions || (originalModel && originalModel.dimensions))
+  const baseDims = (currentModel.dimensions || (originalModel && originalModel.dimensions))
     ? (currentModel.dimensions || originalModel.dimensions)
     : getModelDimensions(getModelType(currentModel.path));
+  
+  const rotation = currentModel.rotation || [0, 0, 0];
+  const currentModelDims = applyRotationToDimensions(baseDims, rotation);
   
   let maxStackHeight = 0;
   let collisionModel = null;
   let isStacked = false;
   let finalPosition = [...newPos];
   
-  const tolerance = 0.02;
-  const snapThreshold = 0.4; // Distance for snapping
-  const minGap = 0.02; // Minimum gap to prevent penetration
+  const absRotZ = Math.abs(rotation[2]) % (Math.PI / 2);
+  const isRotZ90 = Math.abs(absRotZ - Math.PI / 2) < 0.1;
+  const isRotZNon90 = absRotZ > 0.1 && !isRotZ90;
+  const hasAnyRotation = Math.abs(rotation[0]) > 0.1 || Math.abs(rotation[1]) > 0.1 || Math.abs(rotation[2]) > 0.1;
   
-  // First pass: find all models that have horizontal overlap to calculate max stack height
-  // Use ground level Y for overlap check (not newPos[1] which might be at wrong height)
+  const tolerance = (isRotZNon90 || hasAnyRotation) ? 0.1 : 0.02;
+  const snapThreshold = 0.4;
+  const minGap = 0.02;
+  
   let maxTopY = 0;
   let hasHorizontalOverlap = false;
   const groundLevelY = currentModelDims.y / 2;
@@ -252,13 +262,15 @@ export const checkCollisionAndStack = (newPos, currentModel, allModels, snapSize
   for (const model of allModels) {
     if (model.id === currentModel.id) continue;
     
-    const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+    const modelBaseDims = model.dimensions || getModelDimensions(getModelType(model.path));
+    const modelRotation = model.rotation || [0, 0, 0];
+    const modelDims = applyRotationToDimensions(modelBaseDims, modelRotation);
+    
     const modelBox = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(model.position[0], model.position[1], model.position[2]),
       new THREE.Vector3(modelDims.x, modelDims.y, modelDims.z)
     );
     
-    // Check overlap at ground level, not at current Y position
     const currentBox = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(newPos[0], groundLevelY, newPos[2]),
       new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)
@@ -317,14 +329,13 @@ export const checkCollisionAndStack = (newPos, currentModel, allModels, snapSize
     };
   }
   
-  // Check collision with all other models for snap and additional checks
-  // (Only if we have horizontal overlap from first pass)
   for (const model of allModels) {
     if (model.id === currentModel.id) continue;
     
-    const modelDims = model.dimensions || getModelDimensions(getModelType(model.path));
+    const modelBaseDims = model.dimensions || getModelDimensions(getModelType(model.path));
+    const modelRotation = model.rotation || [0, 0, 0];
+    const modelDims = applyRotationToDimensions(modelBaseDims, modelRotation);
     
-    // Create bounding boxes - use ground level for current model to check horizontal overlap
     const currentBox = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(newPos[0], groundLevelY, newPos[2]),
       new THREE.Vector3(currentModelDims.x, currentModelDims.y, currentModelDims.z)

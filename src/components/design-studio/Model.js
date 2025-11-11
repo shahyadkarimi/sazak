@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { useFrame } from "@react-three/fiber";
 import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
 import { useModelAdjustment } from "@/hooks/useModelAdjustment";
@@ -27,6 +28,7 @@ const Model = ({ path, position, id, rotation, color }) => {
   const pushHistory = useModelStore((s) => s.pushHistory);
   const updateModelDimensions = useModelStore((s) => s.updateModelDimensions);
   const setDraggedModelId = useModelStore((s) => s.setDraggedModelId);
+  const activeControlMode = useModelStore((s) => s.activeControlMode);
 
   const modelControls = useModelAdjustment(
     id,
@@ -60,9 +62,15 @@ const Model = ({ path, position, id, rotation, color }) => {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartPosition, setDragStartPosition] = useState(null);
+  const [dragStartRotation, setDragStartRotation] = useState(null);
   const [dragStartMouse, setDragStartMouse] = useState(null);
   const [isPointerDown, setIsPointerDown] = useState(false);
   const [initialMousePos, setInitialMousePos] = useState(null);
+  const positionRef = useRef(position);
+  const rotationRef = useRef(rotation);
+  const isAdjustingRef = useRef(false);
+  const frameCountRef = useRef(0);
+  const baseHeightRef = useRef(0);
 
   useEffect(() => {
     if (adjustedScene) {
@@ -123,6 +131,121 @@ const Model = ({ path, position, id, rotation, color }) => {
       updateModelPosition(id, clampedPosition);
     }
   }, [constrainToGrid, modelDimensions, position, rotation, id, updateModelPosition]);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    if (clonedSceneState && position[1] >= 0 && !isAdjustingRef.current) {
+      const tempGroup = new THREE.Group();
+      const tempClone = clonedSceneState.clone(true);
+      tempGroup.add(tempClone);
+      tempGroup.position.set(position[0], position[1], position[2]);
+      tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+      tempGroup.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(tempGroup);
+      const currentMinY = box.min.y;
+      
+      if (currentMinY >= -0.001) {
+        baseHeightRef.current = position[1];
+      }
+    }
+  }, [position, rotation, clonedSceneState]);
+
+  useEffect(() => {
+    rotationRef.current = rotation;
+  }, [rotation]);
+
+  const checkAndAdjustPosition = useCallback(() => {
+    if (!clonedSceneState || isAdjustingRef.current) return;
+    if (isDragging && activeControlMode === 'height') {
+      if (position[1] > 0) {
+        baseHeightRef.current = position[1];
+      }
+      return;
+    }
+
+    const currentPosition = positionRef.current;
+    const currentRotation = rotationRef.current;
+    const snapSize = modelOptions.snapSize === 'free' ? 0.1 : modelOptions.snapSize;
+
+    const collisionResult = checkCollisionAndStack(
+      currentPosition,
+      { id, position: currentPosition, rotation: currentRotation, path, dimensions: modelDimensions },
+      existingModels,
+      snapSize
+    );
+
+    let targetY = currentPosition[1];
+    
+    if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
+      targetY = baseHeightRef.current;
+      if (Math.abs(currentPosition[1] - targetY) < 0.001) {
+        return;
+      }
+    } else if (!collisionResult.isStacked) {
+      if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
+        targetY = baseHeightRef.current;
+      } else {
+        targetY = 0;
+      }
+    } else {
+      targetY = Math.max(0, collisionResult.position[1]);
+    }
+
+    const tempGroup = new THREE.Group();
+    const tempClone = clonedSceneState.clone(true);
+    tempGroup.add(tempClone);
+    tempGroup.position.set(currentPosition[0], targetY, currentPosition[2]);
+    tempGroup.rotation.set(currentRotation[0], currentRotation[1], currentRotation[2]);
+    
+    tempGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(tempGroup);
+    const minY = box.min.y;
+    
+    if (minY < -0.001) {
+      isAdjustingRef.current = true;
+      const offset = -minY;
+      if (!collisionResult.isStacked) {
+        targetY = offset;
+      } else {
+        const baseHeight = baseHeightRef.current >= 0 ? baseHeightRef.current : targetY;
+        targetY = baseHeight + offset;
+      }
+      updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
+      setTimeout(() => {
+        isAdjustingRef.current = false;
+      }, 50);
+    } else if (!collisionResult.isStacked && Math.abs(currentPosition[1] - targetY) > 0.001) {
+      isAdjustingRef.current = true;
+      updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
+      setTimeout(() => {
+        isAdjustingRef.current = false;
+      }, 50);
+    }
+  }, [clonedSceneState, id, updateModelPosition, existingModels, modelDimensions, modelOptions.snapSize, isDragging, activeControlMode]);
+
+  useEffect(() => {
+    if (isDragging && activeControlMode === 'height') return;
+    const timer = setTimeout(() => {
+      checkAndAdjustPosition();
+    }, 10);
+    return () => clearTimeout(timer);
+  }, [position, rotation, checkAndAdjustPosition, isDragging, activeControlMode]);
+
+  useFrame(() => {
+    if (isDragging && activeControlMode === 'height') {
+      if (position[1] > 0) {
+        baseHeightRef.current = position[1];
+      }
+      return;
+    }
+    frameCountRef.current++;
+    if (frameCountRef.current % 10 === 0) {
+      checkAndAdjustPosition();
+    }
+  });
 
   // تغییر رنگ و حالت ترنسپرنت (فقط بردر)
   useEffect(() => {
@@ -279,32 +402,33 @@ const Model = ({ path, position, id, rotation, color }) => {
     const deltaX = Math.abs(event.clientX - initialMousePos.clientX);
     const deltaY = Math.abs(event.clientY - initialMousePos.clientY);
     
-    if (deltaX > moveThreshold || deltaY > moveThreshold) {
-      // شروع درگ
-      if (!isDragging) {
-        pushHistory();
-        setIsDragging(true);
-        setDraggedModelId(id);
-        setDragStartPosition([...position]);
+      if (deltaX > moveThreshold || deltaY > moveThreshold) {
+        // شروع درگ
+        if (!isDragging) {
+          pushHistory();
+          setIsDragging(true);
+          setDraggedModelId(id);
+          setDragStartPosition([...position]);
+          setDragStartRotation([...rotation]);
 
-        // Store initial mouse position for drag calculation
-        const mouse = new THREE.Vector2();
-        mouse.x = (initialMousePos.clientX / gl.domElement.clientWidth) * 2 - 1;
-        mouse.y = -(initialMousePos.clientY / gl.domElement.clientHeight) * 2 + 1;
+          // Store initial mouse position for drag calculation
+          const mouse = new THREE.Vector2();
+          mouse.x = (initialMousePos.clientX / gl.domElement.clientWidth) * 2 - 1;
+          mouse.y = -(initialMousePos.clientY / gl.domElement.clientHeight) * 2 + 1;
 
-        raycaster.setFromCamera(mouse, camera);
-        const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
-        const initialIntersection = new THREE.Vector3();
-        raycaster.ray.intersectPlane(tempPlane, initialIntersection);
+          raycaster.setFromCamera(mouse, camera);
+          const tempPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+          const initialIntersection = new THREE.Vector3();
+          raycaster.ray.intersectPlane(tempPlane, initialIntersection);
 
-        setDragStartMouse({
-          x: initialIntersection.x,
-          y: initialIntersection.z,
-          clientX: initialMousePos.clientX,
-          clientY: initialMousePos.clientY
-        });
+          setDragStartMouse({
+            x: initialIntersection.x,
+            y: initialIntersection.z,
+            clientX: initialMousePos.clientX,
+            clientY: initialMousePos.clientY
+          });
+        }
       }
-    }
   };
 
   // Handle pointer up
@@ -313,9 +437,13 @@ const Model = ({ path, position, id, rotation, color }) => {
     event.stopPropagation();
     
     if (isDragging) {
+      if (activeControlMode === 'height' && position[1] > 0) {
+        baseHeightRef.current = position[1];
+      }
       setIsDragging(false);
       setDraggedModelId(null);
       setDragStartPosition(null);
+      setDragStartRotation(null);
       setDragStartMouse(null);
     } else {
       // اگر درگ انجام نشده (یعنی فقط کلیک ساده بوده)، 
@@ -330,9 +458,13 @@ const Model = ({ path, position, id, rotation, color }) => {
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       if (isDragging) {
+        if (activeControlMode === 'height' && position[1] > 0) {
+          baseHeightRef.current = position[1];
+        }
         setIsDragging(false);
         setDraggedModelId(null);
         setDragStartPosition(null);
+        setDragStartRotation(null);
         setDragStartMouse(null);
       }
       setIsPointerDown(false);
@@ -363,6 +495,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         setIsDragging(true);
         setDraggedModelId(id);
         setDragStartPosition([...position]);
+        setDragStartRotation([...rotation]);
 
         // Store initial mouse position for drag calculation
         const mouse = new THREE.Vector2();
@@ -392,6 +525,98 @@ const Model = ({ path, position, id, rotation, color }) => {
     if (!isDragging || !dragStartPosition || !dragStartMouse) return;
 
     const handleGlobalMouseMove = (event) => {
+      if (activeControlMode === 'height') {
+        const deltaY = dragStartMouse.clientY - event.clientY;
+        const sensitivity = 0.02;
+        const heightChange = deltaY * sensitivity;
+        const snapSize = modelOptions.snapSize === 'free' ? 0.1 : modelOptions.snapSize;
+        const newY = Math.max(0, dragStartPosition[1] + heightChange);
+        const snappedY = snapSize > 0 ? Math.round(newY / snapSize) * snapSize : newY;
+        
+        let finalY = snappedY;
+        
+        const tempGroup = new THREE.Group();
+        if (clonedSceneState) {
+          const tempClone = clonedSceneState.clone(true);
+          tempGroup.add(tempClone);
+          tempGroup.position.set(position[0], finalY, position[2]);
+          tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+          tempGroup.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(tempGroup);
+          const minY = box.min.y;
+          
+          if (minY < -0.001) {
+            finalY = finalY - minY;
+          }
+        }
+        
+        baseHeightRef.current = finalY;
+        const proposedPosition = [position[0], finalY, position[2]];
+        
+        if (selectedModelId === 'ALL') {
+          const deltaY = finalY - position[1];
+          const updatedModels = existingModels.map(model => ({
+            ...model,
+            position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]]
+          }));
+          useModelStore.setState({ selectedModels: updatedModels });
+        } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
+          const deltaY = finalY - position[1];
+          const updatedModels = existingModels.map(model => 
+            selectedModelId.includes(model.id)
+              ? { ...model, position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]] }
+              : model
+          );
+          useModelStore.setState({ selectedModels: updatedModels });
+        } else {
+          updateModelPosition(id, proposedPosition);
+        }
+        return;
+      }
+
+      if (activeControlMode === 'rotateY') {
+        const deltaX = event.clientX - dragStartMouse.clientX;
+        const rotationDelta = (deltaX / 200) * (Math.PI / 2);
+        const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
+        const startRotationY = dragStartRotation ? dragStartRotation[1] : rotation[1];
+        const totalRotation = startRotationY + rotationDelta;
+        const snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
+        const normalizedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        updateModelRotation(id, [rotation[0], normalizedRotation, rotation[2]]);
+        return;
+      }
+
+      if (activeControlMode === 'rotateX') {
+        const deltaX = event.clientX - dragStartMouse.clientX;
+        const rotationDelta = (deltaX / 200) * (Math.PI / 2);
+        const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
+        const startRotationX = dragStartRotation ? dragStartRotation[0] : rotation[0];
+        const totalRotation = startRotationX + rotationDelta;
+        let snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
+        snappedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        
+        if (modelOptions.rotationDeg === 90) {
+          if (snappedRotation > Math.PI / 2 && snappedRotation < (3 * Math.PI) / 2) {
+            snappedRotation = snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+          }
+        }
+        
+        updateModelRotation(id, [snappedRotation, rotation[1], rotation[2]]);
+        return;
+      }
+
+      if (activeControlMode === 'rotateZ') {
+        const deltaY = dragStartMouse.clientY - event.clientY;
+        const rotationDelta = (-deltaY / 200) * (Math.PI / 2);
+        const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
+        const startRotationZ = dragStartRotation ? dragStartRotation[2] : rotation[2];
+        const totalRotation = startRotationZ + rotationDelta;
+        const snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
+        const normalizedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
+        updateModelRotation(id, [rotation[0], rotation[1], normalizedRotation]);
+        return;
+      }
+
       const mouse = new THREE.Vector2();
       mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
       mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
@@ -412,7 +637,6 @@ const Model = ({ path, position, id, rotation, color }) => {
         const snappedX = snapSize > 0 ? Math.round(newX / snapSize) * snapSize : newX;
         const snappedZ = snapSize > 0 ? Math.round(newZ / snapSize) * snapSize : newZ;
 
-        // Use current Y for collision detection to avoid flickering
         let proposedPosition = [snappedX, position[1], snappedZ];
 
         if (constrainToGrid) {
@@ -431,13 +655,61 @@ const Model = ({ path, position, id, rotation, color }) => {
           snapSize
         );
         
-        // Use collision result position - it already handles ground level correctly
         let adjustedPosition = collisionResult.position;
+        
+        if (!constrainToGrid && !collisionResult.isStacked) {
+          adjustedPosition[1] = position[1];
+        }
 
-        if (!collisionResult.isStacked) {
-          adjustedPosition[1] = 0;
+        if (clonedSceneState) {
+          let targetY = adjustedPosition[1];
+          
+          if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
+            targetY = baseHeightRef.current;
+          } else if (!collisionResult.isStacked) {
+            if (constrainToGrid) {
+              targetY = 0;
+            } else {
+              targetY = position[1];
+            }
+          } else {
+            targetY = Math.max(0, adjustedPosition[1]);
+          }
+
+          const tempGroup = new THREE.Group();
+          const tempClone = clonedSceneState.clone(true);
+          tempGroup.add(tempClone);
+          tempGroup.position.set(adjustedPosition[0], targetY, adjustedPosition[2]);
+          tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+          tempGroup.updateMatrixWorld(true);
+          const box = new THREE.Box3().setFromObject(tempGroup);
+          const minY = box.min.y;
+          
+          if (minY < -0.001) {
+            const offset = -minY;
+            if (!collisionResult.isStacked) {
+              if (constrainToGrid) {
+                adjustedPosition[1] = offset;
+              } else {
+                adjustedPosition[1] = position[1] + offset;
+              }
+            } else {
+              const baseHeight = baseHeightRef.current >= 0 ? baseHeightRef.current : adjustedPosition[1];
+              adjustedPosition[1] = baseHeight + offset;
+            }
+          } else {
+            adjustedPosition[1] = targetY;
+          }
         } else {
-          adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
+          if (!collisionResult.isStacked) {
+            if (constrainToGrid) {
+              adjustedPosition[1] = 0;
+            } else {
+              adjustedPosition[1] = position[1];
+            }
+          } else {
+            adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
+          }
         }
 
         if (constrainToGrid) {
@@ -507,18 +779,12 @@ const Model = ({ path, position, id, rotation, color }) => {
           
           useModelStore.setState({ selectedModels: updatedModels });
         } else {
-          // Single model selection - update this model's position
           if (constrainToGrid) {
             adjustedPosition = clampPositionToGrid(
               adjustedPosition,
               modelDimensions,
               rotation
             );
-          }
-          if (!collisionResult.isStacked) {
-            adjustedPosition[1] = 0;
-          } else {
-            adjustedPosition[1] = Math.max(0, adjustedPosition[1]);
           }
           updateModelPosition(id, adjustedPosition);
         }
@@ -527,7 +793,7 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartMouse, position, id, updateModelPosition, raycaster, camera, gl, modelOptions.snapSize, existingModels, selectedModelId, constrainToGrid, rotation]);
+  }, [isDragging, dragStartPosition, dragStartRotation, dragStartMouse, position, rotation, id, updateModelPosition, updateModelRotation, raycaster, camera, gl, modelOptions, existingModels, selectedModelId, constrainToGrid, clonedSceneState, modelDimensions, activeControlMode]);
 
 
   // حذف مدل

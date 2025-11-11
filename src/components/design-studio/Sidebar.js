@@ -3,21 +3,18 @@
 import { toFarsiNumber } from "@/helper/helper";
 import useClickOutside from "@/hooks/useClickOutside";
 import useModelStore from "@/store/useModelStore";
-import { button, cn, Input, MenuItem } from "@heroui/react";
+import { button, cn, Input, MenuItem, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import dynamic from "next/dynamic";
+import {
+  getFavoriteModels,
+  toggleFavoriteModel,
+} from "@/utils/favoriteModels";
 
 const ModelThumbnail = dynamic(() => import("./ModelThumbnail"), {
   ssr: false,
 });
-
-const filters = [
-  { name: "همه", value: "all" },
-  { name: "تخت", value: "plate" },
-  { name: "اتصالی", value: "connector" },
-  { name: "پیچ ها", value: "screw" },
-];
 
 const Sidebar = ({ onToggle }) => {
   const setCurrentPlacingModel = useModelStore(
@@ -26,10 +23,21 @@ const Sidebar = ({ onToggle }) => {
   const setCurrentPlacingModelColor = useModelStore(
     (state) => state.setCurrentPlacingModelColor
   );
+  const setCurrentPlacingModelWidth = useModelStore(
+    (state) => state.setCurrentPlacingModelWidth
+  );
+  const setCurrentPlacingModelLength = useModelStore(
+    (state) => state.setCurrentPlacingModelLength
+  );
   const [activeModel, setActiveModel] = useState(null);
   const [colorBoxPos, setColorBoxPos] = useState({ top: 0, right: 0 });
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [modelList, setModelList] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [filters, setFilters] = useState([{ name: "همه", value: "all" }]);
+  const [loading, setLoading] = useState(true);
+  const [favoriteModels, setFavoriteModels] = useState([]);
 
   const buttonRefs = useRef({});
   const colorRef = useRef(null);
@@ -38,228 +46,318 @@ const Sidebar = ({ onToggle }) => {
     setActiveModel(null);
   });
 
-  const modelList = [
-    {
-      id: 1,
-      path: "/models/3_ways_Piece.glb",
-      nameEn: "3-Way Connector",
-      nameFa: "L4",
-      type: "connector",
-      color: "#ef4444",
-    },
-    {
-      id: 2,
-      path: "/models/I_Piece_2_hole_1_track_hole_Onde_Sided_Plate _12cm.glb",
-      nameEn: "Straight Plate 12cm",
-      nameFa: "شیاری بلند",
-      type: "plate",
-      color: "#3b82f6",
-    },
-    {
-      id: 3,
-      path: "/models/I_Piece_2_hole_1_track_hole_One_Sided_Plate_8cm.glb",
-      nameEn: "Straight Plate 8cm",
-      nameFa: "شیاری کوتاه",
-      type: "plate",
-      color: "#22c55e",
-    },
-    {
-      id: 4,
-      path: "/models/I_Piece_2_hole_1side_hole.glb",
-      nameEn: "Straight Bar",
-      nameFa: "I2",
-      type: "connector",
-      color: "#eab308",
-    },
-    {
-      id: 5,
-      path: "/models/I_Piece_3_hole__2_side_hole.glb",
-      nameEn: "Straight Bar (3H)",
-      nameFa: "I3",
-      type: "connector",
-      color: "#f97316",
-    },
-    {
-      id: 6,
-      path: "/models/I_Piece_4_hole__3_side_hole.glb",
-      nameEn: "Straight Bar (4H)",
-      nameFa: "I4",
-      type: "connector",
-      color: "#a855f7",
-    },
-    {
-      id: 7,
-      path: "/models/I_Piece_4_hole_4_side_hole.glb",
-      nameEn: "Straight Bar (4H Side)",
-      nameFa: "I4",
-      type: "connector",
-      color: "#10b981",
-    },
-    {
-      id: 8,
-      path: "/models/I_Piece_6_hole_I_Piece_With_1_Track.glb",
-      nameEn: "Track Bar",
-      nameFa: "S7",
-      type: "plate",
-      color: "#0ea5e9",
-    },
-    {
-      id: 9,
-      path: "/models/I_piece_10_hole_One_Sided_Plate.glb",
-      nameEn: "Long Plate",
-      nameFa: "S10",
-      type: "plate",
-      color: "#6366f1",
-    },
-    {
-      id: 10,
-      path: "/models/I_piece_12_hole_One_Sided_Plate.glb",
-      nameEn: "Long Plate",
-      nameFa: "S12",
-      type: "plate",
-      color: "#6366f1",
-    },
-    {
-      id: 11,
-      path: "/models/I_piece_16_hole_One_Sided_Plate.glb",
-      nameEn: "Long Plate",
-      nameFa: "S16",
-      type: "plate",
-      color: "#6366f1",
-    },
-    {
-      id: 12,
-      path: "/models/L_Piece_3_hole_1_side_hole.glb",
-      nameEn: "L-Angle Small",
-      nameFa: "L3",
-      type: "connector",
-      color: "#f43f5e",
-    },
-    {
-      id: 13,
-      path: "/models/L_Piece_3_hole_2_track_hole_One_Sided_Plate.glb",
-      nameEn: "L-Angle with Track",
-      nameFa: "L7T",
-      type: "L",
-      color: "#22d3ee",
-    },
-    {
-      id: 14,
-      path: "/models/L_Piece_4_hole_1_side_hole.glb",
-      nameEn: "L-Angle Medium",
-      nameFa: "L4",
-      type: "connector",
-      color: "#84cc16",
-    },
-    {
-      id: 15,
-      path: "/models/L_Piece_5_hole_2_side_hole.glb",
-      nameEn: "L-Angle Large",
-      nameFa: "L5",
-      type: "connector",
-      color: "#fb7185",
-    },
-    {
-      id: 16,
-      path: "/models/L_Piece_5_hole_4_side_hole.glb",
-      nameEn: "L-Angle Extra",
-      nameFa: "L5 تداخلی",
-      type: "connector",
-      color: "#f59e0b",
-    },
-    {
-      id: 17,
-      path: "/models/L_Piece_5_hole_One_sided_Plate.glb",
-      nameEn: "L-Plate",
-      nameFa: "L5T",
-      type: "connector",
-      color: "#64748b",
-    },
-    {
-      id: 18,
-      path: "/models/U_Piece_7_hole_4_side_hole.glb",
-      nameEn: "U-Channel",
-      nameFa: "U",
-      type: "connector",
-      color: "#14b8a6",
-    },
-      {
-        id: 19,
-        path: "/models/Screw_1cm.glb",
-        nameEn: "Screw 1cm",
-        nameFa: "پیچ 1cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 20,
-        path: "/models/Screw_2cm.glb",
-        nameEn: "Screw 2cm",
-        nameFa: "پیچ 2cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 21,
-        path: "/models/Screw_3cm.glb",
-        nameEn: "Screw 3cm",
-        nameFa: "پیچ 3cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 22,
-        path: "/models/Screw_4cm.glb",
-        nameEn: "Screw 4cm",
-        nameFa: "پیچ 4cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 23,
-        path: "/models/Screw_5cm.glb",
-        nameEn: "Screw 5cm",
-        nameFa: "پیچ 5cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 24,
-        path: "/models/Screw_6cm.glb",
-        nameEn: "Screw 6cm",
-        nameFa: "پیچ 6cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 25,
-        path: "/models/Screw_8cm.glb",
-        nameEn: "Screw 8cm",
-        nameFa: "پیچ 8cm",
-        type: "screw",
-        color: "#374151",
-      },
-      {
-        id: 26,
-        path: "/models/Screw_10cm.glb",
-        nameEn: "Screw 10cm",
-        nameFa: "پیچ 10cm",
-        type: "screw",
-        color: "#374151",
-      },
-  ];
+  useEffect(() => {
+    loadParts();
+    // Load favorite models from localStorage
+    setFavoriteModels(getFavoriteModels());
+  }, []);
 
-//   Access Key	asb2n9h31feq4cun	
-// Secret Key	8acb4510-ec61-4b72-b0ac-ca26d314b05e	
+  // Listen for changes in localStorage (for cross-tab sync and same-tab updates)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === "favoriteModels") {
+        setFavoriteModels(getFavoriteModels());
+      }
+    };
+    const handleFavoriteChange = () => {
+      setFavoriteModels(getFavoriteModels());
+    };
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("favoriteModelsChanged", handleFavoriteChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("favoriteModelsChanged", handleFavoriteChange);
+    };
+  }, []);
 
-  const groupedModels = {
-    all: modelList,
-    connector: modelList.filter((m) =>
-      ["connector", "L", "U"].includes(m.type)
-    ),
-    plate: modelList.filter((m) => m.type === "plate"),
-    screw: modelList.filter((m) => m.type === "screw"),
+  const loadParts = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/parts");
+      const data = await res.json();
+
+      if (data.success) {
+        const partsWithDefaults = data.parts.map((part, index) => ({
+          id: part.id,
+          path: part.path,
+          name: part.name,
+          nameFa: part.name,
+          category: part.category,
+          width: part.width,
+          length: part.length,
+          color: getDefaultColor(index),
+        }));
+
+        setModelList(partsWithDefaults);
+
+        if (data.categories && data.categories.length > 0) {
+          const categoryFilters = [
+            { name: "همه", value: "all" },
+            { name: "منتخب", value: "favorite" },
+            ...data.categories.reverse().map((cat) => ({
+              name: cat.name,
+              value: cat.id,
+            })),
+          ];
+          setFilters(categoryFilters);
+          setCategories(data.categories);
+        } else {
+          // If no categories, still add favorite filter
+          setFilters([
+            { name: "همه", value: "all" },
+            { name: "منتخب", value: "favorite" },
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading parts:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const getDefaultColor = (index) => {
+    const colors = [
+      "#ef4444",
+      "#3b82f6",
+      "#22c55e",
+      "#eab308",
+      "#f97316",
+      "#a855f7",
+      "#10b981",
+      "#0ea5e9",
+      "#6366f1",
+      "#f43f5e",
+      "#22d3ee",
+      "#84cc16",
+      "#fb7185",
+      "#f59e0b",
+      "#64748b",
+      "#14b8a6",
+      "#374151",
+    ];
+    return colors[index % colors.length];
+  };
+
+  // const modelList = [
+  //   {
+  //     id: 1,
+  //     path: "/models/3_ways_Piece.glb",
+  //     nameEn: "3-Way Connector",
+  //     nameFa: "L4",
+  //     type: "connector",
+  //     color: "#ef4444",
+  //   },
+  //   {
+  //     id: 2,
+  //     path: "/models/I_Piece_2_hole_1_track_hole_Onde_Sided_Plate _12cm.glb",
+  //     nameEn: "Straight Plate 12cm",
+  //     nameFa: "شیاری بلند",
+  //     type: "plate",
+  //     color: "#3b82f6",
+  //   },
+  //   {
+  //     id: 3,
+  //     path: "/models/I_Piece_2_hole_1_track_hole_One_Sided_Plate_8cm.glb",
+  //     nameEn: "Straight Plate 8cm",
+  //     nameFa: "شیاری کوتاه",
+  //     type: "plate",
+  //     color: "#22c55e",
+  //   },
+  //   {
+  //     id: 4,
+  //     path: "/models/I_Piece_2_hole_1side_hole.glb",
+  //     nameEn: "Straight Bar",
+  //     nameFa: "I2",
+  //     type: "connector",
+  //     color: "#eab308",
+  //   },
+  //   {
+  //     id: 5,
+  //     path: "/models/I_Piece_3_hole__2_side_hole.glb",
+  //     nameEn: "Straight Bar (3H)",
+  //     nameFa: "I3",
+  //     type: "connector",
+  //     color: "#f97316",
+  //   },
+  //   {
+  //     id: 6,
+  //     path: "/models/I_Piece_4_hole__3_side_hole.glb",
+  //     nameEn: "Straight Bar (4H)",
+  //     nameFa: "I4",
+  //     type: "connector",
+  //     color: "#a855f7",
+  //   },
+  //   {
+  //     id: 7,
+  //     path: "/models/I_Piece_4_hole_4_side_hole.glb",
+  //     nameEn: "Straight Bar (4H Side)",
+  //     nameFa: "I4",
+  //     type: "connector",
+  //     color: "#10b981",
+  //   },
+  //   {
+  //     id: 8,
+  //     path: "/models/I_Piece_6_hole_I_Piece_With_1_Track.glb",
+  //     nameEn: "Track Bar",
+  //     nameFa: "S7",
+  //     type: "plate",
+  //     color: "#0ea5e9",
+  //   },
+  //   {
+  //     id: 9,
+  //     path: "/models/I_piece_10_hole_One_Sided_Plate.glb",
+  //     nameEn: "Long Plate",
+  //     nameFa: "S10",
+  //     type: "plate",
+  //     color: "#6366f1",
+  //   },
+  //   {
+  //     id: 10,
+  //     path: "/models/I_piece_12_hole_One_Sided_Plate.glb",
+  //     nameEn: "Long Plate",
+  //     nameFa: "S12",
+  //     type: "plate",
+  //     color: "#6366f1",
+  //   },
+  //   {
+  //     id: 11,
+  //     path: "/models/I_piece_16_hole_One_Sided_Plate.glb",
+  //     nameEn: "Long Plate",
+  //     nameFa: "S16",
+  //     type: "plate",
+  //     color: "#6366f1",
+  //   },
+  //   {
+  //     id: 12,
+  //     path: "/models/L_Piece_3_hole_1_side_hole.glb",
+  //     nameEn: "L-Angle Small",
+  //     nameFa: "L3",
+  //     type: "connector",
+  //     color: "#f43f5e",
+  //   },
+  //   {
+  //     id: 13,
+  //     path: "/models/L_Piece_3_hole_2_track_hole_One_Sided_Plate.glb",
+  //     nameEn: "L-Angle with Track",
+  //     nameFa: "L7T",
+  //     type: "L",
+  //     color: "#22d3ee",
+  //   },
+  //   {
+  //     id: 14,
+  //     path: "/models/L_Piece_4_hole_1_side_hole.glb",
+  //     nameEn: "L-Angle Medium",
+  //     nameFa: "L4",
+  //     type: "connector",
+  //     color: "#84cc16",
+  //   },
+  //   {
+  //     id: 15,
+  //     path: "/models/L_Piece_5_hole_2_side_hole.glb",
+  //     nameEn: "L-Angle Large",
+  //     nameFa: "L5",
+  //     type: "connector",
+  //     color: "#fb7185",
+  //   },
+  //   {
+  //     id: 16,
+  //     path: "/models/L_Piece_5_hole_4_side_hole.glb",
+  //     nameEn: "L-Angle Extra",
+  //     nameFa: "L5 تداخلی",
+  //     type: "connector",
+  //     color: "#f59e0b",
+  //   },
+  //   {
+  //     id: 17,
+  //     path: "/models/L_Piece_5_hole_One_sided_Plate.glb",
+  //     nameEn: "L-Plate",
+  //     nameFa: "L5T",
+  //     type: "connector",
+  //     color: "#64748b",
+  //   },
+  //   {
+  //     id: 18,
+  //     path: "/models/U_Piece_7_hole_4_side_hole.glb",
+  //     nameEn: "U-Channel",
+  //     nameFa: "U",
+  //     type: "connector",
+  //     color: "#14b8a6",
+  //   },
+  //     {
+  //       id: 19,
+  //       path: "/models/Screw_1cm.glb",
+  //       nameEn: "Screw 1cm",
+  //       nameFa: "پیچ 1cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 20,
+  //       path: "/models/Screw_2cm.glb",
+  //       nameEn: "Screw 2cm",
+  //       nameFa: "پیچ 2cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 21,
+  //       path: "/models/Screw_3cm.glb",
+  //       nameEn: "Screw 3cm",
+  //       nameFa: "پیچ 3cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 22,
+  //       path: "/models/Screw_4cm.glb",
+  //       nameEn: "Screw 4cm",
+  //       nameFa: "پیچ 4cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 23,
+  //       path: "/models/Screw_5cm.glb",
+  //       nameEn: "Screw 5cm",
+  //       nameFa: "پیچ 5cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 24,
+  //       path: "/models/Screw_6cm.glb",
+  //       nameEn: "Screw 6cm",
+  //       nameFa: "پیچ 6cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 25,
+  //       path: "/models/Screw_8cm.glb",
+  //       nameEn: "Screw 8cm",
+  //       nameFa: "پیچ 8cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  //     {
+  //       id: 26,
+  //       path: "/models/Screw_10cm.glb",
+  //       nameEn: "Screw 10cm",
+  //       nameFa: "پیچ 10cm",
+  //       type: "screw",
+  //       color: "#374151",
+  //     },
+  // ];
+
+  // const groupedModels = {
+  //   all: modelList,
+  //   connector: modelList.filter((m) =>
+  //     ["connector", "L", "U"].includes(m.type)
+  //   ),
+  //   plate: modelList.filter((m) => m.type === "plate"),
+  //   screw: modelList.filter((m) => m.type === "screw"),
+  // };
 
   const colors = [
     { name: "قرمز", hex: "#ef4444" },
@@ -292,10 +390,15 @@ const Sidebar = ({ onToggle }) => {
     }
   };
 
-  const filteredModels = groupedModels[selectedFilter];
+  const filteredModels =
+    selectedFilter === "all"
+      ? modelList
+      : selectedFilter === "favorite"
+      ? modelList.filter((item) => favoriteModels.includes(item.id))
+      : modelList.filter((item) => item.category?.id === selectedFilter);
 
   const searchedModels = filteredModels.filter((item) =>
-    item.nameFa.includes(search)
+    item.nameFa?.includes(search) || item.name?.includes(search)
   );
 
   return (
@@ -353,30 +456,80 @@ const Sidebar = ({ onToggle }) => {
         </div>
 
         <div className="w-full scroll-bar grid grid-cols-1 lg:grid-cols-3 gap-3 pt-2 overflow-y-auto pl-2">
-          {searchedModels.map((model) => (
-            <button
-              key={model.id}
-              ref={(el) => (buttonRefs.current[model.id] = el)}
-              onClick={() => clickModelHandler(model.id)}
-              className={cn(
-                "w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300",
-                activeModel === model.id
-                  ? "border-2 border-primaryThemeColor"
-                  : ""
-              )}
-            >
-              <div className="w-full h-12 rounded-xl">
-                <ModelThumbnail
-                  path={model.path}
-                  className="w-full h-full"
-                  color={model.color}
-                />
-              </div>
-              <span className="text-xs font-semibold text-center">
-                {toFarsiNumber(model.nameFa)}
-              </span>
-            </button>
-          ))}
+          {loading ? (
+            <div className="col-span-3 flex items-center justify-center py-8">
+              <Spinner
+                size="lg"
+                classNames={{
+                  circle1: "border-b-primaryThemeColor",
+                  circle2: "border-b-primaryThemeColor",
+                }}
+              />
+            </div>
+          ) : searchedModels.length === 0 ? (
+            <div className="col-span-3 flex items-center justify-center py-8 text-gray-500">
+              قطعه‌ای یافت نشد
+            </div>
+          ) : (
+            searchedModels.map((model) => {
+              const isFavorite = favoriteModels.includes(model.id);
+              return (
+                <div
+                  key={model.id}
+                  className="relative w-full group"
+                >
+                  <button
+                    ref={(el) => (buttonRefs.current[model.id] = el)}
+                    onClick={() => clickModelHandler(model.id)}
+                    className={cn(
+                      "w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300",
+                      activeModel === model.id
+                        ? "border-2 border-primaryThemeColor"
+                        : ""
+                    )}
+                  >
+                    <div className="w-full h-12 rounded-xl">
+                      <ModelThumbnail
+                        path={model.path}
+                        className="w-full h-full"
+                        color={model.color}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-center">
+                      {toFarsiNumber(model.nameFa || model.name)}
+                    </span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavoriteModel(model.id);
+                    }}
+                    className={cn(
+                      "absolute top-2 right-2 z-10 p-1 rounded-full transition-all duration-200 hover:scale-110",
+                      isFavorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    )}
+                    title={isFavorite ? "حذف از منتخب" : "اضافه به منتخب"}
+                  >
+                    <Icon
+                      icon={
+                        isFavorite
+                          ? "solar:star-bold"
+                          : "solar:star-line-duotone"
+                      }
+                      width={14}
+                      height={14}
+                      className={cn(
+                        "transition-colors duration-200",
+                        isFavorite
+                          ? "text-yellow-500"
+                          : "text-gray-400 hover:text-yellow-500"
+                      )}
+                    />
+                  </button>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
@@ -392,10 +545,11 @@ const Sidebar = ({ onToggle }) => {
 
           <button
             onClick={() => {
-              setCurrentPlacingModel(
-                modelList.find((m) => m.id === activeModel)?.path
-              );
-              setCurrentPlacingModelColor(null); // Set transparent
+              const model = modelList.find((m) => m.id === activeModel);
+              setCurrentPlacingModel(model?.path);
+              setCurrentPlacingModelColor(null);
+              setCurrentPlacingModelWidth(model?.width || null);
+              setCurrentPlacingModelLength(model?.length || null);
               setActiveModel(null);
             }}
             className="w-full h-8 flex justify-center items-center text-sm font-light bg-gray-50 col-span-4 rounded-xl hover:bg-gray-100 transition-all duration-300"
@@ -408,10 +562,11 @@ const Sidebar = ({ onToggle }) => {
             <input
               type="color"
               onChange={(e) => {
-                setCurrentPlacingModel(
-                  modelList.find((m) => m.id === activeModel)?.path
-                );
+                const model = modelList.find((m) => m.id === activeModel);
+                setCurrentPlacingModel(model?.path);
                 setCurrentPlacingModelColor(e.target.value);
+                setCurrentPlacingModelWidth(model?.width || null);
+                setCurrentPlacingModelLength(model?.length || null);
                 setActiveModel(null);
               }}
               className="w-10 h-6 p-0 border-0 bg-transparent cursor-pointer"
@@ -423,10 +578,11 @@ const Sidebar = ({ onToggle }) => {
             <button
               key={c.hex}
               onClick={() => {
-                setCurrentPlacingModel(
-                  modelList.find((m) => m.id === activeModel)?.path
-                );
+                const model = modelList.find((m) => m.id === activeModel);
+                setCurrentPlacingModel(model?.path);
                 setCurrentPlacingModelColor(c.hex);
+                setCurrentPlacingModelWidth(model?.width || null);
+                setCurrentPlacingModelLength(model?.length || null);
                 setActiveModel(null);
               }}
               className="flex items-center gap-2 text-sm group text-gray-800 hover:text-primaryThemeColor transition-all duration-300"

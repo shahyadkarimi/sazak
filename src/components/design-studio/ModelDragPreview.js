@@ -112,29 +112,26 @@ const ModelDragPreview = ({ snapDistance = 4 }) => {
     let sortedSnapPoints = [];
     if (pointsWithDistance.length > 0) {
       const closestDistance = pointsWithDistance[0].distance;
-      const tolerance = 0.5; // Larger tolerance to group nearby points
+      const tolerance = 0.2;
       const closestPoints = pointsWithDistance.filter(p => 
         Math.abs(p.distance - closestDistance) < tolerance
       );
       
-      // Prefer face points over edge points if they're at the same distance
       const facePoints = closestPoints.filter(p => p.type.startsWith('face-'));
       const edgePoints = closestPoints.filter(p => p.type === 'edge');
       
-      // Take up to 3 closest points, prioritizing faces
       sortedSnapPoints = [];
       if (facePoints.length > 0) {
-        sortedSnapPoints.push(...facePoints.slice(0, 2));
+        sortedSnapPoints.push(facePoints[0]);
       }
-      if (edgePoints.length > 0 && sortedSnapPoints.length < 3) {
+      if (sortedSnapPoints.length === 0 && edgePoints.length > 0) {
         sortedSnapPoints.push(edgePoints[0]);
       }
       if (sortedSnapPoints.length === 0 && closestPoints.length > 0) {
         sortedSnapPoints.push(closestPoints[0]);
       }
       
-      // Limit to 3 to avoid clutter
-      sortedSnapPoints = sortedSnapPoints.slice(0, 3);
+      sortedSnapPoints = sortedSnapPoints.slice(0, 1);
     }
 
     // Create preview scenes for each snap point
@@ -147,22 +144,39 @@ const ModelDragPreview = ({ snapDistance = 4 }) => {
           snapDistance
         );
 
-        // Check if dragged model overlaps with preview position using bounding boxes
         const draggedDims = draggedModelDimensions || { x: 1, y: 1, z: 1 };
         const previewPos = previewResult.position;
         
-        // Create bounding boxes for both positions
-        const draggedBox = new THREE.Box3().setFromCenterAndSize(
-          new THREE.Vector3(draggedModelPosition[0], draggedModelPosition[1], draggedModelPosition[2]),
-          new THREE.Vector3(draggedDims.x, draggedDims.y, draggedDims.z)
-        );
+        const tempGroup1 = new THREE.Group();
+        const tempClone1 = adjustedScene.clone(true);
+        tempClone1.scale.set(100, 100, 100);
+        const box1 = new THREE.Box3().setFromObject(tempClone1);
+        const center1 = new THREE.Vector3();
+        box1.getCenter(center1);
+        tempClone1.position.x = -center1.x;
+        tempClone1.position.z = -center1.z;
+        tempClone1.position.y = -box1.min.y;
+        tempGroup1.add(tempClone1);
+        tempGroup1.position.set(draggedModelPosition[0], draggedModelPosition[1], draggedModelPosition[2]);
+        tempGroup1.rotation.set(draggedModelRotation[0], draggedModelRotation[1], draggedModelRotation[2]);
+        tempGroup1.updateMatrixWorld(true);
+        const draggedBox = new THREE.Box3().setFromObject(tempGroup1);
         
-        const previewBox = new THREE.Box3().setFromCenterAndSize(
-          new THREE.Vector3(previewPos[0], previewPos[1], previewPos[2]),
-          new THREE.Vector3(draggedDims.x, draggedDims.y, draggedDims.z)
-        );
+        const tempGroup2 = new THREE.Group();
+        const tempClone2 = adjustedScene.clone(true);
+        tempClone2.scale.set(100, 100, 100);
+        const box2 = new THREE.Box3().setFromObject(tempClone2);
+        const center2 = new THREE.Vector3();
+        box2.getCenter(center2);
+        tempClone2.position.x = -center2.x;
+        tempClone2.position.z = -center2.z;
+        tempClone2.position.y = -box2.min.y;
+        tempGroup2.add(tempClone2);
+        tempGroup2.position.set(previewPos[0], previewPos[1], previewPos[2]);
+        tempGroup2.rotation.set(draggedModelRotation[0], draggedModelRotation[1], draggedModelRotation[2]);
+        tempGroup2.updateMatrixWorld(true);
+        const previewBox = new THREE.Box3().setFromObject(tempGroup2);
         
-        // Check if boxes overlap (with small tolerance)
         const tolerance = 0.1;
         const overlaps = 
           draggedBox.min.x < previewBox.max.x + tolerance &&
@@ -172,9 +186,8 @@ const ModelDragPreview = ({ snapDistance = 4 }) => {
           draggedBox.min.z < previewBox.max.z + tolerance &&
           draggedBox.max.z > previewBox.min.z - tolerance;
         
-        // If dragged model overlaps with preview position, don't show preview
         if (overlaps) {
-          return null; // Skip this preview
+          return null;
         }
         
         // Also check if distance is too small (less than half model size)

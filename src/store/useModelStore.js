@@ -3,7 +3,9 @@ import { create } from "zustand";
 const useModelStore = create((set, get) => ({
   selectedModels: [],
   currentPlacingModel: null,
-  currentPlacingModelColor: null, // Add color for current placing model
+  currentPlacingModelColor: null,
+  currentPlacingModelWidth: null,
+  currentPlacingModelLength: null,
   selectedModelId: null,
   isAdjustingHeight: false,
   isPasteMode: false,
@@ -28,6 +30,7 @@ const useModelStore = create((set, get) => ({
   draggedModelPreviewPosition: null, // Preview position of dragged model
   collisionMode: 'stack', // 'stack' | 'push' | 'block'
   draggedModelId: null, // ID of model currently being dragged
+  activeControlMode: null, // 'height' | 'rotateY' | 'rotateX' | 'rotateZ' | null
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
 
@@ -36,6 +39,12 @@ const useModelStore = create((set, get) => ({
 
   setCurrentPlacingModelColor: (color) =>
     set({ currentPlacingModelColor: color }),
+
+  setCurrentPlacingModelWidth: (width) =>
+    set({ currentPlacingModelWidth: width }),
+
+  setCurrentPlacingModelLength: (length) =>
+    set({ currentPlacingModelLength: length }),
 
   setSelectedModelId: (id) => set({ selectedModelId: id }),
 
@@ -108,6 +117,7 @@ const useModelStore = create((set, get) => ({
   setDraggedModelPreviewPosition: (position) => set({ draggedModelPreviewPosition: position }),
   setCollisionMode: (mode) => set({ collisionMode: mode }),
   setDraggedModelId: (id) => set({ draggedModelId: id }),
+  setActiveControlMode: (mode) => set({ activeControlMode: mode }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 

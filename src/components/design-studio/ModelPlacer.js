@@ -23,6 +23,8 @@ const ModelPlacer = () => {
   const constrainToGrid = useModelStore((s) => s.constrainToGrid);
   const currentPlacingModel = useModelStore((s) => s.currentPlacingModel);
   const currentPlacingModelColor = useModelStore((s) => s.currentPlacingModelColor);
+  const currentPlacingModelWidth = useModelStore((s) => s.currentPlacingModelWidth);
+  const currentPlacingModelLength = useModelStore((s) => s.currentPlacingModelLength);
   const setCurrentPlacingModel = useModelStore((s) => s.setCurrentPlacingModel);
   const { setSelectedModels } = useModelStore();
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
@@ -114,6 +116,8 @@ const ModelPlacer = () => {
           })(),
           rotation: [0, 0, 0],
           color: currentPlacingModelColor,
+          width: currentPlacingModelWidth,
+          length: currentPlacingModelLength,
         },
       ]);
       setCurrentPlacingModel(null);
@@ -149,6 +153,9 @@ const ModelPlacer = () => {
   }, [
     hoverPos,
     currentPlacingModel,
+    currentPlacingModelColor,
+    currentPlacingModelWidth,
+    currentPlacingModelLength,
     selectedModels,
     gl,
     setSelectedModels,

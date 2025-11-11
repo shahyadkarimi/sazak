@@ -485,8 +485,8 @@ export const useModelAdjustment = (
     if (!isRotatingZ || !rotationStartMouse || !rotationStartAngles) return;
 
     const handleMouseMove = (event) => {
-      const deltaX = event.clientX - rotationStartMouse.x;
-      const rotationDelta = (deltaX / 200) * (Math.PI / 2) * mouseSensitivity;
+      const deltaY = event.clientY - rotationStartMouse.y;
+      const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
       const normalizedStartAngles = ensureRotationArray(rotationStartAngles);
       let currentZ = normalizedStartAngles[2];
       const totalRotation = currentZ + rotationDelta;
