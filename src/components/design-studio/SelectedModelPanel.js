@@ -18,6 +18,8 @@ const SelectedModelPanel = () => {
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const selectedModels = useModelStore((s) => s.selectedModels);
   const updateModelColor = useModelStore((s) => s.updateModelColor);
+  const showColorPanel = useModelStore((s) => s.showColorPanel);
+  const setShowColorPanel = useModelStore((s) => s.setShowColorPanel);
 
   const initialColor = useMemo(() => {
     if (!selectedModelId) return null;
@@ -47,7 +49,14 @@ const SelectedModelPanel = () => {
     setColor(initialColor || null);
   }, [initialColor]);
 
-  if (!selectedModelId) return null;
+  // Close color panel when model is deselected
+  useEffect(() => {
+    if (!selectedModelId && showColorPanel) {
+      setShowColorPanel(false);
+    }
+  }, [selectedModelId, showColorPanel, setShowColorPanel]);
+
+  if (!selectedModelId || !showColorPanel) return null;
 
   const applyColor = (hex) => {
     setColor(hex);

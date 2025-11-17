@@ -70,14 +70,14 @@ const Page = async () => {
           </div>
         </div>
 
-        <Link
+        {/* <Link
           href={"/"}
           className="text-xs text-primaryThemeColor font-semibold h-10 rounded-xl bg-primaryThemeColor/5 px-6 flex items-center justify-center gap-2"
         >
           <span>بازگشت به وبسایت</span>
 
           <Icon icon="solar:arrow-left-linear" width="20" height="20" />
-        </Link>
+        </Link> */}
       </div>
 
       <div className="w-full max-w-[425px]">

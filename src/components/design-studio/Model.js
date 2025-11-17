@@ -2,16 +2,16 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
-import { useModelAdjustment } from "@/hooks/useModelAdjustment";
+import { useModelAdjustment, normalizeAngle, snapToGrid as snapRotation } from "@/hooks/useModelAdjustment";
 import ModelControls from "./ModelControls";
 import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { clampPositionToGrid } from "@/helper/gridConstraints";
 
-const Model = ({ path, position, id, rotation, color }) => {
+const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   const modelRef = useRef();
-  const { raycaster, camera, gl } = useThree();
+  const { raycaster, camera, gl, scene } = useThree();
 
   const { scene: adjustedScene, isValid } = useModelScene(path || null);
 
@@ -21,12 +21,17 @@ const Model = ({ path, position, id, rotation, color }) => {
   const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
   const existingModels = useModelStore((s) => s.selectedModels);
+  const setSelectedModels = useModelStore((s) => s.setSelectedModels);
   const modelOptions = useModelStore((s) => s.modelOptions);
   const setModelsRef = useModelStore((s) => s.setModelsRef);
   const pushHistory = useModelStore((s) => s.pushHistory);
   const updateModelDimensions = useModelStore((s) => s.updateModelDimensions);
   const setDraggedModelId = useModelStore((s) => s.setDraggedModelId);
   const activeControlMode = useModelStore((s) => s.activeControlMode);
+
+  const zoomLevel = useModelStore((s) => s.zoomLevel);
+  const effectiveSnap =
+    Math.max(0.05, (modelOptions?.snapSize ?? 0.5) * (zoomLevel / 50));
 
   const modelControls = useModelAdjustment(
     id,
@@ -36,8 +41,8 @@ const Model = ({ path, position, id, rotation, color }) => {
     updateModelRotation,
     existingModels,
     {
-      positionSnapStep: modelOptions.snapSize,
-      heightSnapStep: modelOptions.snapSize,
+      positionSnapStep: effectiveSnap,
+      heightSnapStep: effectiveSnap,
       rotationSnapDegrees: modelOptions.rotationDeg,
       mouseSensitivityY:
         modelOptions.snapSize === 0.1 || modelOptions.snapSize === 0.5 ? 3 : 3,
@@ -69,6 +74,24 @@ const Model = ({ path, position, id, rotation, color }) => {
   const isAdjustingRef = useRef(false);
   const frameCountRef = useRef(0);
   const baseHeightRef = useRef(0);
+  const dragSelectionRef = useRef(null); // Store selection at drag start
+  const dragStartRotationsRef = useRef(null); // Store start rotations for all selected models
+  const selectionColliderRef = useRef(null);
+
+  const getRotatedBounds = useCallback(() => {
+    if (!clonedSceneState) return null;
+    const tempGroup = new THREE.Group();
+    const tempClone = clonedSceneState.clone(true);
+    tempGroup.add(tempClone);
+    tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+    tempGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(tempGroup);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    return { size, center };
+  }, [clonedSceneState, rotation]);
 
   useEffect(() => {
     if (adjustedScene) {
@@ -155,12 +178,60 @@ const Model = ({ path, position, id, rotation, color }) => {
     rotationRef.current = rotation;
   }, [rotation]);
 
+  // Update stored dimensions when rotation changes to keep clamps/collisions accurate
+  useEffect(() => {
+    const bounds = getRotatedBounds();
+    if (!bounds) return;
+    const { size } = bounds;
+    const current = modelDimensions;
+    const epsilon = 0.01;
+    const hasChanged =
+      !current ||
+      Math.abs(current.x - size.x) > epsilon ||
+      Math.abs(current.y - size.y) > epsilon ||
+      Math.abs(current.z - size.z) > epsilon;
+    if (hasChanged) {
+      updateModelDimensions(id, { x: size.x, y: size.y, z: size.z });
+    }
+  }, [getRotatedBounds, modelDimensions, id, updateModelDimensions]);
+
   const checkAndAdjustPosition = useCallback(() => {
     if (!clonedSceneState || isAdjustingRef.current) return;
-    if (isDragging && activeControlMode === 'height') {
-      if (position[1] > 0) {
-        baseHeightRef.current = position[1];
+    
+    // اگر در حال تنظیم ارتفاع هستیم، فقط بررسی کنیم که مدل زیر زمین نرود
+    if (activeControlMode === 'height') {
+      // فقط بررسی کنیم که مدل زیر زمین نرود، نه اینکه ارتفاع را تغییر دهیم
+      const currentPosition = positionRef.current;
+      const currentRotation = rotationRef.current;
+      
+      const tempGroup = new THREE.Group();
+      const tempClone = clonedSceneState.clone(true);
+      tempGroup.add(tempClone);
+      tempGroup.position.set(currentPosition[0], currentPosition[1], currentPosition[2]);
+      tempGroup.rotation.set(currentRotation[0], currentRotation[1], currentRotation[2]);
+      tempGroup.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(tempGroup);
+      const minY = box.min.y;
+      
+      // فقط اگر مدل زیر زمین باشد، آن را بالا ببریم
+      if (minY < -0.001) {
+        isAdjustingRef.current = true;
+        const offset = -minY;
+        const newY = currentPosition[1] + offset;
+        baseHeightRef.current = newY;
+        updateModelPosition(id, [currentPosition[0], newY, currentPosition[2]]);
+        setTimeout(() => {
+          isAdjustingRef.current = false;
+        }, 50);
+      } else {
+        // اگر مدل زیر زمین نیست، baseHeightRef را به‌روز کنیم
+        baseHeightRef.current = currentPosition[1];
       }
+      return;
+    }
+    
+    // برای حالت‌های دیگر (نه تنظیم ارتفاع)
+    if (isDragging) {
       return;
     }
 
@@ -169,17 +240,9 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     let targetY = currentPosition[1];
     
-    if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
-      targetY = baseHeightRef.current;
-      if (Math.abs(currentPosition[1] - targetY) < 0.001) {
-        return;
-      }
-    } else {
-      if (currentPosition[1] > 0) {
-        targetY = currentPosition[1];
-      } else {
-        targetY = 0;
-      }
+    // اگر ارتفاع منفی است، آن را به 0 تنظیم کنیم
+    if (currentPosition[1] < 0) {
+      targetY = 0;
     }
 
     const tempGroup = new THREE.Group();
@@ -192,30 +255,68 @@ const Model = ({ path, position, id, rotation, color }) => {
     const box = new THREE.Box3().setFromObject(tempGroup);
     const minY = box.min.y;
     
+    // فقط اگر مدل زیر زمین باشد، آن را بالا ببریم
     if (minY < -0.001) {
       isAdjustingRef.current = true;
       const offset = -minY;
-      targetY = offset;
-      updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
-      setTimeout(() => {
-        isAdjustingRef.current = false;
-      }, 50);
-    } else if (Math.abs(currentPosition[1] - targetY) > 0.001) {
-      isAdjustingRef.current = true;
+      targetY = targetY + offset;
       updateModelPosition(id, [currentPosition[0], targetY, currentPosition[2]]);
       setTimeout(() => {
         isAdjustingRef.current = false;
       }, 50);
     }
-  }, [clonedSceneState, id, updateModelPosition, existingModels, modelDimensions, modelOptions.snapSize, isDragging, activeControlMode]);
+  }, [clonedSceneState, id, updateModelPosition, existingModels, modelDimensions, modelOptions.snapSize, isDragging, activeControlMode, position]);
 
   useEffect(() => {
+    // اگر در حال drag ارتفاع هستیم، اجازه دهیم که کاربر آزادانه ارتفاع را تغییر دهد
     if (isDragging && activeControlMode === 'height') return;
+    
+    // فقط برای بررسی اینکه مدل زیر زمین نرود (نه برای تغییر ارتفاع)
     const timer = setTimeout(() => {
       checkAndAdjustPosition();
     }, 10);
     return () => clearTimeout(timer);
   }, [position, rotation, checkAndAdjustPosition, isDragging, activeControlMode]);
+
+  // Tag all meshes of this model for robust selection discrimination
+  useEffect(() => {
+    if (!clonedSceneState) return;
+    clonedSceneState.traverse((child) => {
+      if (!child.userData) child.userData = {};
+      child.userData.__modelId = id;
+    });
+  }, [clonedSceneState, id]);
+
+  // Build/update precise rotated AABB collider for selection
+  useEffect(() => {
+    if (!selectionColliderRef.current) return;
+    const bounds = getRotatedBounds();
+    if (!bounds) return;
+
+    const { size, center } = bounds;
+
+    // Adaptive epsilon based on zoom level
+    const zoomFactor = zoomLevel < 50 ? (50 / zoomLevel) : 1;
+    const baseEps = 0.01;
+    const fixedEps = baseEps * (1 + zoomFactor * 2.5);
+    const percentEps = Math.max(size.x, size.y, size.z) * 0.05;
+    const eps = Math.max(fixedEps, percentEps);
+
+    const geom = new THREE.BoxGeometry(
+      Math.max(0.001, size.x + eps),
+      Math.max(0.001, size.y + eps),
+      Math.max(0.001, size.z + eps)
+    );
+
+    const collider = selectionColliderRef.current;
+    if (collider.geometry) collider.geometry.dispose();
+    collider.geometry = geom;
+    collider.position.set(center.x, center.y, center.z);
+    if (!collider.userData) collider.userData = {};
+    collider.userData.__modelId = id;
+    collider.layers.enable(31);
+    collider.updateMatrixWorld(true);
+  }, [getRotatedBounds, id, zoomLevel]);
 
   useFrame(() => {
     if (isDragging && activeControlMode === 'height') {
@@ -238,7 +339,7 @@ const Model = ({ path, position, id, rotation, color }) => {
     clonedSceneState.traverse((child) => {
       if (child.isMesh && child.material) {
         const edge = child.children?.find?.((c) => c.name === 'edge-lines');
-        const isTransparent = color == null;
+        const isTransparent = color == null && !noColor;
 
         // Base appearance
         if (isTransparent) {
@@ -281,7 +382,19 @@ const Model = ({ path, position, id, rotation, color }) => {
               }
             }
           }
+          
           if (child.material) {
+            if (noColor && (isSelected || isDragging)) {
+              if (child.material.emissive !== undefined) {
+                child.material.emissive = new THREE.Color(0xffffff);
+                child.material.emissiveIntensity = 0.3;
+              }
+            } else if (noColor) {
+              if (child.material.emissive !== undefined) {
+                child.material.emissive = new THREE.Color(0x000000);
+                child.material.emissiveIntensity = 0;
+              }
+            }
             child.material.transparent = false;
             child.material.opacity = 1;
             if ('colorWrite' in child.material) child.material.colorWrite = true;
@@ -291,7 +404,7 @@ const Model = ({ path, position, id, rotation, color }) => {
         }
       }
     });
-  }, [isSelected, isDragging, clonedSceneState, color]);
+  }, [isSelected, isDragging, clonedSceneState, color, noColor]);
 
   // اطلاع به استور درباره درحال تنظیم بودن مدل
   useEffect(() => {
@@ -338,6 +451,36 @@ const Model = ({ path, position, id, rotation, color }) => {
     const btn = (event.button !== undefined) ? event.button : event.nativeEvent?.button;
     if (btn !== 0) return;
 
+    // Only select if this model is the top-most intersected model using selection colliders (layer 31)
+    if (gl && gl.domElement && scene && raycaster) {
+      const rect = gl.domElement.getBoundingClientRect();
+      const mouse = new THREE.Vector2();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const prevMask = raycaster.layers.mask;
+      raycaster.layers.set(31);
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      raycaster.layers.mask = prevMask;
+      if (intersects && intersects.length > 0) {
+        let firstHitModelId = null;
+        for (const hit of intersects) {
+          let p = hit.object;
+          while (p) {
+            if (p.userData && p.userData.__modelId != null) {
+              firstHitModelId = p.userData.__modelId;
+              break;
+            }
+            p = p.parent;
+          }
+          if (firstHitModelId != null) break;
+        }
+        if (firstHitModelId != null && firstHitModelId !== id) {
+          return;
+        }
+      }
+    }
+
     // انتخاب مدل با کلیک چپ
     const isCtrl = event.ctrlKey || event.metaKey;
     
@@ -351,24 +494,34 @@ const Model = ({ path, position, id, rotation, color }) => {
       currentSelection = [selectedModelId];
     }
 
+    // Check if this model is already selected
+    const isAlreadySelected = currentSelection.includes(id);
+
     let nextSelection;
     if (isCtrl) {
       // Toggle this id
-      if (currentSelection.includes(id)) {
+      if (isAlreadySelected) {
         nextSelection = currentSelection.filter((sid) => sid !== id);
       } else {
         nextSelection = [...currentSelection, id];
       }
       // If empties out, keep single selection to this id for usability
       if (nextSelection.length === 0) nextSelection = [id];
+      setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
     } else {
-      // Regular single select
-      nextSelection = id;
+      // If clicking on an already selected model in multi-selection, keep selection
+      if (isAlreadySelected && currentSelection.length > 1) {
+        if (currentSelection.length === existingModels.length) {
+          setSelectedModelId('ALL');
+        } else {
+          setSelectedModelId(currentSelection);
+        }
+      } else {
+        nextSelection = id;
+        setSelectedModelId(nextSelection);
+      }
     }
 
-    setSelectedModelId(nextSelection);
-
-    // ذخیره موقعیت اولیه ماوس برای تشخیص درگ
     setIsPointerDown(true);
     setInitialMousePos({
       clientX: event.clientX,
@@ -449,6 +602,8 @@ const Model = ({ path, position, id, rotation, color }) => {
         setDragStartPosition(null);
         setDragStartRotation(null);
         setDragStartMouse(null);
+        dragSelectionRef.current = null; // Reset drag selection
+        dragStartRotationsRef.current = null; // Reset start rotations
       }
       setIsPointerDown(false);
       setInitialMousePos(null);
@@ -480,6 +635,34 @@ const Model = ({ path, position, id, rotation, color }) => {
         setDragStartPosition([...position]);
         setDragStartRotation([...rotation]);
 
+        // Store current selection at drag start to ensure consistency during drag
+        const currentSel = useModelStore.getState().selectedModelId;
+        dragSelectionRef.current = currentSel;
+        
+        // Store start rotations for all selected models when rotating
+        const currentActiveControlMode = useModelStore.getState().activeControlMode;
+        if (currentActiveControlMode && (currentActiveControlMode === 'rotateY' || currentActiveControlMode === 'rotateX' || currentActiveControlMode === 'rotateZ')) {
+          const models = useModelStore.getState().selectedModels;
+          const rotationsMap = {};
+          
+          if (currentSel === 'ALL') {
+            models.forEach(model => {
+              rotationsMap[model.id] = [...(model.rotation || [0, 0, 0])];
+            });
+          } else if (Array.isArray(currentSel)) {
+            currentSel.forEach(modelId => {
+              const model = models.find(m => m.id === modelId);
+              if (model) {
+                rotationsMap[modelId] = [...(model.rotation || [0, 0, 0])];
+              }
+            });
+          } else if (currentSel === id) {
+            rotationsMap[id] = [...rotation];
+          }
+          
+          dragStartRotationsRef.current = rotationsMap;
+        }
+
         // Store initial mouse position for drag calculation
         const mouse = new THREE.Vector2();
         mouse.x = (initialMousePos.clientX / gl.domElement.clientWidth) * 2 - 1;
@@ -508,6 +691,9 @@ const Model = ({ path, position, id, rotation, color }) => {
     if (!isDragging || !dragStartPosition || !dragStartMouse) return;
 
     const handleGlobalMouseMove = (event) => {
+      // Use stored selection from drag start to ensure consistency
+      const dragSelection = dragSelectionRef.current !== null ? dragSelectionRef.current : selectedModelId;
+      
       if (activeControlMode === 'height') {
         const deltaY = dragStartMouse.clientY - event.clientY;
         const sensitivity = 0.02;
@@ -536,21 +722,24 @@ const Model = ({ path, position, id, rotation, color }) => {
         baseHeightRef.current = finalY;
         const proposedPosition = [position[0], finalY, position[2]];
         
-        if (selectedModelId === 'ALL') {
+        // Use dragSelection for consistency
+        const currentDragSelection = dragSelection || selectedModelId;
+        
+        if (currentDragSelection === 'ALL') {
           const deltaY = finalY - position[1];
           const updatedModels = existingModels.map(model => ({
             ...model,
             position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]]
           }));
-          useModelStore.setState({ selectedModels: updatedModels });
-        } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
+          setSelectedModels(updatedModels);
+        } else if (Array.isArray(currentDragSelection) && currentDragSelection.includes(id)) {
           const deltaY = finalY - position[1];
           const updatedModels = existingModels.map(model => 
-            selectedModelId.includes(model.id)
+            currentDragSelection.includes(model.id)
               ? { ...model, position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]] }
               : model
           );
-          useModelStore.setState({ selectedModels: updatedModels });
+          setSelectedModels(updatedModels);
         } else {
           updateModelPosition(id, proposedPosition);
         }
@@ -559,44 +748,172 @@ const Model = ({ path, position, id, rotation, color }) => {
 
       if (activeControlMode === 'rotateY') {
         const deltaX = event.clientX - dragStartMouse.clientX;
+        // Use same sensitivity as single model rotation (200)
         const rotationDelta = (deltaX / 200) * (Math.PI / 2);
         const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
-        const startRotationY = dragStartRotation ? dragStartRotation[1] : rotation[1];
-        const totalRotation = startRotationY + rotationDelta;
-        const snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
-        const normalizedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-        updateModelRotation(id, [rotation[0], normalizedRotation, rotation[2]]);
+        
+        // Use dragSelection for consistency
+        const currentDragSelection = dragSelection || selectedModelId;
+        
+        // Check if multiple models are selected and rotate them together
+        if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
+          // Use stored start rotations if available, otherwise fall back to current rotations
+          const startRotations = dragStartRotationsRef.current || {};
+          const updatedModels = existingModels.map(model => {
+            const isSelected = currentDragSelection === 'ALL' || 
+                              (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
+            
+            if (isSelected) {
+              // Get start rotation for this model from stored rotations
+              const modelStartRotation = startRotations[model.id];
+              if (!modelStartRotation) {
+                // Fallback: use current rotation if start rotation not stored
+                return model;
+              }
+              const modelStartY = modelStartRotation[1];
+              
+              // Apply the same rotationDelta to this model's start rotation
+              const modelTotalRotation = modelStartY + rotationDelta;
+              const modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
+              const modelNewY = normalizeAngle(modelSnappedRotation);
+              
+              // Use start rotation for X and Z to keep them unchanged, only update Y
+              return {
+                ...model,
+                rotation: [modelStartRotation[0], modelNewY, modelStartRotation[2]]
+              };
+            }
+            return model;
+          });
+          setSelectedModels(updatedModels);
+        } else {
+          // Single model rotation
+          const startRotationY = dragStartRotation ? dragStartRotation[1] : rotation[1];
+          const totalRotation = startRotationY + rotationDelta;
+          const snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
+          const normalizedRotation = normalizeAngle(snappedRotation);
+          const newRotation = [rotation[0], normalizedRotation, rotation[2]];
+          updateModelRotation(id, newRotation);
+        }
         return;
       }
 
       if (activeControlMode === 'rotateX') {
         const deltaX = event.clientX - dragStartMouse.clientX;
+        // Use same sensitivity as single model rotation (200)
         const rotationDelta = (deltaX / 200) * (Math.PI / 2);
         const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
-        const startRotationX = dragStartRotation ? dragStartRotation[0] : rotation[0];
-        const totalRotation = startRotationX + rotationDelta;
-        let snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
-        snappedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
         
-        if (modelOptions.rotationDeg === 90) {
-          if (snappedRotation > Math.PI / 2 && snappedRotation < (3 * Math.PI) / 2) {
-            snappedRotation = snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+        // Use dragSelection for consistency
+        const currentDragSelection = dragSelection || selectedModelId;
+        
+        // Check if multiple models are selected and rotate them together
+        if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
+          // Use stored start rotations if available, otherwise fall back to current rotations
+          const startRotations = dragStartRotationsRef.current || {};
+          const updatedModels = existingModels.map(model => {
+            const isSelected = currentDragSelection === 'ALL' || 
+                              (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
+            
+            if (isSelected) {
+              // Get start rotation for this model from stored rotations
+              const modelStartRotation = startRotations[model.id];
+              if (!modelStartRotation) {
+                // Fallback: use current rotation if start rotation not stored
+                return model;
+              }
+              const modelStartX = modelStartRotation[0];
+              
+              // Apply the same rotationDelta to this model's start rotation
+              const modelTotalRotation = modelStartX + rotationDelta;
+              let modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
+              modelSnappedRotation = normalizeAngle(modelSnappedRotation);
+              
+              // Apply 90-degree constraint if needed
+              if (modelOptions.rotationDeg === 90) {
+                if (modelSnappedRotation > Math.PI / 2 && modelSnappedRotation < (3 * Math.PI) / 2) {
+                  modelSnappedRotation = modelSnappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+                }
+              }
+              
+              // Use start rotation for Y and Z to keep them unchanged, only update X
+              return {
+                ...model,
+                rotation: [modelSnappedRotation, modelStartRotation[1], modelStartRotation[2]]
+              };
+            }
+            return model;
+          });
+          setSelectedModels(updatedModels);
+        } else {
+          // Single model rotation
+          const startRotationX = dragStartRotation ? dragStartRotation[0] : rotation[0];
+          const totalRotation = startRotationX + rotationDelta;
+          let snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
+          snappedRotation = normalizeAngle(snappedRotation);
+          
+          // Apply 90-degree constraint if needed
+          if (modelOptions.rotationDeg === 90) {
+            if (snappedRotation > Math.PI / 2 && snappedRotation < (3 * Math.PI) / 2) {
+              snappedRotation = snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
+            }
           }
+          
+          const newRotation = [snappedRotation, rotation[1], rotation[2]];
+          updateModelRotation(id, newRotation);
         }
-        
-        updateModelRotation(id, [snappedRotation, rotation[1], rotation[2]]);
         return;
       }
 
       if (activeControlMode === 'rotateZ') {
         const deltaY = dragStartMouse.clientY - event.clientY;
+        // Use same sensitivity as single model rotation (200)
         const rotationDelta = (-deltaY / 200) * (Math.PI / 2);
         const rotationSnapRadians = (modelOptions.rotationDeg * Math.PI) / 180;
-        const startRotationZ = dragStartRotation ? dragStartRotation[2] : rotation[2];
-        const totalRotation = startRotationZ + rotationDelta;
-        const snappedRotation = Math.round(totalRotation / rotationSnapRadians) * rotationSnapRadians;
-        const normalizedRotation = ((snappedRotation % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-        updateModelRotation(id, [rotation[0], rotation[1], normalizedRotation]);
+        
+        // Use dragSelection for consistency
+        const currentDragSelection = dragSelection || selectedModelId;
+        
+        // Check if multiple models are selected and rotate them together
+        if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
+          // Use stored start rotations if available, otherwise fall back to current rotations
+          const startRotations = dragStartRotationsRef.current || {};
+          const updatedModels = existingModels.map(model => {
+            const isSelected = currentDragSelection === 'ALL' || 
+                              (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
+            
+            if (isSelected) {
+              // Get start rotation for this model from stored rotations
+              const modelStartRotation = startRotations[model.id];
+              if (!modelStartRotation) {
+                // Fallback: use current rotation if start rotation not stored
+                return model;
+              }
+              const modelStartZ = modelStartRotation[2];
+              
+              // Apply the same rotationDelta to this model's start rotation
+              const modelTotalRotation = modelStartZ + rotationDelta;
+              const modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
+              const modelNewZ = normalizeAngle(modelSnappedRotation);
+              
+              // Use start rotation for X and Y to keep them unchanged, only update Z
+              return {
+                ...model,
+                rotation: [modelStartRotation[0], modelStartRotation[1], modelNewZ]
+              };
+            }
+            return model;
+          });
+          setSelectedModels(updatedModels);
+        } else {
+          // Single model rotation
+          const startRotationZ = dragStartRotation ? dragStartRotation[2] : rotation[2];
+          const totalRotation = startRotationZ + rotationDelta;
+          const snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
+          const normalizedRotation = normalizeAngle(snappedRotation);
+          const newRotation = [rotation[0], rotation[1], normalizedRotation];
+          updateModelRotation(id, newRotation);
+        }
         return;
       }
 
@@ -637,16 +954,13 @@ const Model = ({ path, position, id, rotation, color }) => {
         }
 
         if (clonedSceneState) {
-          let targetY = adjustedPosition[1];
+          // برای drag موقعیت افقی، ارتفاع فعلی را حفظ می‌کنیم
+          let targetY = position[1]; // ارتفاع فعلی را حفظ می‌کنیم
           
-          if (activeControlMode === 'height' && baseHeightRef.current >= 0) {
-            targetY = baseHeightRef.current;
-          } else {
-            if (constrainToGrid) {
-              targetY = 0;
-            } else {
-              targetY = position[1] > 0 ? position[1] : 0;
-            }
+          if (constrainToGrid && activeControlMode !== 'height') {
+            targetY = 0;
+          } else if (position[1] < 0 && activeControlMode !== 'height') {
+            targetY = 0;
           }
 
           const tempGroup = new THREE.Group();
@@ -658,18 +972,19 @@ const Model = ({ path, position, id, rotation, color }) => {
           const box = new THREE.Box3().setFromObject(tempGroup);
           const minY = box.min.y;
           
+          // فقط اگر مدل زیر زمین باشد، آن را بالا ببریم
           if (minY < -0.001) {
             const offset = -minY;
-            if (constrainToGrid) {
-              adjustedPosition[1] = offset;
-            } else {
-              adjustedPosition[1] = position[1] + offset;
+            adjustedPosition[1] = targetY + offset;
+            // اگر در حال تنظیم ارتفاع نیستیم، baseHeightRef را به‌روز کنیم
+            if (activeControlMode !== 'height') {
+              baseHeightRef.current = adjustedPosition[1];
             }
           } else {
             adjustedPosition[1] = targetY;
           }
         } else {
-          if (constrainToGrid) {
+          if (constrainToGrid && activeControlMode !== 'height') {
             adjustedPosition[1] = 0;
           } else {
             adjustedPosition[1] = position[1];
@@ -684,8 +999,11 @@ const Model = ({ path, position, id, rotation, color }) => {
           );
         }
 
+        // Use dragSelection for consistency
+        const currentDragSelection = dragSelection || selectedModelId;
+
         // Check if multiple models are selected and move them together
-        if (selectedModelId === 'ALL') {
+        if (currentDragSelection === 'ALL') {
           // Move all models - but they each need their own collision check
           // For simplicity, just move them relative to the current model's movement
           const deltaX = adjustedPosition[0] - position[0];
@@ -695,11 +1013,9 @@ const Model = ({ path, position, id, rotation, color }) => {
           const updatedModels = existingModels.map(model => {
             const nextX = model.position[0] + deltaX;
             const nextZ = model.position[2] + deltaZ;
-            const nextY = model.position[1] + deltaY;
+            const nextY = Math.max(0, model.position[1] + deltaY);
             let nextPosition = [nextX, nextY, nextZ];
-            if (!collisionResult.isStacked) {
-              nextPosition[1] = Math.max(0, model.position[1] + deltaY);
-            }
+            
             if (constrainToGrid) {
               nextPosition = clampPositionToGrid(
                 nextPosition,
@@ -713,22 +1029,20 @@ const Model = ({ path, position, id, rotation, color }) => {
             };
           });
           
-          useModelStore.setState({ selectedModels: updatedModels });
-        } else if (Array.isArray(selectedModelId) && selectedModelId.includes(id)) {
+          setSelectedModels(updatedModels);
+        } else if (Array.isArray(currentDragSelection) && currentDragSelection.includes(id)) {
           // Move multiple selected models
           const deltaX = adjustedPosition[0] - position[0];
           const deltaZ = adjustedPosition[2] - position[2];
           const deltaY = adjustedPosition[1] - position[1];
           
           const updatedModels = existingModels.map(model => {
-            if (selectedModelId.includes(model.id)) {
+            if (currentDragSelection.includes(model.id)) {
               const nextX = model.position[0] + deltaX;
               const nextZ = model.position[2] + deltaZ;
-              const nextY = model.position[1] + deltaY;
+              const nextY = Math.max(0, model.position[1] + deltaY);
               let nextPosition = [nextX, nextY, nextZ];
-              if (!collisionResult.isStacked) {
-                nextPosition[1] = Math.max(0, model.position[1] + deltaY);
-              }
+              
               if (constrainToGrid) {
                 nextPosition = clampPositionToGrid(
                   nextPosition,
@@ -741,7 +1055,7 @@ const Model = ({ path, position, id, rotation, color }) => {
             return model;
           });
           
-          useModelStore.setState({ selectedModels: updatedModels });
+          setSelectedModels(updatedModels);
         } else {
           if (constrainToGrid) {
             adjustedPosition = clampPositionToGrid(
@@ -757,7 +1071,7 @@ const Model = ({ path, position, id, rotation, color }) => {
 
     window.addEventListener('mousemove', handleGlobalMouseMove);
     return () => window.removeEventListener('mousemove', handleGlobalMouseMove);
-  }, [isDragging, dragStartPosition, dragStartRotation, dragStartMouse, position, rotation, id, updateModelPosition, updateModelRotation, raycaster, camera, gl, modelOptions, existingModels, selectedModelId, constrainToGrid, clonedSceneState, modelDimensions, activeControlMode]);
+  }, [isDragging, dragStartPosition, dragStartRotation, dragStartMouse, position, rotation, id, updateModelPosition, updateModelRotation, raycaster, camera, gl, modelOptions, existingModels, selectedModelId, constrainToGrid, clonedSceneState, modelDimensions, activeControlMode, setSelectedModels]);
 
 
   // حذف مدل
@@ -795,6 +1109,20 @@ const Model = ({ path, position, id, rotation, color }) => {
       position={position}
       rotation={rotation}
     >
+      {/* Invisible exact-size rotated collider for robust selection */}
+      <mesh
+        ref={selectionColliderRef}
+        visible={false}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerMove={handlePointerMove}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
+      >
+        <boxGeometry args={[0.001, 0.001, 0.001]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       <primitive
         object={clonedSceneState}
         onContextMenu={handleRightClick}

@@ -16,14 +16,15 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import toast from "react-hot-toast";
+import Image from "next/image";
 import AddPartModal from "@/components/admin/AddPartModal";
 import EditPartModal from "@/components/admin/EditPartModal";
 import DeletePartModal from "@/components/admin/DeletePartModal";
 
 const columns = [
+  { name: "تصویر", uid: "thumbnail" },
   { name: "نام", uid: "name" },
   { name: "دسته‌بندی", uid: "category" },
-  { name: "فایل", uid: "file" },
   { name: "تاریخ ایجاد", uid: "createdAt" },
   { name: "عملیات", uid: "actions" },
 ];
@@ -215,23 +216,31 @@ const Page = () => {
             {(part) => (
               <TableRow key={part.id}>
                 <TableCell>
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                    {part.thumbnailPath ? (
+                      <Image
+                        src={part.thumbnailPath}
+                        alt={part.name}
+                        width={64}
+                        height={64}
+                        className="w-full h-full object-contain"
+                        unoptimized
+                      />
+                    ) : (
+                      <Icon
+                        icon="solar:file-line-duotone"
+                        width="24"
+                        height="24"
+                        className="text-gray-400"
+                      />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
                   <div className="font-medium text-gray-900">{part.name}</div>
                 </TableCell>
                 <TableCell>
                   <div className="text-gray-600">{part.category?.name || "-"}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Icon
-                      icon="solar:file-line-duotone"
-                      width="18"
-                      height="18"
-                      className="text-gray-500"
-                    />
-                    <span className="text-sm text-gray-500">
-                      {part.glbPath?.split("/").pop() || "-"}
-                    </span>
-                  </div>
                 </TableCell>
                 <TableCell>
                   <div className="text-sm text-gray-500">

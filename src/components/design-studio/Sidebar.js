@@ -1,16 +1,13 @@
 "use client";
 
 import { toFarsiNumber } from "@/helper/helper";
-import useClickOutside from "@/hooks/useClickOutside";
 import useModelStore from "@/store/useModelStore";
 import { button, cn, Input, MenuItem, Spinner } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import {
-  getFavoriteModels,
-  toggleFavoriteModel,
-} from "@/utils/favoriteModels";
+import Image from "next/image";
+import { getFavoriteModels, toggleFavoriteModel } from "@/utils/favoriteModels";
 
 const ModelThumbnail = dynamic(() => import("./ModelThumbnail"), {
   ssr: false,
@@ -23,14 +20,9 @@ const Sidebar = ({ onToggle }) => {
   const setCurrentPlacingModelColor = useModelStore(
     (state) => state.setCurrentPlacingModelColor
   );
-  const setCurrentPlacingModelWidth = useModelStore(
-    (state) => state.setCurrentPlacingModelWidth
+  const setCurrentPlacingModelNoColor = useModelStore(
+    (state) => state.setCurrentPlacingModelNoColor
   );
-  const setCurrentPlacingModelLength = useModelStore(
-    (state) => state.setCurrentPlacingModelLength
-  );
-  const [activeModel, setActiveModel] = useState(null);
-  const [colorBoxPos, setColorBoxPos] = useState({ top: 0, right: 0 });
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [modelList, setModelList] = useState([]);
@@ -38,13 +30,6 @@ const Sidebar = ({ onToggle }) => {
   const [filters, setFilters] = useState([{ name: "همه", value: "all" }]);
   const [loading, setLoading] = useState(true);
   const [favoriteModels, setFavoriteModels] = useState([]);
-
-  const buttonRefs = useRef({});
-  const colorRef = useRef(null);
-
-  useClickOutside(colorRef, () => {
-    setActiveModel(null);
-  });
 
   useEffect(() => {
     loadParts();
@@ -80,11 +65,11 @@ const Sidebar = ({ onToggle }) => {
         const partsWithDefaults = data.parts.map((part, index) => ({
           id: part.id,
           path: part.path,
+          thumbnailPath: part.thumbnailPath,
           name: part.name,
           nameFa: part.name,
           category: part.category,
-          width: part.width,
-          length: part.length,
+          noColor: part.noColor || false,
           color: getDefaultColor(index),
         }));
 
@@ -370,24 +355,44 @@ const Sidebar = ({ onToggle }) => {
     { name: "سفید", hex: "#ffffff" },
   ];
 
+  const getRandomColor = () => {
+    const colors = [
+      "#ef4444",
+      "#3b82f6",
+      "#22c55e",
+      "#eab308",
+      "#f97316",
+      "#a855f7",
+      "#10b981",
+      "#0ea5e9",
+      "#6366f1",
+      "#f43f5e",
+      "#22d3ee",
+      "#84cc16",
+      "#fb7185",
+      "#f59e0b",
+      "#64748b",
+      "#14b8a6",
+      "#374151",
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
   const clickModelHandler = (modelId) => {
-    if (activeModel === modelId) {
-      setActiveModel(null);
-    } else {
-      const btn = buttonRefs.current[modelId];
-      if (btn) {
-        const rect = btn.getBoundingClientRect();
-        setColorBoxPos({
-          top: rect.top + window.scrollY,
-          right: window.innerWidth - rect.right + 10,
-        });
-      }
-      setActiveModel(modelId);
-      const model = modelList.find((m) => m.id === modelId);
-      if (model?.color) {
-        setCurrentPlacingModelColor(model.color);
-      }
+    const model = modelList.find((m) => m.id === modelId);
+    
+    if (model?.noColor) {
+      setCurrentPlacingModel(model?.path);
+      setCurrentPlacingModelColor(null);
+      setCurrentPlacingModelNoColor(true);
+      return;
     }
+
+    setCurrentPlacingModelNoColor(false);
+
+    const randomColor = getRandomColor();
+    setCurrentPlacingModel(model?.path);
+    setCurrentPlacingModelColor(randomColor);
   };
 
   const filteredModels =
@@ -397,8 +402,8 @@ const Sidebar = ({ onToggle }) => {
       ? modelList.filter((item) => favoriteModels.includes(item.id))
       : modelList.filter((item) => item.category?.id === selectedFilter);
 
-  const searchedModels = filteredModels.filter((item) =>
-    item.nameFa?.includes(search) || item.name?.includes(search)
+  const searchedModels = filteredModels.filter(
+    (item) => item.nameFa?.includes(search) || item.name?.includes(search)
   );
 
   return (
@@ -411,7 +416,7 @@ const Sidebar = ({ onToggle }) => {
             title="بستن"
           >
             <Icon
-              icon="solar:alt-arrow-left-line-duotone"
+              icon="solar:alt-arrow-right-line-duotone"
               width="24"
               height="24"
             />
@@ -474,25 +479,19 @@ const Sidebar = ({ onToggle }) => {
             searchedModels.map((model) => {
               const isFavorite = favoriteModels.includes(model.id);
               return (
-                <div
-                  key={model.id}
-                  className="relative w-full group"
-                >
+                <div key={model.id} className="relative w-full group">
                   <button
-                    ref={(el) => (buttonRefs.current[model.id] = el)}
                     onClick={() => clickModelHandler(model.id)}
-                    className={cn(
-                      "w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300",
-                      activeModel === model.id
-                        ? "border-2 border-primaryThemeColor"
-                        : ""
-                    )}
+                    className="w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
                   >
-                    <div className="w-full h-12 rounded-xl">
-                      <ModelThumbnail
-                        path={model.path}
-                        className="w-full h-full"
-                        color={model.color}
+                    <div className="w-full h-12 rounded-xl overflow-hidden">
+                      <Image
+                        src={model.thumbnailPath}
+                        alt={model.name}
+                        width={200}
+                        height={200}
+                        className="w-full h-full object-contain"
+                        unoptimized
                       />
                     </div>
                     <span className="text-xs font-semibold text-center">
@@ -506,7 +505,9 @@ const Sidebar = ({ onToggle }) => {
                     }}
                     className={cn(
                       "absolute top-2 right-2 z-10 p-1 rounded-full transition-all duration-200 hover:scale-110",
-                      isFavorite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      isFavorite
+                        ? "opacity-100"
+                        : "opacity-0 group-hover:opacity-100"
                     )}
                     title={isFavorite ? "حذف از منتخب" : "اضافه به منتخب"}
                   >
@@ -533,68 +534,6 @@ const Sidebar = ({ onToggle }) => {
         </div>
       </div>
 
-      {activeModel && (
-        <div
-          ref={colorRef}
-          className="w-48 grid grid-cols-4 items-center gap-6 absolute z-[999] bg-gray-200/50 rounded-2xl py-3 px-4 top-32 right-80"
-        >
-          <p className="text-sm font-semibold text-gray-700 col-span-4 text-center">
-            قطعه{" "}
-            {toFarsiNumber(modelList.find((m) => m.id === activeModel)?.nameFa)}
-          </p>
-
-          <button
-            onClick={() => {
-              const model = modelList.find((m) => m.id === activeModel);
-              setCurrentPlacingModel(model?.path);
-              setCurrentPlacingModelColor(null);
-              setCurrentPlacingModelWidth(model?.width || null);
-              setCurrentPlacingModelLength(model?.length || null);
-              setActiveModel(null);
-            }}
-            className="w-full h-8 flex justify-center items-center text-sm font-light bg-gray-50 col-span-4 rounded-xl hover:bg-gray-100 transition-all duration-300"
-          >
-            شفاف
-          </button>
-
-          <div className="col-span-4 flex items-center justify-between">
-            <span className="text-xs text-gray-700">انتخاب رنگ</span>
-            <input
-              type="color"
-              onChange={(e) => {
-                const model = modelList.find((m) => m.id === activeModel);
-                setCurrentPlacingModel(model?.path);
-                setCurrentPlacingModelColor(e.target.value);
-                setCurrentPlacingModelWidth(model?.width || null);
-                setCurrentPlacingModelLength(model?.length || null);
-                setActiveModel(null);
-              }}
-              className="w-10 h-6 p-0 border-0 bg-transparent cursor-pointer"
-              title="Color Picker"
-            />
-          </div>
-
-          {colors.map((c) => (
-            <button
-              key={c.hex}
-              onClick={() => {
-                const model = modelList.find((m) => m.id === activeModel);
-                setCurrentPlacingModel(model?.path);
-                setCurrentPlacingModelColor(c.hex);
-                setCurrentPlacingModelWidth(model?.width || null);
-                setCurrentPlacingModelLength(model?.length || null);
-                setActiveModel(null);
-              }}
-              className="flex items-center gap-2 text-sm group text-gray-800 hover:text-primaryThemeColor transition-all duration-300"
-            >
-              <span
-                style={{ backgroundColor: c.hex }}
-                className="size-5 rounded-full group-hover:scale-110 transition-all duration-300"
-              ></span>
-            </button>
-          ))}
-        </div>
-      )}
     </>
   );
 };

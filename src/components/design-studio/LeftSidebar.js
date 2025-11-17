@@ -1,9 +1,9 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
+import useModelStore from "@/store/useModelStore";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import useModelStore from "@/store/useModelStore";
 import { Icon } from "@iconify/react";
 
 const FACE_CONFIG = [
@@ -112,28 +112,24 @@ const ViewCubeScene = ({ onSelect, mainCamera }) => {
         }
       }
       setSelectedFaceName(bestFace);
-
-      // Debug log (می‌توانید بعداً حذف کنید)
-      if (Math.random() < 0.01) {
-        // فقط 1% از اوقات log کن
-        console.log("Camera sync:", {
-          position: mainCamera.position,
-          normalized: mainPos,
-          yaw: (yaw * 180) / Math.PI,
-          pitch: (clampedPitch * 180) / Math.PI,
-        });
-      }
     }
 
-    // استفاده از lerp factor متفاوت برای هماهنگی بهتر
-    const yawLerpFactor = 0.15; // کندتر برای yaw
-    const pitchLerpFactor = 0.25; // کمی سریع‌تر برای pitch
+    // استفاده از lerp factor متفاوت برای هماهنگی بهتر - تنظیمات برای تمام براوزرها
+    const yawLerpFactor = 0.12;
+    const pitchLerpFactor = 0.18;
 
     yawRef.current += (yawTargetRef.current - yawRef.current) * yawLerpFactor;
     pitchRef.current +=
       (pitchTargetRef.current - pitchRef.current) * pitchLerpFactor;
-    // Lock pitch visually to keep cube level; still use pitch for face selection
-    ref.current.rotation.set(0, yawRef.current, 0);
+    
+    // Apply rotation using Euler angles - compatible with all browsers
+    ref.current.rotation.order = 'YXZ';
+    ref.current.rotation.set(
+      0,
+      yawRef.current,
+      0,
+      'YXZ'
+    );
   });
 
   // هندل کلیک/هاور/درگ برای تعیین زاویه دوربین
@@ -335,9 +331,24 @@ const ViewCube = ({ activeView, onViewChange, mainCamera }) => {
   };
 
   return (
-    <div className="w-full h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 select-none mb-4">
-      <div className="w-24 h-24">
-        <Canvas camera={{ position: [3, 3, 3], fov: 40 }}>
+    <div className="w-full h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 select-none mb-4" style={{ contain: 'paint' }}>
+        <div className="w-24 h-24" style={{ contain: 'layout style paint', willChange: 'contents' }}>
+        <Canvas 
+          camera={{ position: [3, 3, 3], fov: 40 }}
+          gl={{
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: false,
+            powerPreference: 'high-performance',
+            stencil: false,
+            depth: true,
+          }}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: '100%',
+          }}
+        >
           <ambientLight intensity={0.7} />
           <directionalLight position={[3, 5, 4]} intensity={0.8} />
           <ViewCubeScene onSelect={handleSelect} mainCamera={mainCamera} />
@@ -356,6 +367,9 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
     }
   };
 
+  const selectedModels = useModelStore((s) => s.selectedModels);
+  const disableViewCube = Array.isArray(selectedModels) && selectedModels.length > 50;
+
   return (
     <div className="relative h-full md:h-[calc(100vh-144px)] flex flex-col justify-center items-center gap-4 bg-white p-4">
       {typeof onToggle === "function" && (
@@ -365,18 +379,26 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
           title="بستن"
         >
           <Icon
-            icon="solar:alt-arrow-right-line-duotone"
+            icon="solar:alt-arrow-left-line-duotone"
             width="24"
             height="24"
           />
         </button>
       )}
-      {/* View Cube */}
-      <ViewCube
-        activeView={cameraView}
-        onViewChange={onViewChange}
-        mainCamera={mainCamera}
-      />
+      {/* View Cube (disabled when many models to avoid multiple GL contexts) */}
+      {disableViewCube ? (
+        <div className="w-full h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 select-none mb-4">
+          <div className="text-xs text-gray-500 text-center p-2">
+            نمای کوچک (ViewCube) موقتاً غیرفعال شد تا فشار گرافیکی کاهش یابد
+          </div>
+        </div>
+      ) : (
+        <ViewCube
+          activeView={cameraView}
+          onViewChange={onViewChange}
+          mainCamera={mainCamera}
+        />
+      )}
 
       <button
         onClick={resetView}

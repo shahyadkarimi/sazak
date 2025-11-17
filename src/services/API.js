@@ -2,7 +2,7 @@ import axios from "axios";
 
 const host =
   process.env.NODE_ENV === "development"
-    ? "http://localhost:3002"
+    ? "http://localhost:3005"
     : "https://sazaklab.ir";
 
 export const baseURL = `${host}/api`;
@@ -24,8 +24,8 @@ const getStoredToken = () => {
   }
 
   const localToken =
-      localStorage.getItem("impersonation_token") ||
-      localStorage.getItem("token");
+    localStorage.getItem("impersonation_token") ||
+    localStorage.getItem("token");
 
   return localToken;
 };

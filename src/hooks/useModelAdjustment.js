@@ -145,6 +145,42 @@ export const useModelAdjustment = (
   const [lastRotation, setLastRotation] = useState({ x: null, y: null, z: null });
 
   const rotationSnapRadians = degToRad(rotationSnapDegrees);
+  const axisVectors = {
+    x: new THREE.Vector3(1, 0, 0),
+    y: new THREE.Vector3(0, 1, 0),
+    z: new THREE.Vector3(0, 0, 1),
+  };
+
+  const applyAxisRotation = useCallback(
+    (startAngles, axisKey, deltaAngle, space = "local") => {
+      const safeAngles = ensureRotationArray(startAngles || [0, 0, 0]);
+      const startEuler = new THREE.Euler(
+        safeAngles[0],
+        safeAngles[1],
+        safeAngles[2],
+        "XYZ"
+      );
+      const startQuat = new THREE.Quaternion().setFromEuler(startEuler);
+      const deltaQuat = new THREE.Quaternion().setFromAxisAngle(
+        axisVectors[axisKey],
+        deltaAngle
+      );
+      const resultQuat =
+        space === "world"
+          ? deltaQuat.clone().multiply(startQuat)
+          : startQuat.clone().multiply(deltaQuat);
+      const resultEuler = new THREE.Euler().setFromQuaternion(
+        resultQuat,
+        "XYZ"
+      );
+      return [
+        normalizeAngle(resultEuler.x),
+        normalizeAngle(resultEuler.y),
+        normalizeAngle(resultEuler.z),
+      ];
+    },
+    [axisVectors]
+  );
   const { raycaster, camera, gl } = useThree();
 
   // مدیریت تنظیم ارتفاع
@@ -269,37 +305,39 @@ export const useModelAdjustment = (
   };
 
   const rotateModelZ = useCallback(() => {
-    const normalizedRotation = ensureRotationArray(rotation);
-    let currentZ = normalizeAngle(normalizedRotation[2]);
-    let newZ = snapToGrid(currentZ + rotationSnapRadians, rotationSnapRadians);
-    let newRotation = [...normalizedRotation];
-    newRotation[2] = normalizeAngle(newZ);
+    const newRotation = applyAxisRotation(rotation, "z", rotationSnapRadians, "local");
     updateModelRotation(id, newRotation);
-  }, [rotation, rotationSnapRadians, id, updateModelRotation]);
+  }, [rotation, rotationSnapRadians, id, updateModelRotation, applyAxisRotation]);
 
   const rotateModelY = useCallback(() => {
-    let currentY = normalizeAngle(rotation[1]);
-    let newY = snapToGrid(currentY + rotationSnapRadians, rotationSnapRadians);
-    let newRotation = [...rotation];
-    newRotation[1] = normalizeAngle(newY);
+    const newRotation = applyAxisRotation(
+      rotation,
+      "y",
+      rotationSnapRadians,
+      "world"
+    );
     updateModelRotation(id, newRotation);
-  }, [rotation, rotationSnapRadians, id, updateModelRotation]);
+  }, [rotation, rotationSnapRadians, id, updateModelRotation, applyAxisRotation]);
 
   const rotateModelX = useCallback(() => {
-    let currentX = normalizeAngle(rotation[0]);
-    let newX = snapToGrid(currentX + rotationSnapRadians, rotationSnapRadians);
-    newX = normalizeAngle(newX);
-
+    const snapDelta =
+      rotationSnapDegrees === 90 ? Math.PI / 2 : rotationSnapRadians;
+    const newRotation = applyAxisRotation(rotation, "x", snapDelta, "local");
     if (rotationSnapDegrees === 90) {
-      if (newX > Math.PI / 2 && newX < (3 * Math.PI) / 2) {
-        newX = newX < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
-      }
+      const snap = Math.PI / 2;
+      newRotation[0] = normalizeAngle(
+        Math.round(newRotation[0] / snap) * snap
+      );
     }
-
-    let newRotation = [...rotation];
-    newRotation[0] = newX;
     updateModelRotation(id, newRotation);
-  }, [rotation, rotationSnapRadians, rotationSnapDegrees, id, updateModelRotation]);
+  }, [
+    rotation,
+    rotationSnapRadians,
+    rotationSnapDegrees,
+    id,
+    updateModelRotation,
+    applyAxisRotation,
+  ]);
 
   // Effect برای تنظیم ارتفاع
   useEffect(() => {
@@ -321,21 +359,17 @@ export const useModelAdjustment = (
           position[1] + heightChange,
           heightSnapStep
         );
+        // برای تنظیم ارتفاع، فقط ارتفاع را تغییر می‌دهیم و موقعیت افقی را حفظ می‌کنیم
+        // ارتفاع را محدود نمی‌کنیم (می‌تواند هر مقداری داشته باشد)
         const proposedPosition = [
           position[0],
-          Math.max(0, newHeight),
+          newHeight, // بدون محدودیت Math.max(0, ...) - کاربر می‌تواند ارتفاع را آزادانه تغییر دهد
           position[2],
         ];
 
-        // بررسی برخورد و اصلاح موقعیت
-        const adjustedPosition = adjustPositionToAvoidOverlap(
-          proposedPosition,
-          id,
-          existingModels,
-          positionSnapStep
-        );
-
-        updateModelPosition(id, adjustedPosition);
+        // برای تنظیم ارتفاع، از adjustPositionToAvoidOverlap استفاده نمی‌کنیم
+        // چون می‌خواهیم کاربر بتواند آزادانه ارتفاع را تغییر دهد
+        updateModelPosition(id, proposedPosition);
         setMouseAccumulated((prev) => ({
           ...prev,
           y: newAccumulated % threshold,
@@ -424,10 +458,14 @@ export const useModelAdjustment = (
     const handleMouseMove = (event) => {
       const deltaX = event.clientX - rotationStartMouse.x;
       const rotationDelta = (deltaX / 200) * (Math.PI / 2) * mouseSensitivity;
-      const totalRotation = rotationStartAngles[1] + rotationDelta;
-      const snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
-      let newRotation = [...rotationStartAngles];
-      newRotation[1] = normalizeAngle(snappedRotation);
+      const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
+      if (snappedDelta === 0) return;
+      const newRotation = applyAxisRotation(
+        rotationStartAngles,
+        "y",
+        snappedDelta,
+        "world"
+      );
       updateModelRotation(id, newRotation);
     };
 
@@ -449,22 +487,22 @@ export const useModelAdjustment = (
     const handleMouseMove = (event) => {
       const deltaY = event.clientY - rotationStartMouse.y;
       const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
-      const totalRotation = rotationStartAngles[0] + rotationDelta;
-      let snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
-      snappedRotation = normalizeAngle(snappedRotation);
+      const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
+      if (snappedDelta === 0) return;
+      let newRotation = applyAxisRotation(
+        rotationStartAngles,
+        "x",
+        snappedDelta,
+        "local"
+      );
 
       if (rotationSnapDegrees === 90) {
-        if (
-          snappedRotation > Math.PI / 2 &&
-          snappedRotation < (3 * Math.PI) / 2
-        ) {
-          snappedRotation =
-            snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
-        }
+        const snap = Math.PI / 2;
+        newRotation[0] = normalizeAngle(
+          Math.round(newRotation[0] / snap) * snap
+        );
       }
 
-      let newRotation = [...rotationStartAngles];
-      newRotation[0] = snappedRotation;
       updateModelRotation(id, newRotation);
     };
 
@@ -487,12 +525,14 @@ export const useModelAdjustment = (
     const handleMouseMove = (event) => {
       const deltaY = event.clientY - rotationStartMouse.y;
       const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
-      const normalizedStartAngles = ensureRotationArray(rotationStartAngles);
-      let currentZ = normalizedStartAngles[2];
-      const totalRotation = currentZ + rotationDelta;
-      const snappedRotation = snapToGrid(totalRotation, rotationSnapRadians);
-      let newRotation = [...normalizedStartAngles];
-      newRotation[2] = normalizeAngle(snappedRotation);
+      const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
+      if (snappedDelta === 0) return;
+      const newRotation = applyAxisRotation(
+        rotationStartAngles,
+        "z",
+        snappedDelta,
+        "local"
+      );
       updateModelRotation(id, newRotation);
     };
 

@@ -49,8 +49,11 @@ export async function GET(req) {
         name: p.category?.name || "",
       },
       glbPath: p.glbPath,
+      thumbnailPath: p.thumbnailPath,
+      length: p.length,
       width: p.width,
       height: p.height,
+      noColor: p.noColor || false,
       createdAt: p.createdAt,
     }));
 
@@ -90,9 +93,12 @@ export async function POST(req) {
     const formData = await req.formData();
     const name = formData.get("name");
     const categoryId = formData.get("category");
+    const length = formData.get("length");
     const width = formData.get("width");
     const height = formData.get("height");
+    const noColor = formData.get("noColor") === "true";
     const file = formData.get("glbFile");
+    const thumbnailFile = formData.get("thumbnailFile");
 
     if (!name || name.trim() === "") {
       return NextResponse.json(
@@ -153,12 +159,31 @@ export async function POST(req) {
 
     const glbPath = `/uploads/parts/${fileName}`;
 
+    let thumbnailPath = null;
+    if (thumbnailFile && typeof thumbnailFile !== "string") {
+      const thumbnailBytes = await thumbnailFile.arrayBuffer();
+      const thumbnailBuffer = Buffer.from(thumbnailBytes);
+
+      const thumbnailsDir = path.join(process.cwd(), "public", "uploads", "thumbnails");
+      if (!fs.existsSync(thumbnailsDir)) {
+        await mkdir(thumbnailsDir, { recursive: true });
+      }
+
+      const thumbnailFileName = `thumb-${Date.now()}.png`;
+      const thumbnailFilePath = path.join(thumbnailsDir, thumbnailFileName);
+      await writeFile(thumbnailFilePath, thumbnailBuffer);
+      thumbnailPath = `/uploads/thumbnails/${thumbnailFileName}`;
+    }
+
     const newPart = new Part({
       name: name.trim(),
       category: categoryId,
       glbPath,
+      thumbnailPath,
+      length: length ? parseFloat(length) : null,
       width: width ? parseFloat(width) : null,
       height: height ? parseFloat(height) : null,
+      noColor: noColor,
     });
 
     await newPart.save();
@@ -178,8 +203,11 @@ export async function POST(req) {
             name: partWithCategory.category?.name || "",
           },
           glbPath: partWithCategory.glbPath,
+          thumbnailPath: partWithCategory.thumbnailPath,
+          length: partWithCategory.length,
           width: partWithCategory.width,
           height: partWithCategory.height,
+          noColor: partWithCategory.noColor || false,
           createdAt: partWithCategory.createdAt,
         },
       },

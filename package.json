@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3002",
+    "dev": "next dev --turbopack -p 3005",
     "build": "next build",
     "start": "node server.js",
     "lint": "next lint"
@@ -15,6 +15,8 @@
     "@fortawesome/free-regular-svg-icons": "^6.7.0",
     "@fortawesome/free-solid-svg-icons": "^6.7.0",
     "@fortawesome/react-fontawesome": "^0.2.2",
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/extensions": "^4.2.1",
     "@heroui/react": "2.6.14",
     "@react-three/drei": "^10.0.7",
     "@react-three/fiber": "^9.1.2",
@@ -25,6 +27,7 @@
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.15",
+    "fs-extra": "^11.3.2",
     "jalaliday": "^2.3.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",

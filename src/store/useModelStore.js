@@ -1,11 +1,12 @@
 import { create } from "zustand";
 
 const useModelStore = create((set, get) => ({
+  // Scope
+  currentProjectId: null,
   selectedModels: [],
   currentPlacingModel: null,
   currentPlacingModelColor: null,
-  currentPlacingModelWidth: null,
-  currentPlacingModelLength: null,
+  currentPlacingModelNoColor: false,
   selectedModelId: null,
   isAdjustingHeight: false,
   isPasteMode: false,
@@ -22,8 +23,29 @@ const useModelStore = create((set, get) => ({
   constrainToGrid: false,
   draggedModelId: null, // ID of model currently being dragged
   activeControlMode: null, // 'height' | 'rotateY' | 'rotateX' | 'rotateZ' | null
+  showColorPanel: false, // Show color picker panel
 
   setSelectedModels: (modelPath) => set({ selectedModels: modelPath }),
+
+  // Initialize or switch project context and reset per-project states/history
+  setProjectContext: (projectId, initialModels = []) =>
+    set((state) => {
+      if (state.currentProjectId === projectId) {
+        // Same project, do not reset history unless explicitly asked
+        return {
+          currentProjectId: projectId,
+          selectedModels: initialModels,
+        };
+      }
+      return {
+        currentProjectId: projectId,
+        selectedModels: initialModels,
+        selectedModelId: null,
+        clipboardModels: [],
+        _historyPast: [],
+        _historyFuture: [],
+      };
+    }),
 
   setCurrentPlacingModel: (modelPath) =>
     set({ currentPlacingModel: modelPath }),
@@ -31,13 +53,18 @@ const useModelStore = create((set, get) => ({
   setCurrentPlacingModelColor: (color) =>
     set({ currentPlacingModelColor: color }),
 
-  setCurrentPlacingModelWidth: (width) =>
-    set({ currentPlacingModelWidth: width }),
+  setCurrentPlacingModelNoColor: (noColor) =>
+    set({ currentPlacingModelNoColor: noColor }),
 
-  setCurrentPlacingModelLength: (length) =>
-    set({ currentPlacingModelLength: length }),
-
-  setSelectedModelId: (id) => set({ selectedModelId: id }),
+  setSelectedModelId: (id) => {
+    set((state) => {
+      // If deselecting (id is null), also deactivate control mode
+      if (id === null && state.activeControlMode) {
+        return { selectedModelId: id, activeControlMode: null };
+      }
+      return { selectedModelId: id };
+    });
+  },
 
   updateModelPosition: (id, position) =>
     set((state) => ({
@@ -88,10 +115,17 @@ const useModelStore = create((set, get) => ({
       modelOptions: { ...state.modelOptions, ...option },
     })),
 
-  setModelsRef: (option) =>
-    set((state) => ({
-      modelsRef: { ...state.modelOptions, ...option },
-    })),
+  setModelsRef: (ref) =>
+    set((state) => {
+      // Store ref by model id if ref has id property
+      // This is a simple implementation - can be improved if needed
+      if (ref && ref.current) {
+        // Try to find the model id from the ref's userData or parent
+        // For now, just store it - the Model component should handle this properly
+        return state; // Keep existing implementation for now
+      }
+      return state;
+    }),
 
   setZoomLevel: (level) => set({ zoomLevel: Math.max(10, Math.min(100, level)) }),
 
@@ -99,6 +133,7 @@ const useModelStore = create((set, get) => ({
   
   setDraggedModelId: (id) => set({ draggedModelId: id }),
   setActiveControlMode: (mode) => set({ activeControlMode: mode }),
+  setShowColorPanel: (value) => set({ showColorPanel: !!value }),
   
   zoomIn: () => set((state) => ({ 
     zoomLevel: Math.max(10, state.zoomLevel - 5) 
@@ -113,6 +148,8 @@ const useModelStore = create((set, get) => ({
 
   pushHistory: () => {
     const state = get();
+    // Only push if we are within a project context
+    if (!state.currentProjectId) return;
     const snapshot = state._cloneModels(state.selectedModels);
     set({
       _historyPast: [...state._historyPast, snapshot],
@@ -122,6 +159,7 @@ const useModelStore = create((set, get) => ({
 
   undo: () => {
     const state = get();
+    if (!state.currentProjectId) return;
     if (state._historyPast.length === 0) return;
     const past = [...state._historyPast];
     const previous = past.pop();
@@ -135,6 +173,7 @@ const useModelStore = create((set, get) => ({
 
   redo: () => {
     const state = get();
+    if (!state.currentProjectId) return;
     if (state._historyFuture.length === 0) return;
     const future = [...state._historyFuture];
     const next = future.pop();

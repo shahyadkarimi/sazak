@@ -140,3 +140,17 @@ body {
 .swiper-slide {
   background: transparent !important;
 }
+
+.border-x-\[calc\(theme\(spacing\.5\)\/2\)\] {
+  border-left: none;
+  border-right: none;
+}
+
+div[data-slot="filler"] {
+  border-radius: 50px;
+  background-color: #a600ff !important;
+}
+
+div[data-slot="thumb"] {
+  background-color: #a600ff !important;
+}

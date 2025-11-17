@@ -11,11 +11,11 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-const UnsavedChangesModal = ({
+const UnsavedChangesWarningModal = ({
   isOpen,
   onClose,
-  onSave,
   onDiscard,
+  onSave,
   isLoading,
 }) => {
   return (
@@ -41,7 +41,7 @@ const UnsavedChangesModal = ({
         <ModalBody className="text-center py-4">
           <p className="text-gray-600 text-sm leading-relaxed">
             شما تغییراتی در پروژه خود ایجاد کرده‌اید که هنوز ذخیره نشده‌اند. آیا
-            می‌خواهید تغییرات را ذخیره کنید یا بدون ذخیره خارج شوید؟
+            مطمئن هستید که می‌خواهید خارج شوید؟
           </p>
         </ModalBody>
         <ModalFooter className="flex flex-col gap-2 sm:flex-row sm:gap-3">
@@ -53,9 +53,8 @@ const UnsavedChangesModal = ({
             انصراف
           </Button>
           <Button
-            variant="light"
+            className="bg-red-500 text-white w-full sm:w-auto hover:bg-red-600"
             onPress={onDiscard}
-            className="w-full sm:w-auto text-red-600 hover:text-red-700"
           >
             خروج بدون ذخیره
           </Button>
@@ -73,4 +72,5 @@ const UnsavedChangesModal = ({
   );
 };
 
-export default UnsavedChangesModal;
+export default UnsavedChangesWarningModal;
+

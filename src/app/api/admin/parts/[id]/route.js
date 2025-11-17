@@ -32,9 +32,12 @@ export async function PUT(req, { params }) {
     const formData = await req.formData();
     const name = formData.get("name");
     const categoryId = formData.get("category");
+    const length = formData.get("length");
     const width = formData.get("width");
     const height = formData.get("height");
+    const noColor = formData.get("noColor") === "true";
     const file = formData.get("glbFile");
+    const thumbnailFile = formData.get("thumbnailFile");
 
     const part = await Part.findOne({
       _id: id,
@@ -52,6 +55,20 @@ export async function PUT(req, { params }) {
       part.name = name.trim();
     }
 
+    if (length !== null && length !== undefined && length !== "") {
+      part.length = parseFloat(length) || null;
+    }
+
+    if (width !== null && width !== undefined && width !== "") {
+      part.width = parseFloat(width) || null;
+    }
+
+    if (height !== null && height !== undefined && height !== "") {
+      part.height = parseFloat(height) || null;
+    }
+
+    part.noColor = noColor;
+
     if (categoryId) {
       const category = await Category.findOne({
         _id: categoryId,
@@ -66,13 +83,6 @@ export async function PUT(req, { params }) {
       }
 
       part.category = categoryId;
-    }
-
-    if (width) {
-      part.width = parseFloat(width) || null;
-    }
-    if (height) {
-      part.height = parseFloat(height) || null;
     }
 
     if (file && typeof file !== "string") {
@@ -113,6 +123,32 @@ export async function PUT(req, { params }) {
       part.glbPath = `/uploads/parts/${fileName}`;
     }
 
+    if (thumbnailFile && typeof thumbnailFile !== "string") {
+      const oldThumbnailPath = part.thumbnailPath
+        ? path.join(process.cwd(), "public", part.thumbnailPath)
+        : null;
+      if (oldThumbnailPath && fs.existsSync(oldThumbnailPath)) {
+        try {
+          await unlink(oldThumbnailPath);
+        } catch (e) {
+          console.error("Error deleting old thumbnail:", e);
+        }
+      }
+
+      const thumbnailBytes = await thumbnailFile.arrayBuffer();
+      const thumbnailBuffer = Buffer.from(thumbnailBytes);
+
+      const thumbnailsDir = path.join(process.cwd(), "public", "uploads", "thumbnails");
+      if (!fs.existsSync(thumbnailsDir)) {
+        await mkdir(thumbnailsDir, { recursive: true });
+      }
+
+      const thumbnailFileName = `thumb-${Date.now()}.png`;
+      const thumbnailFilePath = path.join(thumbnailsDir, thumbnailFileName);
+      await writeFile(thumbnailFilePath, thumbnailBuffer);
+      part.thumbnailPath = `/uploads/thumbnails/${thumbnailFileName}`;
+    }
+
     await part.save();
 
     const partWithCategory = await Part.findById(part._id)
@@ -130,8 +166,11 @@ export async function PUT(req, { params }) {
             name: partWithCategory.category?.name || "",
           },
           glbPath: partWithCategory.glbPath,
+          thumbnailPath: partWithCategory.thumbnailPath,
+          length: partWithCategory.length,
           width: partWithCategory.width,
           height: partWithCategory.height,
+          noColor: partWithCategory.noColor || false,
           createdAt: partWithCategory.createdAt,
         },
       },
@@ -186,6 +225,17 @@ export async function DELETE(req, { params }) {
         await unlink(filePath);
       } catch (e) {
         console.error("Error deleting file:", e);
+      }
+    }
+
+    if (part.thumbnailPath) {
+      const thumbnailFilePath = path.join(process.cwd(), "public", part.thumbnailPath);
+      if (fs.existsSync(thumbnailFilePath)) {
+        try {
+          await unlink(thumbnailFilePath);
+        } catch (e) {
+          console.error("Error deleting thumbnail:", e);
+        }
       }
     }
 

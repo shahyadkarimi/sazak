@@ -2,8 +2,8 @@
 
 import { postData } from "@/services/API";
 import useModelStore from "@/store/useModelStore";
-import useUnsavedChanges from "@/hooks/useUnsavedChanges";
-import UnsavedChangesModal from "./UnsavedChangesModal";
+import useBrowserWarning from "@/hooks/useBrowserWarning";
+import UnsavedChangesWarningModal from "./UnsavedChangesWarningModal";
 import { Spinner } from "@heroui/react";
 import {
   Button,
@@ -21,7 +21,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
 
-const AutoSave = ({ project }) => {
+const AutoSave = ({ project, onSaveSuccess }) => {
   const { selectedModels } = useModelStore();
   const { id } = useParams();
 
@@ -52,6 +52,9 @@ const AutoSave = ({ project }) => {
           }
 
           await postData("/project/save-changes", form, undefined, "multipart");
+          if (onSaveSuccess) {
+            onSaveSuccess();
+          }
         } catch (e) {
           toast.error("خطا هنگام ذخیره تغییرات", {
             duration: 3500,
@@ -62,7 +65,7 @@ const AutoSave = ({ project }) => {
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [id, selectedModels]);
+  }, [id, selectedModels, onSaveSuccess]);
 
   return null;
 };
@@ -81,6 +84,8 @@ const Toolbar = ({ project }) => {
     redo,
     constrainToGrid,
     setConstrainToGrid,
+    showColorPanel,
+    setShowColorPanel,
   } = useModelStore();
   const [loading, setLoading] = useState(false);
   const [confirmAutoSave, setConfirmAutoSave] = useState(0);
@@ -90,34 +95,21 @@ const Toolbar = ({ project }) => {
 
   const router = useRouter();
 
-  // Unsaved changes functionality
   const {
-    hasUnsavedChanges,
-    showWarning,
-    setShowWarning,
-    handleSaveAndContinue,
-    handleDiscardChanges,
-    isSaving,
-    setPendingNavigation,
-    checkForUnsavedChanges,
-  } = useUnsavedChanges(project);
+    markAsSaved,
+    showWarningModal,
+    isRefreshWarning,
+    handleCancel,
+    handleDiscardRefresh,
+  } = useBrowserWarning(project);
 
-  // Real-time unsaved changes state
-  const [realTimeHasUnsavedChanges, setRealTimeHasUnsavedChanges] =
-    useState(false);
-
-  // Update real-time state
-  useEffect(() => {
-    const updateUnsavedChanges = () => {
-      const hasChanges = checkForUnsavedChanges();
-      setRealTimeHasUnsavedChanges(hasChanges);
-    };
-
-    updateUnsavedChanges();
-    const interval = setInterval(updateUnsavedChanges, 1000);
-
-    return () => clearInterval(interval);
-  }, [checkForUnsavedChanges]);
+  const handleDiscard = useCallback(() => {
+    if (isRefreshWarning) {
+      handleDiscardRefresh();
+    } else {
+      router.push("/user");
+    }
+  }, [router, isRefreshWarning, handleDiscardRefresh]);
 
   const {
     register,
@@ -138,7 +130,8 @@ const Toolbar = ({ project }) => {
 
   useEffect(() => {
     if (project?.objects) {
-      setSelectedModels(project.objects);
+      const { setProjectContext } = useModelStore.getState();
+      setProjectContext(project?.id || id, project.objects);
     }
   }, [project?.id]); // Only run when project ID changes (initial load)
 
@@ -168,19 +161,35 @@ const Toolbar = ({ project }) => {
 
       await postData("/project/save-changes", form, undefined, "multipart");
 
+      markAsSaved();
+
       setLoading(false);
       toast.success("تغییرات با موفقیت ذخیره شدند", {
         duration: 3500,
         className: "text-sm rounded-2xl",
       });
+      return true;
     } catch (err) {
       toast.error("خطا هنگام ذخیره تغییرات", {
         duration: 3500,
         className: "text-sm rounded-2xl",
       });
       setLoading(false);
+      return false;
     }
-  }, [id, selectedModels, project?.name]);
+  }, [id, selectedModels, project?.name, markAsSaved]);
+
+  const handleSaveAndExit = useCallback(async () => {
+    const saved = await saveChangeHandler();
+    if (saved) {
+      handleCancel();
+      if (isRefreshWarning) {
+        window.location.reload();
+      } else {
+        router.push("/user");
+      }
+    }
+  }, [saveChangeHandler, handleCancel, router, isRefreshWarning]);
 
   // Keyboard shortcut for Ctrl+S
   useEffect(() => {
@@ -416,7 +425,7 @@ const Toolbar = ({ project }) => {
 
   return (
     <div className="w-full flex items-center justify-center bg-gray-200/40">
-      <AutoSave project={project} />
+      <AutoSave project={project} onSaveSuccess={markAsSaved} />
 
       <Toaster />
 
@@ -564,8 +573,29 @@ const Toolbar = ({ project }) => {
 
         {/* other tools */}
         <div className="flex items-end gap-3">
+          {/* Color Picker Button */}
           <div className="flex flex-col items-center gap-1">
-            <Tooltip content="عدم خروج مدل‌ها از صفحه" placement="bottom" size="sm">
+            <Tooltip content="انتخاب رنگ مدل" placement="bottom" size="sm">
+              <button
+                onClick={() => setShowColorPanel(!showColorPanel)}
+                disabled={!selectedModelId}
+                className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  showColorPanel && selectedModelId
+                    ? "bg-primaryThemeColor text-white"
+                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                }`}
+              >
+                <i className="fi fi-rr-palette size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip
+              content="عدم خروج مدل‌ها از صفحه"
+              placement="bottom"
+              size="sm"
+            >
               <button
                 onClick={() => setConstrainToGrid(!constrainToGrid)}
                 className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
@@ -620,15 +650,7 @@ const Toolbar = ({ project }) => {
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="خروج از استودیو" placement="bottom" size="sm">
               <button
-                onClick={() => {
-                  if (realTimeHasUnsavedChanges) {
-                    // Set pending navigation to user page
-                    setPendingNavigation("/user");
-                    setShowWarning(true);
-                  } else {
-                    router.push("/user");
-                  }
-                }}
+                onClick={() => router.push("/user")}
                 className="bg-red-100 text-red-600 flex justify-center items-center size-9 rounded-xl hover:bg-red-200 transition-all duration-300"
               >
                 <i className="fi fi-rr-exit size-4 block"></i>
@@ -894,13 +916,12 @@ const Toolbar = ({ project }) => {
         </ModalContent>
       </Modal>
 
-      {/* Unsaved Changes Warning Modal */}
-      <UnsavedChangesModal
-        isOpen={showWarning}
-        onClose={() => setShowWarning(false)}
-        onSave={handleSaveAndContinue}
-        onDiscard={handleDiscardChanges}
-        isLoading={isSaving}
+      <UnsavedChangesWarningModal
+        isOpen={showWarningModal}
+        onClose={handleCancel}
+        onDiscard={handleDiscard}
+        onSave={handleSaveAndExit}
+        isLoading={loading}
       />
     </div>
   );

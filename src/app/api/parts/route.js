@@ -29,9 +29,12 @@ export async function GET(req) {
     const mappedParts = parts.map((p) => ({
       id: p._id.toString(),
       path: p.glbPath,
+      thumbnailPath: p.thumbnailPath,
       name: p.name,
+      length: p.length,
       width: p.width,
       height: p.height,
+      noColor: p.noColor || false,
       category: {
         id: p.category?._id?.toString() || "",
         name: p.category?.name || "",

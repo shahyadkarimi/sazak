@@ -22,9 +22,9 @@ const DesignPanel = ({ project }) => {
   };
 
   const closeAllMobile = () => {
-    setIsLeftMobileOpen(false)
-    setIsRightMobileOpen(false)
-  }
+    setIsLeftMobileOpen(false);
+    setIsRightMobileOpen(false);
+  };
 
   return (
     <div className="w-full h-[calc(100vh-144px)] relative overflow-hidden md:grid md:grid-cols-[auto_1fr_auto] md:items-stretch">
@@ -89,8 +89,6 @@ const DesignPanel = ({ project }) => {
         )}
       </div>
 
-      {/* Desktop edge toggles moved into sidebars as tabs */}
-
       {/* Mobile: drawers */}
       <div className="md:hidden">
         <button
@@ -118,7 +116,7 @@ const DesignPanel = ({ project }) => {
         />
       )}
 
-
+      {/* LeftSidebar Mobile */}
       <div
         className={`fixed top-0 left-0 z-50 h-full w-32 max-w-[60vw] transform transition-all duration-300 ease-in-out md:hidden ${
           isLeftMobileOpen ? "translate-x-0" : "-translate-x-full"
@@ -131,6 +129,7 @@ const DesignPanel = ({ project }) => {
         />
       </div>
 
+      {/* Sidebar Mobile */}
       <div
         className={`fixed top-0 bottom-0 z-50 min-h-full w-72 max-w-[85vw] transform transition-all duration-300 ease-in-out md:hidden ${
           isRightMobileOpen ? "right-0" : "-right-full"

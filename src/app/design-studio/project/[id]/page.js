@@ -36,6 +36,8 @@ const Page = async ({ params }) => {
     return <p className="text-danger">خطا هنگام پردازش پروژه</p>;
   }
 
+  console.log(project);
+
   return (
     <div className="w-full flex flex-col">
       <Header />

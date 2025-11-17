@@ -1,6 +1,7 @@
 import connectDB from "@/lib/db";
 import { getAuthUser } from "@/lib/auth";
 import Project from "@/models/Project";
+import User from "@/models/User";
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
@@ -47,6 +48,10 @@ export async function POST(req) {
       objects = body?.objects;
     }
 
+    const requestUser = await User.findById(authUser.userId)
+      .select("role")
+      .lean();
+
     const updateData = {};
     if (typeof objects !== "undefined") {
       updateData.objects = objects;
@@ -63,11 +68,16 @@ export async function POST(req) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
 
-      const projectCheck = await Project.findOne({
+      const projectCheckQuery = {
         _id: projectId,
-        user: authUser.userId,
         deletedAt: null,
-      }).select("name");
+      };
+
+      if (requestUser?.role !== "admin") {
+        projectCheckQuery.user = authUser.userId;
+      }
+
+      const projectCheck = await Project.findOne(projectCheckQuery).select("name");
 
       if (!projectCheck) {
         return NextResponse.json(
@@ -92,14 +102,19 @@ export async function POST(req) {
     let retries = 0;
     let project = null;
 
+    const projectUpdateQuery = {
+      _id: projectId,
+      deletedAt: null,
+    };
+
+    if (requestUser?.role !== "admin") {
+      projectUpdateQuery.user = authUser.userId;
+    }
+
     while (retries < maxRetries && !project) {
       try {
         project = await Project.findOneAndUpdate(
-          {
-            _id: projectId,
-            user: authUser.userId,
-            deletedAt: null,
-          },
+          projectUpdateQuery,
           { $set: updateData },
           { new: true, runValidators: true }
         );
