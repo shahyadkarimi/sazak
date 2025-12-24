@@ -34,6 +34,7 @@ const columns = [
   { name: "شماره موبایل", uid: "phoneNumber" },
   { name: "نقش", uid: "role" },
   { name: "وضعیت", uid: "isActive" },
+  { name: "دسترسی ویرایش پروژه‌ها", uid: "canEditUserProjects" },
   { name: "تاریخ ثبت‌نام", uid: "createdAt" },
   { name: "عملیات", uid: "actions" },
 ];
@@ -57,6 +58,7 @@ const Page = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [impersonatingId, setImpersonatingId] = useState(null);
+  const [togglingEditPermission, setTogglingEditPermission] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -235,6 +237,45 @@ const Page = () => {
     setUsers((prevUsers) => [newUser, ...prevUsers]);
   };
 
+  const handleToggleEditPermission = async (user) => {
+    if (user.role !== "admin") return;
+    
+    try {
+      setTogglingEditPermission(user.id);
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `/api/admin/users/${user.id}/toggle-edit-permission`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": token,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUsers((prevUsers) =>
+          prevUsers.map((u) =>
+            u.id === user.id
+              ? { ...u, canEditUserProjects: data.canEditUserProjects }
+              : u
+          )
+        );
+        toast.success(data.message);
+      } else {
+        toast.error(data.message || "خطا در تغییر دسترسی ویرایش");
+      }
+    } catch (error) {
+      console.error("Error toggling edit permission:", error);
+      toast.error("خطا در تغییر دسترسی ویرایش");
+    } finally {
+      setTogglingEditPermission(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[60vh] w-full items-center justify-center">
@@ -250,15 +291,15 @@ const Page = () => {
   }
 
   if (error) {
-    return <div className="text-red-600">{error}</div>;
+    return <div className="text-red-600 dark:text-red-400">{error}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">لیست کاربران</h1>
-          <p className="text-sm lg:text-base text-gray-600">لیست کاربران ثبت شده</p>
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">لیست کاربران</h1>
+          <p className="text-sm lg:text-base text-gray-600 dark:text-gray-400">لیست کاربران ثبت شده</p>
         </div>
         <Button
           color="primary"
@@ -289,9 +330,9 @@ const Page = () => {
               <Icon icon="solar:minimalistic-magnifer-broken" width="20" height="20" />
             }
             classNames={{
-              input: "placeholder:font-light placeholder:text-gray-600",
-              inputWrapper: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-              label: "text-gray-700 font-medium",
+              input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
+              inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+              label: "text-gray-700 dark:text-gray-300 font-medium",
             }}
             labelPlacement="outside"
           />
@@ -306,8 +347,8 @@ const Page = () => {
               label="نقش"
               labelPlacement="outside"
               classNames={{
-                trigger: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                trigger: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             >
               <SelectItem key="all" value="all">
@@ -330,8 +371,8 @@ const Page = () => {
               label="وضعیت"
               labelPlacement="outside"
               classNames={{
-                trigger: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                trigger: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             >
               <SelectItem key="all" value="all">
@@ -358,10 +399,10 @@ const Page = () => {
           <TableBody emptyContent="کاربری یافت نشد" items={paged}>
             {(item) => (
               <TableRow key={item.id}>
-                <TableCell className="text-sm">{item.name}</TableCell>
-                <TableCell className="text-sm">{item.familyName}</TableCell>
-                <TableCell className="text-sm">{toFarsiNumber(item.phoneNumber)}</TableCell>
-                <TableCell className="text-sm">{item.role === "admin" ? "ادمین" : "کاربر"}</TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.name}</TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.familyName}</TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">{toFarsiNumber(item.phoneNumber)}</TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.role === "admin" ? "ادمین" : "کاربر"}</TableCell>
                 <TableCell>
                   <button onClick={() => handleToggleStatus(item)}>
                     <Chip
@@ -373,7 +414,29 @@ const Page = () => {
                     </Chip>
                   </button>
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell>
+                  {item.role === "admin" ? (
+                    <button
+                      onClick={() => handleToggleEditPermission(item)}
+                      disabled={togglingEditPermission === item.id}
+                    >
+                      <Chip
+                        size="sm"
+                        color={item.canEditUserProjects ? "success" : "danger"}
+                        variant="flat"
+                      >
+                        {togglingEditPermission === item.id
+                          ? "در حال تغییر..."
+                          : item.canEditUserProjects
+                          ? "دارد"
+                          : "ندارد"}
+                      </Chip>
+                    </button>
+                  ) : (
+                    <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">
                   {new Date(item.createdAt).toLocaleDateString("fa-IR")}
                 </TableCell>
                 <TableCell>
@@ -465,9 +528,9 @@ const Page = () => {
 };
 
 const Stat = ({ title, value }) => (
-  <div className="!shadow-none hover:!shadow-lg hover:!shadow-gray-200 border !transition-all p-4 rounded-2xl bg-white">
-    <div className="text-sm text-gray-500">{title}</div>
-    <div className="mt-2 text-2xl font-bold">{toFarsiNumber(value)}</div>
+  <div className="!shadow-none hover:!shadow-lg hover:!shadow-gray-200 dark:hover:!shadow-gray-800 border dark:border-gray-700 !transition-all p-4 rounded-2xl bg-white dark:bg-gray-800">
+    <div className="text-sm text-gray-500 dark:text-gray-400">{title}</div>
+    <div className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-100">{toFarsiNumber(value)}</div>
   </div>
 );
 

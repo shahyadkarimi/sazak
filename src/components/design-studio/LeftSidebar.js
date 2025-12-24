@@ -199,12 +199,12 @@ const ViewCubeScene = ({ onSelect, mainCamera }) => {
           console.log("Calculated vector v:", v);
           if (v) {
             const isTopOrBottom = Math.abs(v[1]) > 0.5;
-            const radius = isTopOrBottom ? 45 : 35; // افزایش radius برای زوت اوت بیشتر
+            const radius = isTopOrBottom ? 55 : 50;
             const base = new THREE.Vector3(v[0], v[1], v[2]).multiplyScalar(
               radius
             );
             if (!isTopOrBottom) {
-              base.y = 22; // افزایش ارتفاع برای نمای بهتر
+              base.y = 22;
             }
             const dir = new THREE.Vector3(v[0], v[1], v[2]).normalize();
             const yaw = -Math.atan2(dir.x, dir.z);
@@ -247,7 +247,7 @@ const ViewCubeScene = ({ onSelect, mainCamera }) => {
         Math.min(limit, pitchTargetRef.current)
       );
 
-      const radius = 35; // افزایش radius برای drag هم
+      const radius = 50;
       const dir = new THREE.Vector3(0, 0, 1);
       const euler = new THREE.Euler(
         pitchTargetRef.current,
@@ -257,7 +257,7 @@ const ViewCubeScene = ({ onSelect, mainCamera }) => {
       );
       dir.applyEuler(euler).normalize();
       const next = dir.multiplyScalar(radius);
-      const minY = 20; // افزایش حداقل ارتفاع
+      const minY = 20;
       if (next.y < minY) next.y = minY;
       onSelect &&
         onSelect({
@@ -331,15 +331,16 @@ const ViewCube = ({ activeView, onViewChange, mainCamera }) => {
   };
 
   return (
-    <div className="w-full h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 select-none mb-4" style={{ contain: 'paint' }}>
-        <div className="w-24 h-24" style={{ contain: 'layout style paint', willChange: 'contents' }}>
-        <Canvas 
+    <div className="w-full h-24 flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 select-none mb-4" style={{ contain: 'paint' }}>
+      <div className="w-24 h-24" style={{ contain: 'layout style paint', willChange: 'contents' }}>
+        <Canvas
           camera={{ position: [3, 3, 3], fov: 40 }}
+          dpr={[1, 1.5]}
           gl={{
-            antialias: true,
+            antialias: false,
             alpha: true,
             preserveDrawingBuffer: false,
-            powerPreference: 'high-performance',
+            powerPreference: 'low-power',
             stencil: false,
             depth: true,
           }}
@@ -362,20 +363,20 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
   const { zoomIn, zoomOut } = useModelStore();
 
   const resetView = () => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("designStudio:resetView"));
-    }
+    const frontView = {
+      camera: [0, 22, 45],
+      fov: 45,
+      immediate: false,
+    };
+    onViewChange && onViewChange(frontView);
   };
 
-  const selectedModels = useModelStore((s) => s.selectedModels);
-  const disableViewCube = Array.isArray(selectedModels) && selectedModels.length > 50;
-
   return (
-    <div className="relative h-full md:h-[calc(100vh-144px)] flex flex-col justify-center items-center gap-4 bg-white p-4">
+    <div className="relative h-full md:h-[calc(100vh-144px)] flex flex-col items-center gap-4 bg-white dark:bg-gray-900 p-4 border-l dark:border-gray-800">
       {typeof onToggle === "function" && (
         <button
           onClick={onToggle}
-          className="absolute top-1/2 -translate-y-1/2 -right-5 w-5 h-10 rounded-r-xl z-10 bg-white border border-l-0 flex items-center justify-center text-gray-600 hover:text-primaryThemeColor"
+          className="absolute top-1/2 -translate-y-1/2 -right-5 w-5 h-10 rounded-r-xl z-10 bg-white dark:bg-gray-800 border dark:border-gray-700 border-l-0 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primaryThemeColor"
           title="بستن"
         >
           <Icon
@@ -385,24 +386,16 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
           />
         </button>
       )}
-      {/* View Cube (disabled when many models to avoid multiple GL contexts) */}
-      {disableViewCube ? (
-        <div className="w-full h-24 flex items-center justify-center bg-gray-50 rounded-xl border border-gray-200 select-none mb-4">
-          <div className="text-xs text-gray-500 text-center p-2">
-            نمای کوچک (ViewCube) موقتاً غیرفعال شد تا فشار گرافیکی کاهش یابد
-          </div>
-        </div>
-      ) : (
-        <ViewCube
-          activeView={cameraView}
-          onViewChange={onViewChange}
-          mainCamera={mainCamera}
-        />
-      )}
+      {/* View Cube */}
+      <ViewCube
+        activeView={cameraView}
+        onViewChange={onViewChange}
+        mainCamera={mainCamera}
+      />
 
       <button
         onClick={resetView}
-        className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+        className="bg-gray-200/90 dark:bg-gray-800/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
         title="بازگشت به نمای پیش‌فرض"
       >
         <i className="fi fi-rr-house-chimney size-5 text-xl block"></i>
@@ -410,25 +403,25 @@ const LeftSidebar = ({ mainCamera, cameraView, onViewChange, onToggle }) => {
 
       <button
         onClick={zoomIn}
-        className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+        className="bg-gray-200/90 dark:bg-gray-800/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
       >
         <i className="fi fi-rr-add size-5 text-xl block"></i>
       </button>
 
       <button
         onClick={zoomOut}
-        className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+        className="bg-gray-200/90 dark:bg-gray-800/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
       >
         <i className="fi fi-rr-minus-circle size-5 text-xl block"></i>
       </button>
 
-      <button className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+      {/* <button className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
         <i className="fi fi-rr-arrows-alt-h size-5 text-xl block"></i>
       </button>
 
       <button className="bg-gray-200/90 flex justify-center items-center size-11 rounded-2xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
         <i className="fi fi-rr-arrows-alt-v size-5 text-xl block"></i>
-      </button>
+      </button> */}
     </div>
   );
 };

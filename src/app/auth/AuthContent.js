@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import LoginForm from "./LoginForm";
 import { Icon } from "@iconify/react";
 import { useSettings } from "@/hooks/useSettings";
+import Lottie from "lottie-react";
+import thinkingAnimation from "@/animation/thinking.json";
 
 const AuthContent = () => {
   const [showLogin, setShowLogin] = useState(false);
@@ -13,10 +15,20 @@ const AuthContent = () => {
     return (
       <div className="w-full flex flex-col items-center justify-center gap-8 py-12">
         <div className="w-full flex flex-col items-center gap-4 text-center">
-          <h1 className="text-3xl font-bold text-gray-900">
+          {/* Lottie Animation */}
+          <div className="w-60 h-60 md:w-72 md:h-72 flex items-center justify-center overflow-hidden">
+            <Lottie
+              animationData={thinkingAnimation}
+              loop={true}
+              autoplay={true}
+              className="w-full h-full scale-[1.15] pt-5"
+            />
+          </div>
+          
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-200">
             خوش آمدید
           </h1>
-          <p className="text-lg text-gray-600 max-w-md">
+          <p className="text-lg text-gray-600 dark:text-gray-300 max-w-md">
             به {settings.siteName || "آموزشگاه رباتیک سازک"} خوش آمدید
             <br />
             برای شروع طراحی و استفاده از امکانات، وارد حساب کاربری خود شوید

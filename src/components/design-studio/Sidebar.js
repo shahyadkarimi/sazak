@@ -62,7 +62,7 @@ const Sidebar = ({ onToggle }) => {
       const data = await res.json();
 
       if (data.success) {
-        const partsWithDefaults = data.parts.map((part, index) => ({
+        const partsWithDefaults = data.parts.map((part) => ({
           id: part.id,
           path: part.path,
           thumbnailPath: part.thumbnailPath,
@@ -70,7 +70,7 @@ const Sidebar = ({ onToggle }) => {
           nameFa: part.name,
           category: part.category,
           noColor: part.noColor || false,
-          color: getDefaultColor(index),
+          color: part.color || null,
         }));
 
         setModelList(partsWithDefaults);
@@ -99,29 +99,6 @@ const Sidebar = ({ onToggle }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getDefaultColor = (index) => {
-    const colors = [
-      "#ef4444",
-      "#3b82f6",
-      "#22c55e",
-      "#eab308",
-      "#f97316",
-      "#a855f7",
-      "#10b981",
-      "#0ea5e9",
-      "#6366f1",
-      "#f43f5e",
-      "#22d3ee",
-      "#84cc16",
-      "#fb7185",
-      "#f59e0b",
-      "#64748b",
-      "#14b8a6",
-      "#374151",
-    ];
-    return colors[index % colors.length];
   };
 
   // const modelList = [
@@ -344,40 +321,6 @@ const Sidebar = ({ onToggle }) => {
   //   screw: modelList.filter((m) => m.type === "screw"),
   // };
 
-  const colors = [
-    { name: "قرمز", hex: "#ef4444" },
-    { name: "آبی", hex: "#3b82f6" },
-    { name: "سبز", hex: "#22c55e" },
-    { name: "زرد", hex: "#eab308" },
-    { name: "نارنجی", hex: "#f97316" },
-    { name: "بنفش", hex: "#a855f7" },
-    { name: "مشکی", hex: "#000000" },
-    { name: "سفید", hex: "#ffffff" },
-  ];
-
-  const getRandomColor = () => {
-    const colors = [
-      "#ef4444",
-      "#3b82f6",
-      "#22c55e",
-      "#eab308",
-      "#f97316",
-      "#a855f7",
-      "#10b981",
-      "#0ea5e9",
-      "#6366f1",
-      "#f43f5e",
-      "#22d3ee",
-      "#84cc16",
-      "#fb7185",
-      "#f59e0b",
-      "#64748b",
-      "#14b8a6",
-      "#374151",
-    ];
-    return colors[Math.floor(Math.random() * colors.length)];
-  };
-
   const clickModelHandler = (modelId) => {
     const model = modelList.find((m) => m.id === modelId);
     
@@ -390,9 +333,8 @@ const Sidebar = ({ onToggle }) => {
 
     setCurrentPlacingModelNoColor(false);
 
-    const randomColor = getRandomColor();
     setCurrentPlacingModel(model?.path);
-    setCurrentPlacingModelColor(randomColor);
+    setCurrentPlacingModelColor(model?.color || null);
   };
 
   const filteredModels =
@@ -408,11 +350,11 @@ const Sidebar = ({ onToggle }) => {
 
   return (
     <>
-      <div className="relative min-w-80 max-w-80 h-full flex flex-col gap-4 bg-white p-4 md:h-[calc(100vh-144px)]">
+      <div className="relative min-w-80 max-w-80 h-full flex flex-col gap-4 bg-white dark:bg-gray-900 p-4 md:h-[calc(100vh-144px)] border-l dark:border-gray-800">
         {typeof onToggle === "function" && (
           <button
             onClick={onToggle}
-            className="absolute top-1/2 -translate-y-1/2 -left-5 w-5 h-10 rounded-l-xl z-10 bg-white border border-r-0 flex items-center justify-center text-gray-600 hover:text-primaryThemeColor"
+            className="absolute top-1/2 -translate-y-1/2 -left-5 w-5 h-10 rounded-l-xl z-10 bg-white dark:bg-gray-800 border dark:border-gray-700 border-r-0 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primaryThemeColor"
             title="بستن"
           >
             <Icon
@@ -437,9 +379,9 @@ const Sidebar = ({ onToggle }) => {
             />
           }
           classNames={{
-            input: "placeholder:font-light placeholder:text-gray-600",
+            input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400",
             inputWrapper:
-              "border h-12 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border h-12 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
           }}
         />
 
@@ -448,10 +390,10 @@ const Sidebar = ({ onToggle }) => {
             <button
               key={index}
               className={cn(
-                "text-gray-700 p-2 px-4 rounded-xl hover:bg-primaryThemeColor hover:text-white transition-all",
+                "text-gray-700 dark:text-gray-200 p-2 px-4 rounded-xl hover:bg-primaryThemeColor hover:text-white transition-all",
                 f.value === selectedFilter
                   ? "bg-primaryThemeColor text-white"
-                  : ""
+                  : "bg-gray-100 dark:bg-gray-800"
               )}
               onClick={() => setSelectedFilter(f.value)}
             >
@@ -472,7 +414,7 @@ const Sidebar = ({ onToggle }) => {
               />
             </div>
           ) : searchedModels.length === 0 ? (
-            <div className="col-span-3 flex items-center justify-center py-8 text-gray-500">
+            <div className="col-span-3 flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
               قطعه‌ای یافت نشد
             </div>
           ) : (
@@ -482,7 +424,7 @@ const Sidebar = ({ onToggle }) => {
                 <div key={model.id} className="relative w-full group">
                   <button
                     onClick={() => clickModelHandler(model.id)}
-                    className="w-full h-24 border min-h-fit rounded-2xl text-sm text-gray-500 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
+                    className="w-full h-24 border dark:border-gray-700 min-h-fit rounded-2xl text-sm text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 flex flex-col overflow-hidden justify-center items-center gap-3 hover:border-primaryThemeColor transition-all duration-300"
                   >
                     <div className="w-full h-12 rounded-xl overflow-hidden">
                       <Image
@@ -494,7 +436,7 @@ const Sidebar = ({ onToggle }) => {
                         unoptimized
                       />
                     </div>
-                    <span className="text-xs font-semibold text-center">
+                    <span className="text-xs font-semibold text-center text-gray-700 dark:text-gray-200">
                       {toFarsiNumber(model.nameFa || model.name)}
                     </span>
                   </button>

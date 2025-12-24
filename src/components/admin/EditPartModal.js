@@ -18,6 +18,19 @@ import { Icon } from "@iconify/react";
 import toast from "react-hot-toast";
 import ModelPreview from "./ModelPreview";
 
+const getRandomColor = () => {
+  const colors = [
+    "#3b82f6", "#ef4444", "#22c55e", "#eab308", 
+    "#f97316", "#a855f7", "#ec4899", "#06b6d4",
+    "#10b981", "#f59e0b", "#8b5cf6", "#ec4899",
+    "#14b8a6", "#f43f5e", "#6366f1", "#0ea5e9",
+    "#84cc16", "#fb923c", "#c026d3", "#06b6d4",
+    "#22d3ee", "#a78bfa", "#34d399", "#fbbf24",
+    "#60a5fa", "#f472b6", "#4ade80", "#fb7185"
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+};
+
 const EditPartModal = ({
   isOpen,
   onClose,
@@ -57,25 +70,26 @@ const EditPartModal = ({
       });
       setFile(null);
       setFileError("");
+      setCustomColor(part.noColor ? null : part.color || null);
     }
   }, [part]);
 
   useEffect(() => {
     if (formData.noColor) {
       setCustomColor(null);
-    } else if ((file || part?.glbPath) && customColor === null) {
-      const colors = [
-        "#3b82f6", "#ef4444", "#22c55e", "#eab308", 
-        "#f97316", "#a855f7", "#ec4899", "#06b6d4",
-        "#10b981", "#f59e0b", "#8b5cf6", "#ec4899",
-        "#14b8a6", "#f43f5e", "#6366f1", "#0ea5e9",
-        "#84cc16", "#fb923c", "#c026d3", "#06b6d4",
-        "#22d3ee", "#a78bfa", "#34d399", "#fbbf24",
-        "#60a5fa", "#f472b6", "#4ade80", "#fb7185"
-      ];
-      setCustomColor(colors[Math.floor(Math.random() * colors.length)]);
+      return;
     }
-  }, [formData.noColor, file, part]);
+    if (customColor) {
+      return;
+    }
+    if (part?.color) {
+      setCustomColor(part.color);
+      return;
+    }
+    if (file || part?.glbPath) {
+      setCustomColor(getRandomColor());
+    }
+  }, [formData.noColor, file, part, customColor]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,6 +116,10 @@ const EditPartModal = ({
       formDataToSend.append("width", formData.width || "");
       formDataToSend.append("height", formData.height || "");
       formDataToSend.append("noColor", formData.noColor ? "true" : "false");
+      formDataToSend.append(
+        "color",
+        !formData.noColor && customColor ? customColor : ""
+      );
 
       const thumbnailBlob = await captureThumbnail();
       if (thumbnailBlob) {
@@ -207,9 +225,9 @@ const EditPartModal = ({
         body: "max-h-[65vh] overflow-y-auto",
       }}
     >
-      <ModalContent>
+      <ModalContent className="bg-white dark:bg-gray-800">
         <form onSubmit={handleSubmit}>
-          <ModalHeader className="flex flex-col gap-1">
+          <ModalHeader className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
             <div className="flex items-center gap-2">
               <Icon
                 icon="solar:pen-line-duotone"
@@ -230,10 +248,10 @@ const EditPartModal = ({
               isRequired
               classNames={{
                 input:
-                  "text-right placeholder:font-light placeholder:text-gray-600",
+                  "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                 inputWrapper:
-                  "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                  "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             />
             <Select
@@ -250,8 +268,8 @@ const EditPartModal = ({
               isRequired
               classNames={{
                 trigger:
-                  "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                  "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             >
               {categories.map((cat) => (
@@ -270,10 +288,10 @@ const EditPartModal = ({
                 labelPlacement="outside"
                 classNames={{
                   input:
-                    "text-right placeholder:font-light placeholder:text-gray-600",
+                    "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper:
-                    "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                  label: "text-gray-700 font-medium",
+                    "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                  label: "text-gray-700 dark:text-gray-300 font-medium",
                 }}
               />
               <Input
@@ -285,10 +303,10 @@ const EditPartModal = ({
                 labelPlacement="outside"
                 classNames={{
                   input:
-                    "text-right placeholder:font-light placeholder:text-gray-600",
+                    "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper:
-                    "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                  label: "text-gray-700 font-medium",
+                    "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                  label: "text-gray-700 dark:text-gray-300 font-medium",
                 }}
               />
               <Input
@@ -300,15 +318,15 @@ const EditPartModal = ({
                 labelPlacement="outside"
                 classNames={{
                   input:
-                    "text-right placeholder:font-light placeholder:text-gray-600",
+                    "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper:
-                    "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                  label: "text-gray-700 font-medium",
+                    "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                  label: "text-gray-700 dark:text-gray-300 font-medium",
                 }}
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                 فایل GLB
               </label>
               <div className="relative">
@@ -321,15 +339,15 @@ const EditPartModal = ({
                 />
                 <label
                   htmlFor="glb-file-input-edit"
-                  className="flex items-center gap-2 cursor-pointer p-3 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
+                  className="flex items-center gap-2 cursor-pointer p-3 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-gray-300 dark:hover:border-gray-600 transition-colors bg-white dark:bg-gray-700"
                 >
                   <Icon
                     icon="solar:file-line-duotone"
                     width="20"
                     height="20"
-                    className="text-gray-500"
+                    className="text-gray-500 dark:text-gray-400"
                   />
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-gray-600 dark:text-gray-300">
                     {file
                       ? file.name
                       : part?.glbPath?.split("/").pop() ||
@@ -338,22 +356,22 @@ const EditPartModal = ({
                 </label>
               </div>
               {fileError && (
-                <p className="text-sm text-red-600 mt-1">{fileError}</p>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-1">{fileError}</p>
               )}
               {!file && part?.glbPath && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   فایل فعلی: {part.glbPath.split("/").pop()}
                 </p>
               )}
               {(file || part?.glbPath) && (
                 <div className="mt-4">
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     {file ? "پیش‌نمایش مدل جدید" : "تصویر قطعه"}
                   </label>
                   <div className="mb-2 space-y-3">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                           حرکت در محور X: {positionX}
                         </label>
                         <div dir="ltr">
@@ -373,7 +391,7 @@ const EditPartModal = ({
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                           حرکت در محور Y: {positionY}
                         </label>
                         <div dir="ltr">
@@ -395,7 +413,7 @@ const EditPartModal = ({
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                           چرخش در محور X:{" "}
                           {Math.round((rotationX * 180) / Math.PI)}°
                         </label>
@@ -417,7 +435,7 @@ const EditPartModal = ({
                         </div>
                       </div>
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                           چرخش در محور Y:{" "}
                           {Math.round((rotationY * 180) / Math.PI)}°
                         </label>
@@ -440,7 +458,7 @@ const EditPartModal = ({
                       </div>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-600 mb-1 block">
+                      <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                         زوم: {zoom}x
                       </label>
                       <div dir="ltr">
@@ -459,7 +477,7 @@ const EditPartModal = ({
                     </div>
                     {!formData.noColor && (
                       <div>
-                        <label className="text-xs text-gray-600 mb-1 block">
+                        <label className="text-xs text-gray-600 dark:text-gray-400 mb-1 block">
                           رنگ مدل
                         </label>
                         <div className="flex items-center gap-2">
@@ -467,7 +485,7 @@ const EditPartModal = ({
                             type="color"
                             value={customColor || "#3b82f6"}
                             onChange={(e) => setCustomColor(e.target.value)}
-                            className="w-12 h-8 p-0 border border-gray-300 rounded-lg cursor-pointer"
+                            className="w-12 h-8 p-0 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer"
                             title="انتخاب رنگ"
                           />
                         </div>
@@ -476,7 +494,7 @@ const EditPartModal = ({
                   </div>
                   <div
                     ref={thumbnailRef}
-                    className="w-full h-48 border border-gray-200 rounded-xl overflow-hidden bg-gray-100"
+                    className="w-full h-48 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700"
                   >
                     <ModelPreview
                       file={file}
@@ -502,7 +520,7 @@ const EditPartModal = ({
                 onChange={(e) => handleChange("noColor", e.target.checked)}
                 className="w-4 h-4 text-primaryThemeColor border-gray-300 rounded focus:ring-primaryThemeColor"
               />
-              <label htmlFor="noColor-edit" className="text-sm text-gray-700 cursor-pointer">
+              <label htmlFor="noColor-edit" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
                 قطعه بدون رنگ
               </label>
             </div>

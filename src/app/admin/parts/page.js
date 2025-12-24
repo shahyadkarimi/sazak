@@ -92,9 +92,24 @@ const Page = () => {
     p.name?.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleEdit = (part) => {
-    setSelectedPart(part);
-    setEditModalOpen(true);
+  const handleEdit = async (part) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/admin/parts/${part.id}`, {
+        headers: { "x-auth-token": token ?? "" },
+      });
+      const data = await res.json();
+      if (data.success && data.part) {
+        setSelectedPart(data.part);
+      } else {
+        setSelectedPart(part);
+      }
+    } catch (error) {
+      console.error("Error loading part detail:", error);
+      setSelectedPart(part);
+    } finally {
+      setEditModalOpen(true);
+    }
   };
 
   const handleDelete = (part) => {
@@ -131,17 +146,17 @@ const Page = () => {
   }
 
   if (error) {
-    return <div className="text-red-600">{error}</div>;
+    return <div className="text-red-600 dark:text-red-400">{error}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
             همه قطعات
           </h1>
-          <p className="text-sm lg:text-base text-gray-600">
+          <p className="text-sm lg:text-base text-gray-600 dark:text-gray-400">
             مدیریت قطعات و مدل‌های GLB
           </p>
         </div>
@@ -169,10 +184,10 @@ const Page = () => {
               <Icon icon="solar:minimalistic-magnifer-broken" width="20" height="20" />
             }
             classNames={{
-              input: "placeholder:font-light placeholder:text-gray-600",
+              input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
               inputWrapper:
-                "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-              label: "text-gray-700 font-medium",
+                "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+              label: "text-gray-700 dark:text-gray-300 font-medium",
             }}
             labelPlacement="outside"
           />
@@ -187,8 +202,8 @@ const Page = () => {
             labelPlacement="outside"
             classNames={{
               trigger:
-                "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-              label: "text-gray-700 font-medium",
+                "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+              label: "text-gray-700 dark:text-gray-300 font-medium",
             }}
           >
             <SelectItem key="all" value="all">
@@ -203,7 +218,7 @@ const Page = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <Table aria-label="Parts table" removeWrapper>
           <TableHeader columns={columns}>
             {(column) => (
@@ -216,7 +231,7 @@ const Page = () => {
             {(part) => (
               <TableRow key={part.id}>
                 <TableCell>
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 flex items-center justify-center">
                     {part.thumbnailPath ? (
                       <Image
                         src={part.thumbnailPath}
@@ -231,19 +246,19 @@ const Page = () => {
                         icon="solar:file-line-duotone"
                         width="24"
                         height="24"
-                        className="text-gray-400"
+                        className="text-gray-400 dark:text-gray-500"
                       />
                     )}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="font-medium text-gray-900">{part.name}</div>
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{part.name}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-gray-600">{part.category?.name || "-"}</div>
+                  <div className="text-gray-600 dark:text-gray-400">{part.category?.name || "-"}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     {new Date(part.createdAt).toLocaleDateString("fa-IR")}
                   </div>
                 </TableCell>

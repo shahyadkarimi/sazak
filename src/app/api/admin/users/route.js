@@ -30,7 +30,7 @@ export async function GET(req) {
       deletedAt: null,
       isDeleted: { $ne: true }
     })
-      .select("_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture")
+      .select("_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture canEditUserProjects")
       .sort({ createdAt: -1 })
       .lean();
 
@@ -61,6 +61,7 @@ export async function GET(req) {
       phoneNumber: u.phoneNumber,
       role: u.role,
       isActive: u.isActive,
+      canEditUserProjects: u.role === "admin" ? (u.canEditUserProjects || false) : false,
       email: u.email ?? "",
       address: u.address ?? "",
       province: u.province ?? "",

@@ -44,10 +44,10 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="min-w-64 min-h-full flex flex-col justify-between bg-white py-6 px-5 max-h-screen overflow-y-auto">
+    <div className="min-w-64 min-h-full flex flex-col justify-between bg-white dark:bg-gray-900 py-6 px-5 max-h-screen overflow-y-auto">
       <div className="flex flex-col gap-4">
         {/* logo */}
-        <div className="flex items-center gap-2 pb-4 border-b">
+        <div className="flex items-center gap-2 pb-4 border-b dark:border-gray-800">
           <Image
             src={settings.logo || "/assets/logo.png"}
             width={150}
@@ -57,7 +57,7 @@ const Sidebar = () => {
           />
 
           <div className="flex flex-col">
-            <p className="text-xs text-gray-700">
+            <p className="text-xs text-gray-700 dark:text-gray-300">
               {settings.siteDescription || "آموزشگاه رباتیک"}
             </p>
             <h2 className="font-extrabold text-primaryThemeColor">
@@ -75,9 +75,9 @@ const Sidebar = () => {
                 key={index}
                 href={item.path}
                 className={cn(
-                  "flex items-center gap-2 text-gray-700 rounded-2xl h-12 hover:bg-gray-100/70 hover:text-primaryThemeColor px-4 transition-all duration-300",
+                  "flex items-center gap-2 text-gray-700 dark:text-gray-200 rounded-2xl h-12 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 hover:text-primaryThemeColor px-4 transition-all duration-300",
                   isActive &&
-                    "bg-primaryThemeColor/5 hover:bg-primaryThemeColor/5 text-primaryThemeColor font-bold"
+                    "bg-primaryThemeColor/5 dark:bg-primaryThemeColor/10 hover:bg-primaryThemeColor/5 dark:hover:bg-primaryThemeColor/10 text-primaryThemeColor dark:text-primaryThemeColor font-bold"
                 )}
               >
                 <Icon icon={item.icon} width="20" hanging="20" />
@@ -88,7 +88,7 @@ const Sidebar = () => {
 
           <button
             onClick={logoutHandler}
-            className="flex items-center gap-2 text-gray-700 rounded-2xl h-12 hover:bg-gray-100/70 hover:text-danger px-4 transition-all duration-300"
+            className="flex items-center gap-2 text-gray-700 dark:text-gray-200 rounded-2xl h-12 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 hover:text-danger px-4 transition-all duration-300"
           >
             {loading ? (
               <Spinner size="sm" color="danger" />
@@ -114,16 +114,16 @@ const Sidebar = () => {
               src={user.profilePicture || "/assets/avatar.png"}
               width={100}
               height={100}
-              className="size-10 rounded-full border-2 shadow-lg shadow-gray-100"
+              className="size-10 rounded-full border-2 dark:border-gray-700 shadow-lg shadow-gray-100 dark:shadow-gray-900"
               alt="user avatar"
             />
           </div>
 
           <div className="flex flex-col gap-0.5">
-            <span className="text-sm text-gray-600 font-bold">
+            <span className="text-sm text-gray-600 dark:text-gray-300 font-bold">
               {user.fullName}
             </span>
-            <span className="text-xs text-gray-500">{user.role === "user" ? "دانشجو" : "ادمین"}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{user.role === "user" ? "دانشجو" : "ادمین"}</span>
           </div>
         </div>
 
@@ -132,7 +132,7 @@ const Sidebar = () => {
           as={Link}
           href="/user/profile"
           isIconOnly
-          className="bg-white size-9 min-w-9 border text-gray-700 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 transition-all duration-300"
+          className="bg-white dark:bg-gray-800 size-9 min-w-9 border dark:border-gray-700 text-gray-700 dark:text-gray-200 flex items-center justify-center rounded-2xl hover:bg-gray-100/60 dark:hover:bg-gray-700/60 transition-all duration-300"
         >
           <Icon icon="solar:pen-2-broken" width="18" height="18" />
         </Button>

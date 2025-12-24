@@ -8,6 +8,85 @@ import { writeFile, unlink, mkdir } from "fs/promises";
 import path from "path";
 import fs from "fs";
 
+const normalizeHexColor = (value) => {
+  if (!value) return null;
+  const trimmed = value.toString().trim();
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) return null;
+  return trimmed.toLowerCase();
+};
+
+const resolveColorValue = (value, noColor) => {
+  if (noColor) return null;
+  return normalizeHexColor(value);
+};
+
+export async function GET(req, { params }) {
+  try {
+    await connectDB();
+
+    const authUser = await getAuthUser(req);
+    if (!authUser) {
+      return NextResponse.json(
+        { success: false, message: "توکن نامعتبر یا منقضی شده است" },
+        { status: 401 }
+      );
+    }
+
+    const requester = await User.findById(authUser.userId).lean();
+    if (!requester || requester.role !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
+    const { id } = params;
+
+    const part = await Part.findOne({
+      _id: id,
+      deletedAt: null,
+    })
+      .populate({ path: "category", select: "name" })
+      .lean();
+
+    if (!part) {
+      return NextResponse.json(
+        { success: false, message: "قطعه یافت نشد" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        part: {
+          id: part._id,
+          name: part.name,
+          category: {
+            id: part.category?._id,
+            name: part.category?.name || "",
+          },
+          glbPath: part.glbPath,
+          thumbnailPath: part.thumbnailPath,
+          length: part.length,
+          width: part.width,
+          height: part.height,
+          noColor: part.noColor || false,
+          color: part.noColor ? null : part.color || part.previewColor || null,
+          createdAt: part.createdAt,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Admin get part error:", error);
+    return NextResponse.json(
+      { success: false, message: "خطا هنگام دریافت اطلاعات قطعه" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(req, { params }) {
   try {
     await connectDB();
@@ -36,6 +115,7 @@ export async function PUT(req, { params }) {
     const width = formData.get("width");
     const height = formData.get("height");
     const noColor = formData.get("noColor") === "true";
+    const colorInput = formData.get("color");
     const file = formData.get("glbFile");
     const thumbnailFile = formData.get("thumbnailFile");
 
@@ -68,6 +148,7 @@ export async function PUT(req, { params }) {
     }
 
     part.noColor = noColor;
+    part.color = resolveColorValue(colorInput, noColor);
 
     if (categoryId) {
       const category = await Category.findOne({
@@ -171,6 +252,9 @@ export async function PUT(req, { params }) {
           width: partWithCategory.width,
           height: partWithCategory.height,
           noColor: partWithCategory.noColor || false,
+          color: partWithCategory.noColor
+            ? null
+            : partWithCategory.color || partWithCategory.previewColor || null,
           createdAt: partWithCategory.createdAt,
         },
       },

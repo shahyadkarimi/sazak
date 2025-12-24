@@ -140,19 +140,19 @@ const EditProfileForm = () => {
 
       {/* avatar */}
       <div className="flex items-end -translate-y-14 gap-2">
-        <div className="relative border-8 border-white rounded-full group">
+        <div className="relative border-8 border-white dark:border-gray-800 rounded-full group">
           <Image
             src={profilePicture}
             width={100}
             height={100}
-            className="size-28 rounded-full border-2 shadow-lg shadow-gray-100"
+            className="size-28 rounded-full border-2 shadow-lg shadow-gray-100 dark:shadow-gray-900"
             alt="user avatar"
           />
 
           {/* Upload overlay */}
           <div
             className={cn(
-              "absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer",
+              "absolute inset-0 bg-black/50 dark:bg-gray-900/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-pointer",
               uploadingImage && "opacity-100"
             )}
           >
@@ -164,11 +164,11 @@ const EditProfileForm = () => {
               disabled={uploadingImage}
             />
             {uploadingImage ? (
-              <Spinner color="white" />
+              <Spinner color="white dark:text-gray-200" />
             ) : (
               <Icon
                 icon="solar:camera-add-linear"
-                className="text-white"
+                className="text-white dark:text-gray-200"
                 width="24"
                 height="24"
               />
@@ -177,10 +177,10 @@ const EditProfileForm = () => {
         </div>
 
         <div className="flex flex-col gap-0.5 pb-4">
-          <span className="text-xl text-gray-600 font-black">
+          <span className="text-xl text-gray-600 dark:text-gray-200 font-black">
             {user.fullName}
           </span>
-          <span className="text-sm text-gray-500">دانشجو</span>
+          <span className="text-sm text-gray-500 dark:text-gray-400">دانشجو</span>
         </div>
       </div>
 
@@ -200,16 +200,16 @@ const EditProfileForm = () => {
               startContent={
                 <Icon
                   icon="solar:user-outline"
-                  className="text-gray-600"
+                  className="text-gray-600 dark:text-gray-300"
                   width="24"
                   height="24"
                 />
               }
               classNames={{
                 input:
-                  "placeholder:font-light text-base placeholder:text-gray-600",
+                  "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
                 inputWrapper:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.name ? true : false}
               errorMessage="نام الزامی است"
@@ -233,16 +233,16 @@ const EditProfileForm = () => {
               startContent={
                 <Icon
                   icon="solar:user-id-linear"
-                  className="text-gray-600"
+                  className="text-gray-600 dark:text-gray-300"
                   width="24"
                   height="24"
                 />
               }
               classNames={{
                 input:
-                  "placeholder:font-light text-base placeholder:text-gray-600",
+                  "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
                 inputWrapper:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.familyName ? true : false}
               errorMessage="نام خانوادگی الزامی است"
@@ -266,16 +266,16 @@ const EditProfileForm = () => {
               startContent={
                 <Icon
                   icon="solar:letter-linear"
-                  className="text-gray-600"
+                  className="text-gray-600 dark:text-gray-300"
                   width="24"
                   height="24"
                 />
               }
               classNames={{
                 input:
-                  "placeholder:font-light text-base placeholder:text-gray-600",
+                  "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
                 inputWrapper:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.email ? true : false}
               errorMessage={errors?.email?.message}
@@ -298,16 +298,16 @@ const EditProfileForm = () => {
               startContent={
                 <Icon
                   icon="solar:home-2-linear"
-                  className="text-gray-600"
+                  className="text-gray-600 dark:text-gray-300"
                   width="24"
                   height="24"
                 />
               }
               classNames={{
                 input:
-                  "placeholder:font-light text-base placeholder:text-gray-600",
+                  "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
                 inputWrapper:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.address ? true : false}
               errorMessage={errors?.address?.message}
@@ -332,7 +332,7 @@ const EditProfileForm = () => {
               variant="bordered"
               classNames={{
                 trigger:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.province ? true : false}
               errorMessage={errors?.province?.message}
@@ -362,7 +362,7 @@ const EditProfileForm = () => {
               variant="bordered"
               classNames={{
                 trigger:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isDisabled={!selectedProvince}
               isInvalid={errors.city ? true : false}
@@ -392,16 +392,16 @@ const EditProfileForm = () => {
               startContent={
                 <Icon
                   icon="solar:calendar-linear"
-                  className="text-gray-600"
+                  className="text-gray-600 dark:text-gray-300"
                   width="24"
                   height="24"
                 />
               }
               classNames={{
                 input:
-                  "placeholder:font-light text-base placeholder:text-gray-600",
+                  "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
                 inputWrapper:
-                  "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                  "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
               }}
               isInvalid={errors.birthDate ? true : false}
               errorMessage={errors?.birthDate?.message}
@@ -414,14 +414,14 @@ const EditProfileForm = () => {
           variant="bordered"
           labelPlacement="outside"
           classNames={{
-            input: "placeholder:font-light placeholder:text-gray-600",
+            input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400",
             inputWrapper:
-              "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
           }}
           startContent={
             <Icon
               icon="solar:lock-password-linear"
-              className="text-gray-600"
+              className="text-gray-600 dark:text-gray-300"
               width="24"
               height="24"
             />

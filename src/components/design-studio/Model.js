@@ -2,12 +2,26 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useFrame } from "@react-three/fiber";
 import useModelStore from "@/store/useModelStore";
 import { useModelScene } from "@/hooks/useModelScene";
-import { useModelAdjustment, normalizeAngle, snapToGrid as snapRotation } from "@/hooks/useModelAdjustment";
+import {
+  useModelAdjustment,
+  normalizeAngle,
+  snapToGrid as snapRotation,
+  ensureRotationArray,
+  applySnappedAxisRotation,
+} from "@/hooks/useModelAdjustment";
 import ModelControls from "./ModelControls";
-import ContextMenu from "./ContextMenu";
 import { useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { clampPositionToGrid } from "@/helper/gridConstraints";
+import {
+  clampPositionToGrid,
+  volumesOverlap,
+  boxesOverlap,
+} from "@/helper/gridConstraints";
+import {
+  setModelBounds,
+  removeModelBounds,
+  getModelBounds,
+} from "@/store/modelBoundsRegistry";
 
 const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   const modelRef = useRef();
@@ -17,12 +31,14 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
 
   const selectedModelId = useModelStore((s) => s.selectedModelId);
   const setSelectedModelId = useModelStore((s) => s.setSelectedModelId);
+  const groupMode = useModelStore((s) => s.groupMode);
   const updateModelPosition = useModelStore((s) => s.updateModelPosition);
   const updateModelRotation = useModelStore((s) => s.updateModelRotation);
   const setIsAdjustingHeight = useModelStore((s) => s.setIsAdjustingHeight);
   const existingModels = useModelStore((s) => s.selectedModels);
   const setSelectedModels = useModelStore((s) => s.setSelectedModels);
   const modelOptions = useModelStore((s) => s.modelOptions);
+  const allowOverlap = useModelStore((s) => s.allowOverlap);
   const setModelsRef = useModelStore((s) => s.setModelsRef);
   const pushHistory = useModelStore((s) => s.pushHistory);
   const updateModelDimensions = useModelStore((s) => s.updateModelDimensions);
@@ -32,6 +48,141 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   const zoomLevel = useModelStore((s) => s.zoomLevel);
   const effectiveSnap =
     Math.max(0.05, (modelOptions?.snapSize ?? 0.5) * (zoomLevel / 50));
+  const constrainToGrid = useModelStore((s) => s.constrainToGrid);
+
+  const modelDimensions = (() => {
+    const model = existingModels.find(m => m.id === id);
+    return model?.dimensions || null;
+  })();
+
+  const isSelected =
+    selectedModelId === id ||
+    selectedModelId === 'ALL' ||
+    (Array.isArray(selectedModelId) && selectedModelId.includes(id));
+  const [clonedSceneState, setClonedSceneState] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPosition, setDragStartPosition] = useState(null);
+  const [dragStartRotation, setDragStartRotation] = useState(null);
+  const [dragStartMouse, setDragStartMouse] = useState(null);
+  const [isPointerDown, setIsPointerDown] = useState(false);
+  const [initialMousePos, setInitialMousePos] = useState(null);
+  const positionRef = useRef(position);
+  const rotationRef = useRef(rotation);
+  const isAdjustingRef = useRef(false);
+  const frameCountRef = useRef(0);
+  const baseHeightRef = useRef(0);
+  const dragSelectionRef = useRef(null);
+  const dragStartRotationsRef = useRef(null);
+  const previousRotationDuringDragRef = useRef(null);
+  const selectionColliderRef = useRef(null);
+  const getRotatedBounds = useCallback(() => {
+    if (!clonedSceneState) return null;
+    const tempGroup = new THREE.Group();
+    const tempClone = clonedSceneState.clone(true);
+    tempGroup.add(tempClone);
+    tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+    tempGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(tempGroup);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const min = box.min.clone();
+    const max = box.max.clone();
+    return { size, center, min, max };
+  }, [clonedSceneState, rotation]);
+
+  const computeWorldBounds = useCallback(
+    (candidatePosition, candidateDimensions = modelDimensions) => {
+      if (!candidatePosition || !candidateDimensions) return null;
+      if (candidateDimensions?.bounds) {
+        const { bounds } = candidateDimensions;
+        return {
+          minX: candidatePosition[0] + bounds.minX,
+          maxX: candidatePosition[0] + bounds.maxX,
+          minY: candidatePosition[1] + bounds.minY,
+          maxY: candidatePosition[1] + bounds.maxY,
+          minZ: candidatePosition[2] + bounds.minZ,
+          maxZ: candidatePosition[2] + bounds.maxZ,
+        };
+      }
+
+      // Fallback for current model before bounds are ready
+      if (candidateDimensions === modelDimensions) {
+        const bounds = getRotatedBounds();
+        if (bounds) {
+          return {
+            minX: candidatePosition[0] + bounds.min.x,
+            maxX: candidatePosition[0] + bounds.max.x,
+            minY: candidatePosition[1] + bounds.min.y,
+            maxY: candidatePosition[1] + bounds.max.y,
+            minZ: candidatePosition[2] + bounds.min.z,
+            maxZ: candidatePosition[2] + bounds.max.z,
+          };
+        }
+      }
+
+      return null;
+    },
+    [getRotatedBounds, modelDimensions]
+  );
+
+  const hasOverlapWithOthers = useCallback(
+    (
+      candidatePosition,
+      candidateDimensions = modelDimensions,
+      ignoreIds = new Set()
+    ) => {
+      if (!candidatePosition) return false;
+      if (allowOverlap) return false;
+
+      const currentBounds =
+        getModelBounds(id) || computeWorldBounds(position, modelDimensions);
+
+      if (currentBounds) {
+        const alreadyOverlapping = existingModels.some((other) => {
+          if (!other || other.id === id || ignoreIds.has(other.id)) return false;
+          const otherBounds =
+            getModelBounds(other.id) ||
+            computeWorldBounds(other.position, other.dimensions);
+          if (!otherBounds) return false;
+          return boxesOverlap(currentBounds, otherBounds);
+        });
+        if (alreadyOverlapping) {
+          return false;
+        }
+      }
+
+      const candidateBounds = computeWorldBounds(
+        candidatePosition,
+        candidateDimensions
+      );
+      if (!candidateBounds) return false;
+
+      return existingModels.some((other) => {
+        if (!other || other.id === id || ignoreIds.has(other.id)) {
+          return false;
+        }
+
+        const otherBounds =
+          getModelBounds(other.id) ||
+          computeWorldBounds(other.position, other.dimensions);
+
+        if (!otherBounds) return false;
+
+        return boxesOverlap(candidateBounds, otherBounds);
+      });
+    },
+    [
+      allowOverlap,
+      computeWorldBounds,
+      existingModels,
+      id,
+      modelDimensions,
+      position,
+    ]
+  );
 
   const modelControls = useModelAdjustment(
     id,
@@ -46,52 +197,10 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       rotationSnapDegrees: modelOptions.rotationDeg,
       mouseSensitivityY:
         modelOptions.snapSize === 0.1 || modelOptions.snapSize === 0.5 ? 3 : 3,
+      allowOverlap,
+      checkOverlap: hasOverlapWithOthers,
     }
   );
-  const constrainToGrid = useModelStore((s) => s.constrainToGrid);
-
-  // Get dimensions from store for collision
-  const modelDimensions = (() => {
-    const model = existingModels.find(m => m.id === id);
-    return model?.dimensions || null;
-  })();
-
-  const isSelected =
-    selectedModelId === id ||
-    selectedModelId === 'ALL' ||
-    (Array.isArray(selectedModelId) && selectedModelId.includes(id));
-  const [clonedSceneState, setClonedSceneState] = useState(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartPosition, setDragStartPosition] = useState(null);
-  const [dragStartRotation, setDragStartRotation] = useState(null);
-  const [dragStartMouse, setDragStartMouse] = useState(null);
-  const [isPointerDown, setIsPointerDown] = useState(false);
-  const [initialMousePos, setInitialMousePos] = useState(null);
-  const positionRef = useRef(position);
-  const rotationRef = useRef(rotation);
-  const isAdjustingRef = useRef(false);
-  const frameCountRef = useRef(0);
-  const baseHeightRef = useRef(0);
-  const dragSelectionRef = useRef(null); // Store selection at drag start
-  const dragStartRotationsRef = useRef(null); // Store start rotations for all selected models
-  const selectionColliderRef = useRef(null);
-
-  const getRotatedBounds = useCallback(() => {
-    if (!clonedSceneState) return null;
-    const tempGroup = new THREE.Group();
-    const tempClone = clonedSceneState.clone(true);
-    tempGroup.add(tempClone);
-    tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
-    tempGroup.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(tempGroup);
-    const size = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    box.getSize(size);
-    box.getCenter(center);
-    return { size, center };
-  }, [clonedSceneState, rotation]);
 
   useEffect(() => {
     if (adjustedScene) {
@@ -113,6 +222,24 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       clone.traverse((child) => {
         if (child.isMesh && child.material && child.geometry) {
           child.material = child.material.clone();
+          if (!child.userData) child.userData = {};
+          if (child.material.color && !child.userData.__originalColor) {
+            child.userData.__originalColor = child.material.color.clone();
+          }
+          if (
+            child.material.emissive &&
+            !child.userData.__originalEmissive
+          ) {
+            child.userData.__originalEmissive =
+              child.material.emissive.clone();
+          }
+          if (
+            child.material.emissiveIntensity !== undefined &&
+            child.userData.__originalEmissiveIntensity === undefined
+          ) {
+            child.userData.__originalEmissiveIntensity =
+              child.material.emissiveIntensity;
+          }
           // Attach wireframe border helper for transparent mode
           try {
             const edges = new THREE.EdgesGeometry(child.geometry, 1);
@@ -130,15 +257,34 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       });
       setClonedSceneState(clone);
       
-      // Store the dimensions in the store (dimensions are in world space after scale)
+      // Store the dimensions (size + relative bounds)
       const dimensions = {
         x: box.max.x - box.min.x,
         y: box.max.y - box.min.y,
-        z: box.max.z - box.min.z
+        z: box.max.z - box.min.z,
+        bounds: {
+          minX: box.min.x,
+          maxX: box.max.x,
+          minY: box.min.y,
+          maxY: box.max.y,
+          minZ: box.min.z,
+          maxZ: box.max.z,
+        },
       };
       updateModelDimensions(id, dimensions);
     }
   }, [adjustedScene, id, updateModelDimensions]);
+
+  useEffect(() => {
+    const bounds = computeWorldBounds(position, modelDimensions);
+    if (bounds) {
+      setModelBounds(id, bounds);
+    }
+  }, [computeWorldBounds, id, position, modelDimensions]);
+
+  useEffect(() => {
+    return () => removeModelBounds(id);
+  }, [id]);
 
   useEffect(() => {
     if (!constrainToGrid || !modelDimensions) return;
@@ -182,7 +328,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   useEffect(() => {
     const bounds = getRotatedBounds();
     if (!bounds) return;
-    const { size } = bounds;
+    const { size, min, max } = bounds;
     const current = modelDimensions;
     const epsilon = 0.01;
     const hasChanged =
@@ -191,16 +337,209 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       Math.abs(current.y - size.y) > epsilon ||
       Math.abs(current.z - size.z) > epsilon;
     if (hasChanged) {
-      updateModelDimensions(id, { x: size.x, y: size.y, z: size.z });
+      updateModelDimensions(id, {
+        x: size.x,
+        y: size.y,
+        z: size.z,
+        bounds: {
+          minX: min.x,
+          maxX: max.x,
+          minY: min.y,
+          maxY: max.y,
+          minZ: min.z,
+          maxZ: max.z,
+        },
+      });
     }
   }, [getRotatedBounds, modelDimensions, id, updateModelDimensions]);
+
+  const lastRotationRef = useRef(rotation);
+  useEffect(() => {
+    if (!clonedSceneState || isAdjustingRef.current || isDragging) {
+      lastRotationRef.current = rotation;
+      return;
+    }
+    if (isDragging && activeControlMode === 'height') {
+      lastRotationRef.current = rotation;
+      return;
+    }
+    
+    const rotationChanged = 
+      Math.abs(lastRotationRef.current[0] - rotation[0]) > 0.001 ||
+      Math.abs(lastRotationRef.current[1] - rotation[1]) > 0.001 ||
+      Math.abs(lastRotationRef.current[2] - rotation[2]) > 0.001;
+    
+    if (!rotationChanged) return;
+    
+    const xRotationChanged = Math.abs(lastRotationRef.current[0] - rotation[0]) > 0.001;
+    const zRotationChanged = Math.abs(lastRotationRef.current[2] - rotation[2]) > 0.001;
+    if (!xRotationChanged && !zRotationChanged) {
+      lastRotationRef.current = rotation;
+      return;
+    }
+    
+    const oldRotation = lastRotationRef.current;
+    lastRotationRef.current = rotation;
+    
+    const tempGroupOld = new THREE.Group();
+    const tempCloneOld = clonedSceneState.clone(true);
+    tempGroupOld.add(tempCloneOld);
+    tempGroupOld.position.set(position[0], position[1], position[2]);
+    tempGroupOld.rotation.set(oldRotation[0], oldRotation[1], oldRotation[2]);
+    tempGroupOld.updateMatrixWorld(true);
+    const boxOld = new THREE.Box3().setFromObject(tempGroupOld);
+    const minYOld = boxOld.min.y;
+    
+    const tempGroup = new THREE.Group();
+    const tempClone = clonedSceneState.clone(true);
+    tempGroup.add(tempClone);
+    tempGroup.position.set(position[0], position[1], position[2]);
+    tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
+    tempGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(tempGroup);
+    const minY = box.min.y;
+    
+    const wasOnGround = Math.abs(minYOld) < 0.01;
+    const hasHeightAfterRotation = minY > 0.01;
+    
+    if (wasOnGround && hasHeightAfterRotation) {
+      const offset = minY;
+      const newY = Math.max(0, position[1] - offset);
+      updateModelPosition(id, [position[0], newY, position[2]]);
+    }
+  }, [rotation, clonedSceneState, position, id, updateModelPosition, isDragging, activeControlMode]);
+
+  const adjustHeightAfterRotation = useCallback((newRotation, modelPosition = position, oldRotation = rotation, axisKey = null) => {
+    if (!clonedSceneState || isAdjustingRef.current) return;
+    if (isDragging && activeControlMode === 'height') return;
+    
+    const shouldAdjust =
+      axisKey === 'z' ||
+      axisKey === 'x' ||
+      activeControlMode === 'rotateZ' ||
+      activeControlMode === 'rotateX';
+    if (!shouldAdjust) return;
+    
+    const tempGroupOld = new THREE.Group();
+    const tempCloneOld = clonedSceneState.clone(true);
+    tempGroupOld.add(tempCloneOld);
+    tempGroupOld.position.set(modelPosition[0], modelPosition[1], modelPosition[2]);
+    tempGroupOld.rotation.set(oldRotation[0], oldRotation[1], oldRotation[2]);
+    tempGroupOld.updateMatrixWorld(true);
+    const boxOld = new THREE.Box3().setFromObject(tempGroupOld);
+    const minYOld = boxOld.min.y;
+    
+    const tempGroup = new THREE.Group();
+    const tempClone = clonedSceneState.clone(true);
+    tempGroup.add(tempClone);
+    tempGroup.position.set(modelPosition[0], modelPosition[1], modelPosition[2]);
+    tempGroup.rotation.set(newRotation[0], newRotation[1], newRotation[2]);
+    tempGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(tempGroup);
+    const minY = box.min.y;
+    
+    const wasOnGround = Math.abs(minYOld) < 0.01;
+    const hasHeightAfterRotation = minY > 0.01;
+    
+    if (wasOnGround && hasHeightAfterRotation) {
+      const offset = minY;
+      const newY = Math.max(0, modelPosition[1] - offset);
+      updateModelPosition(id, [modelPosition[0], newY, modelPosition[2]]);
+    }
+  }, [clonedSceneState, position, rotation, id, updateModelPosition, isDragging, activeControlMode]);
+
+  const adjustPositionAfterRotation = useCallback((newRotation, modelPosition = position) => {
+    if (!constrainToGrid || !modelDimensions || isAdjustingRef.current) return;
+    if (isDragging && activeControlMode === 'height') return;
+    
+    const clampedPosition = clampPositionToGrid(modelPosition, modelDimensions, newRotation);
+    
+    if (
+      clampedPosition[0] !== modelPosition[0] ||
+      clampedPosition[1] !== modelPosition[1] ||
+      clampedPosition[2] !== modelPosition[2]
+    ) {
+      updateModelPosition(id, clampedPosition);
+    }
+  }, [constrainToGrid, modelDimensions, position, id, updateModelPosition, isDragging, activeControlMode]);
+
+  const lastRotationFromStoreRef = useRef(rotation);
+  useEffect(() => {
+    if (!clonedSceneState || isAdjustingRef.current) {
+      lastRotationFromStoreRef.current = rotation;
+      return;
+    }
+    if (isDragging && activeControlMode === 'height') {
+      lastRotationFromStoreRef.current = rotation;
+      return;
+    }
+    
+    const currentRotation = rotation || [0, 0, 0];
+    const rotationChanged = 
+      Math.abs(lastRotationFromStoreRef.current[0] - currentRotation[0]) > 0.001 ||
+      Math.abs(lastRotationFromStoreRef.current[1] - currentRotation[1]) > 0.001 ||
+      Math.abs(lastRotationFromStoreRef.current[2] - currentRotation[2]) > 0.001;
+    
+    if (!rotationChanged) return;
+    
+    const oldRotation = lastRotationFromStoreRef.current;
+    lastRotationFromStoreRef.current = currentRotation;
+    
+    const xRotationChanged = Math.abs(oldRotation[0] - currentRotation[0]) > 0.001;
+    const zRotationChanged = Math.abs(oldRotation[2] - currentRotation[2]) > 0.001;
+    if (xRotationChanged || zRotationChanged) {
+      const tempGroupOld = new THREE.Group();
+      const tempCloneOld = clonedSceneState.clone(true);
+      tempGroupOld.add(tempCloneOld);
+      tempGroupOld.position.set(position[0], position[1], position[2]);
+      tempGroupOld.rotation.set(oldRotation[0], oldRotation[1], oldRotation[2]);
+      tempGroupOld.updateMatrixWorld(true);
+      const boxOld = new THREE.Box3().setFromObject(tempGroupOld);
+      const minYOld = boxOld.min.y;
+      
+      const tempGroup = new THREE.Group();
+      const tempClone = clonedSceneState.clone(true);
+      tempGroup.add(tempClone);
+      tempGroup.position.set(position[0], position[1], position[2]);
+      tempGroup.rotation.set(currentRotation[0], currentRotation[1], currentRotation[2]);
+      tempGroup.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(tempGroup);
+      const minY = box.min.y;
+      
+      const wasOnGround = Math.abs(minYOld) < 0.01;
+      const hasHeightAfterRotation = minY > 0.01;
+      
+      if (wasOnGround && hasHeightAfterRotation) {
+        const offset = minY;
+        const newY = Math.max(0, position[1] - offset);
+        updateModelPosition(id, [position[0], newY, position[2]]);
+      }
+    }
+    
+    if (constrainToGrid && modelDimensions) {
+      setTimeout(() => {
+        const currentModel = existingModels.find(m => m.id === id);
+        if (!currentModel) return;
+        
+        const currentPos = currentModel.position || position;
+        const currentRot = currentModel.rotation || currentRotation;
+        const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot);
+        
+        if (
+          clampedPosition[0] !== currentPos[0] ||
+          clampedPosition[1] !== currentPos[1] ||
+          clampedPosition[2] !== currentPos[2]
+        ) {
+          updateModelPosition(id, clampedPosition);
+        }
+      }, 0);
+    }
+  }, [rotation, clonedSceneState, position, id, updateModelPosition, isDragging, activeControlMode, constrainToGrid, modelDimensions, existingModels]);
 
   const checkAndAdjustPosition = useCallback(() => {
     if (!clonedSceneState || isAdjustingRef.current) return;
     
-    // اگر در حال تنظیم ارتفاع هستیم، فقط بررسی کنیم که مدل زیر زمین نرود
     if (activeControlMode === 'height') {
-      // فقط بررسی کنیم که مدل زیر زمین نرود، نه اینکه ارتفاع را تغییر دهیم
       const currentPosition = positionRef.current;
       const currentRotation = rotationRef.current;
       
@@ -213,7 +552,6 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       const box = new THREE.Box3().setFromObject(tempGroup);
       const minY = box.min.y;
       
-      // فقط اگر مدل زیر زمین باشد، آن را بالا ببریم
       if (minY < -0.001) {
         isAdjustingRef.current = true;
         const offset = -minY;
@@ -224,13 +562,11 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
           isAdjustingRef.current = false;
         }, 50);
       } else {
-        // اگر مدل زیر زمین نیست، baseHeightRef را به‌روز کنیم
         baseHeightRef.current = currentPosition[1];
       }
       return;
     }
     
-    // برای حالت‌های دیگر (نه تنظیم ارتفاع)
     if (isDragging) {
       return;
     }
@@ -240,7 +576,6 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
 
     let targetY = currentPosition[1];
     
-    // اگر ارتفاع منفی است، آن را به 0 تنظیم کنیم
     if (currentPosition[1] < 0) {
       targetY = 0;
     }
@@ -255,7 +590,6 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
     const box = new THREE.Box3().setFromObject(tempGroup);
     const minY = box.min.y;
     
-    // فقط اگر مدل زیر زمین باشد، آن را بالا ببریم
     if (minY < -0.001) {
       isAdjustingRef.current = true;
       const offset = -minY;
@@ -268,17 +602,14 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   }, [clonedSceneState, id, updateModelPosition, existingModels, modelDimensions, modelOptions.snapSize, isDragging, activeControlMode, position]);
 
   useEffect(() => {
-    // اگر در حال drag ارتفاع هستیم، اجازه دهیم که کاربر آزادانه ارتفاع را تغییر دهد
     if (isDragging && activeControlMode === 'height') return;
     
-    // فقط برای بررسی اینکه مدل زیر زمین نرود (نه برای تغییر ارتفاع)
     const timer = setTimeout(() => {
       checkAndAdjustPosition();
     }, 10);
     return () => clearTimeout(timer);
   }, [position, rotation, checkAndAdjustPosition, isDragging, activeControlMode]);
 
-  // Tag all meshes of this model for robust selection discrimination
   useEffect(() => {
     if (!clonedSceneState) return;
     clonedSceneState.traverse((child) => {
@@ -287,7 +618,6 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
     });
   }, [clonedSceneState, id]);
 
-  // Build/update precise rotated AABB collider for selection
   useEffect(() => {
     if (!selectionColliderRef.current) return;
     const bounds = getRotatedBounds();
@@ -332,79 +662,123 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   });
 
   // تغییر رنگ و حالت ترنسپرنت (فقط بردر)
+  const restoreOriginalMaterialState = useCallback((child) => {
+    if (!child.userData) return;
+    const originalColor = child.userData.__originalColor;
+    const originalEmissive = child.userData.__originalEmissive;
+    const originalEmissiveIntensity =
+      child.userData.__originalEmissiveIntensity;
+
+    if (originalColor && child.material?.color) {
+      child.material.color.copy(originalColor);
+    }
+    if (originalEmissive && child.material?.emissive) {
+      child.material.emissive.copy(originalEmissive);
+    }
+    if (
+      originalEmissiveIntensity !== undefined &&
+      child.material?.emissiveIntensity !== undefined
+    ) {
+      child.material.emissiveIntensity = originalEmissiveIntensity;
+    }
+  }, []);
+
   useEffect(() => {
     if (!clonedSceneState) return;
     setModelsRef(modelRef);
 
     clonedSceneState.traverse((child) => {
+      if (child.name === "selection-overlay") return;
       if (child.isMesh && child.material) {
         const edge = child.children?.find?.((c) => c.name === 'edge-lines');
-        const isTransparent = color == null && !noColor;
 
-        // Base appearance
-        if (isTransparent) {
-          // Transparent body, only border visible
-          if (child.material) {
-            child.material.transparent = true;
-            child.material.opacity = 0;
-            // Avoid writing color/depth to prevent dark artifacts
-            if ('colorWrite' in child.material) child.material.colorWrite = false;
-            if ('depthWrite' in child.material) child.material.depthWrite = false;
-            if ('emissiveIntensity' in child.material) child.material.emissiveIntensity = 0;
+        const shouldHighlightNative =
+          !color && !noColor && (isSelected || isDragging);
+
+        if (color) {
+          const selectedColor = new THREE.Color(color);
+
+          if (isSelected || isDragging) {
+            const hsl = { h: 0, s: 0, l: 0 };
+            selectedColor.getHSL(hsl);
+            hsl.l = Math.min(1, hsl.l * 1.5);
+            const brightenedColor = new THREE.Color();
+            brightenedColor.setHSL(hsl.h, hsl.s, hsl.l);
+
+            if (child.material.color) {
+              child.material.color.copy(brightenedColor);
+            }
+            if (child.material.emissive !== undefined) {
+              child.material.emissive.copy(brightenedColor);
+              child.material.emissiveIntensity = 0.6;
+            }
+          } else {
+            if (child.material.color) {
+              child.material.color.copy(selectedColor);
+            }
+            if (child.material.emissive !== undefined) {
+              child.material.emissive.copy(selectedColor);
+              child.material.emissiveIntensity = 0.5;
+            }
           }
-          if (edge) edge.visible = true;
         } else {
-          // Opaque with selected color
-          if (color) {            
-            const selectedColor = new THREE.Color(color);
-            
-            if (isSelected || isDragging) {
-              const hsl = { h: 0, s: 0, l: 0 };
-              selectedColor.getHSL(hsl);
-              hsl.l = Math.min(1, hsl.l * 1.5);
-              const brightenedColor = new THREE.Color();
-              brightenedColor.setHSL(hsl.h, hsl.s, hsl.l);
-              
-              if (child.material.color) {
-                child.material.color.copy(brightenedColor);
-              }
-              if (child.material.emissive !== undefined) {
-                child.material.emissive.copy(brightenedColor);
-                child.material.emissiveIntensity = 0.6;
-              }
-            } else {
-              if (child.material.color) {
-                child.material.color.copy(selectedColor);
-              }
-              if (child.material.emissive !== undefined) {
-                child.material.emissive.copy(selectedColor);
-                child.material.emissiveIntensity = 0.5;
-              }
+          restoreOriginalMaterialState(child);
+        }
+
+        if (child.material) {
+          if (noColor && (isSelected || isDragging)) {
+            if (child.material.emissive !== undefined) {
+              child.material.emissive = new THREE.Color(0xffffff);
+              child.material.emissiveIntensity = 0.3;
             }
-          }
-          
-          if (child.material) {
-            if (noColor && (isSelected || isDragging)) {
-              if (child.material.emissive !== undefined) {
-                child.material.emissive = new THREE.Color(0xffffff);
-                child.material.emissiveIntensity = 0.3;
-              }
-            } else if (noColor) {
-              if (child.material.emissive !== undefined) {
-                child.material.emissive = new THREE.Color(0x000000);
-                child.material.emissiveIntensity = 0;
-              }
+          } else if (noColor) {
+            if (child.material.emissive !== undefined) {
+              child.material.emissive = new THREE.Color(0x000000);
+              child.material.emissiveIntensity = 0;
             }
-            child.material.transparent = false;
-            child.material.opacity = 1;
-            if ('colorWrite' in child.material) child.material.colorWrite = true;
-            if ('depthWrite' in child.material) child.material.depthWrite = true;
+          } else if (!color) {
+            restoreOriginalMaterialState(child);
           }
-          if (edge) edge.visible = false;
+          child.material.transparent = false;
+          child.material.opacity = 1;
+          if ('colorWrite' in child.material) child.material.colorWrite = true;
+          if ('depthWrite' in child.material) child.material.depthWrite = true;
+        }
+        if (shouldHighlightNative) {
+          let overlay = child.children?.find?.(
+            (c) => c.name === "selection-overlay"
+          );
+          if (!overlay) {
+            const overlayMaterial = new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.25,
+              depthWrite: false,
+              depthTest: true,
+              side: THREE.DoubleSide,
+            });
+            overlayMaterial.polygonOffset = true;
+            overlayMaterial.polygonOffsetFactor = -1;
+            overlayMaterial.polygonOffsetUnits = -1;
+            overlay = new THREE.Mesh(child.geometry, overlayMaterial);
+            overlay.name = "selection-overlay";
+            overlay.renderOrder = 1000;
+            child.add(overlay);
+          }
+          overlay.visible = true;
+        } else {
+          const overlay = child.children?.find?.(
+            (c) => c.name === "selection-overlay"
+          );
+          if (overlay) overlay.visible = false;
+        }
+
+        if (edge) {
+          edge.visible = false;
         }
       }
     });
-  }, [isSelected, isDragging, clonedSceneState, color, noColor]);
+  }, [isSelected, isDragging, clonedSceneState, color, noColor, restoreOriginalMaterialState]);
 
   // اطلاع به استور درباره درحال تنظیم بودن مدل
   useEffect(() => {
@@ -414,20 +788,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   }, [modelControls.isAdjustingHeight, modelControls.isMoving, isDragging]);
 
 
-  // Handle right-click: open context menu only (selection is done with left click)
-  const handleRightClick = (event) => {
-    event.stopPropagation();
-    if (typeof event.preventDefault === 'function') {
-      event.preventDefault();
-    } else if (event.nativeEvent && typeof event.nativeEvent.preventDefault === 'function') {
-      event.nativeEvent.preventDefault();
-    }
-    
-    // فقط منوی زمینه را نشان بده، انتخاب نکن
-    setShowContextMenu(true);
-  };
 
-  // Handle mouse hover for visual feedback
   const handlePointerOver = (event) => {
     event.stopPropagation();
     setIsHovered(true);
@@ -447,11 +808,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
     } else if (event.nativeEvent && typeof event.nativeEvent.preventDefault === 'function') {
       event.nativeEvent.preventDefault();
     }
-    // فقط با کلیک چپ
     const btn = (event.button !== undefined) ? event.button : event.nativeEvent?.button;
     if (btn !== 0) return;
 
-    // Only select if this model is the top-most intersected model using selection colliders (layer 31)
     if (gl && gl.domElement && scene && raycaster) {
       const rect = gl.domElement.getBoundingClientRect();
       const mouse = new THREE.Vector2();
@@ -481,10 +840,8 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       }
     }
 
-    // انتخاب مدل با کلیک چپ
     const isCtrl = event.ctrlKey || event.metaKey;
     
-    // Normalize current selection to array for easier ops
     let currentSelection = [];
     if (selectedModelId === 'ALL') {
       currentSelection = existingModels.map((m) => m.id);
@@ -494,39 +851,68 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       currentSelection = [selectedModelId];
     }
 
-    // Check if this model is already selected
     const isAlreadySelected = currentSelection.includes(id);
 
-    let nextSelection;
-    if (isCtrl) {
-      // Toggle this id
-      if (isAlreadySelected) {
-        nextSelection = currentSelection.filter((sid) => sid !== id);
-      } else {
-        nextSelection = [...currentSelection, id];
-      }
-      // If empties out, keep single selection to this id for usability
-      if (nextSelection.length === 0) nextSelection = [id];
-      setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
-    } else {
-      // If clicking on an already selected model in multi-selection, keep selection
-      if (isAlreadySelected && currentSelection.length > 1) {
-        if (currentSelection.length === existingModels.length) {
-          setSelectedModelId('ALL');
+    if (groupMode && currentSelection.length > 0) {
+      if (isCtrl) {
+        if (isAlreadySelected) {
+          const nextSelection = currentSelection.filter((sid) => sid !== id);
+          if (nextSelection.length === 0) {
+            setSelectedModelId(id);
+            useModelStore.getState().setGroupMode(false);
+          } else {
+            setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
+          }
         } else {
-          setSelectedModelId(currentSelection);
+          const nextSelection = [...currentSelection, id];
+          setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
         }
       } else {
-        nextSelection = id;
-        setSelectedModelId(nextSelection);
+        if (isAlreadySelected) {
+          if (currentSelection.length === existingModels.length) {
+            setSelectedModelId('ALL');
+          } else {
+            setSelectedModelId(currentSelection);
+          }
+        } else {
+          const nextSelection = [...currentSelection, id];
+          setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
+        }
       }
-    }
+      setIsPointerDown(true);
+      setInitialMousePos({
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+    } else {
+      let nextSelection;
+      if (isCtrl) {
+        if (isAlreadySelected) {
+          nextSelection = currentSelection.filter((sid) => sid !== id);
+        } else {
+          nextSelection = [...currentSelection, id];
+        }
+        if (nextSelection.length === 0) nextSelection = [id];
+        setSelectedModelId(nextSelection.length === 1 ? nextSelection[0] : nextSelection);
+      } else {
+        if (isAlreadySelected && currentSelection.length > 1) {
+          if (currentSelection.length === existingModels.length) {
+            setSelectedModelId('ALL');
+          } else {
+            setSelectedModelId(currentSelection);
+          }
+        } else {
+          nextSelection = id;
+          setSelectedModelId(nextSelection);
+        }
+      }
 
-    setIsPointerDown(true);
-    setInitialMousePos({
-      clientX: event.clientX,
-      clientY: event.clientY
-    });
+      setIsPointerDown(true);
+      setInitialMousePos({
+        clientX: event.clientX,
+        clientY: event.clientY
+      });
+    }
   };
 
   // Handle pointer move - start drag if mouse moved enough
@@ -604,6 +990,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         setDragStartMouse(null);
         dragSelectionRef.current = null; // Reset drag selection
         dragStartRotationsRef.current = null; // Reset start rotations
+        previousRotationDuringDragRef.current = null; // Reset previous rotation during drag
       }
       setIsPointerDown(false);
       setInitialMousePos(null);
@@ -634,6 +1021,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         setDraggedModelId(id);
         setDragStartPosition([...position]);
         setDragStartRotation([...rotation]);
+        previousRotationDuringDragRef.current = [...rotation];
 
         // Store current selection at drag start to ensure consistency during drag
         const currentSel = useModelStore.getState().selectedModelId;
@@ -757,43 +1145,81 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         
         // Check if multiple models are selected and rotate them together
         if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
-          // Use stored start rotations if available, otherwise fall back to current rotations
           const startRotations = dragStartRotationsRef.current || {};
           const updatedModels = existingModels.map(model => {
             const isSelected = currentDragSelection === 'ALL' || 
                               (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
             
             if (isSelected) {
-              // Get start rotation for this model from stored rotations
               const modelStartRotation = startRotations[model.id];
               if (!modelStartRotation) {
-                // Fallback: use current rotation if start rotation not stored
                 return model;
               }
-              const modelStartY = modelStartRotation[1];
-              
-              // Apply the same rotationDelta to this model's start rotation
-              const modelTotalRotation = modelStartY + rotationDelta;
-              const modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
-              const modelNewY = normalizeAngle(modelSnappedRotation);
-              
-              // Use start rotation for X and Z to keep them unchanged, only update Y
-              return {
-                ...model,
-                rotation: [modelStartRotation[0], modelNewY, modelStartRotation[2]]
-              };
+              const newRotation = applySnappedAxisRotation({
+                baseRotation: modelStartRotation,
+                axisKey: 'y',
+                deltaAngle: rotationDelta,
+                snapRadians: rotationSnapRadians,
+                rotationSnapDegrees: modelOptions.rotationDeg,
+                space: 'world',
+              });
+              if (newRotation) {
+                return {
+                  ...model,
+                  rotation: newRotation,
+                };
+              }
             }
             return model;
           });
           setSelectedModels(updatedModels);
+          
+          const currentModel = updatedModels.find(m => m.id === id);
+          if (currentModel && currentModel.rotation && clonedSceneState && !isAdjustingRef.current) {
+            const oldRotation = previousRotationDuringDragRef.current || rotation;
+            adjustHeightAfterRotation(currentModel.rotation, currentModel.position || position, oldRotation, 'y');
+            
+            if (constrainToGrid && modelDimensions) {
+              const currentPos = currentModel.position || position;
+              const currentRot = currentModel.rotation;
+              const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot);
+              
+              if (
+                clampedPosition[0] !== currentPos[0] ||
+                clampedPosition[1] !== currentPos[1] ||
+                clampedPosition[2] !== currentPos[2]
+              ) {
+                const updatedModelsWithPosition = updatedModels.map(m => 
+                  m.id === id ? { ...m, position: clampedPosition } : m
+                );
+                setSelectedModels(updatedModelsWithPosition);
+              }
+            }
+            
+            previousRotationDuringDragRef.current = currentModel.rotation;
+          }
         } else {
-          // Single model rotation
-          const startRotationY = dragStartRotation ? dragStartRotation[1] : rotation[1];
-          const totalRotation = startRotationY + rotationDelta;
-          const snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
-          const normalizedRotation = normalizeAngle(snappedRotation);
-          const newRotation = [rotation[0], normalizedRotation, rotation[2]];
-          updateModelRotation(id, newRotation);
+          const baseRotation = dragStartRotation || rotation;
+          const newRotation = applySnappedAxisRotation({
+            baseRotation,
+            axisKey: 'y',
+            deltaAngle: rotationDelta,
+            snapRadians: rotationSnapRadians,
+            rotationSnapDegrees: modelOptions.rotationDeg,
+            space: 'world',
+          });
+          if (newRotation) {
+            const oldRotation = previousRotationDuringDragRef.current || rotation;
+            updateModelRotation(id, newRotation);
+            if (clonedSceneState && !isAdjustingRef.current) {
+              adjustHeightAfterRotation(newRotation, position, oldRotation, 'y');
+              
+              if (constrainToGrid && modelDimensions) {
+                adjustPositionAfterRotation(newRotation, position);
+              }
+            }
+            previousRotationDuringDragRef.current = newRotation;
+          }
         }
         return;
       }
@@ -809,58 +1235,59 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         
         // Check if multiple models are selected and rotate them together
         if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
-          // Use stored start rotations if available, otherwise fall back to current rotations
           const startRotations = dragStartRotationsRef.current || {};
           const updatedModels = existingModels.map(model => {
             const isSelected = currentDragSelection === 'ALL' || 
                               (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
             
             if (isSelected) {
-              // Get start rotation for this model from stored rotations
               const modelStartRotation = startRotations[model.id];
               if (!modelStartRotation) {
-                // Fallback: use current rotation if start rotation not stored
                 return model;
               }
-              const modelStartX = modelStartRotation[0];
-              
-              // Apply the same rotationDelta to this model's start rotation
-              const modelTotalRotation = modelStartX + rotationDelta;
-              let modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
-              modelSnappedRotation = normalizeAngle(modelSnappedRotation);
-              
-              // Apply 90-degree constraint if needed
-              if (modelOptions.rotationDeg === 90) {
-                if (modelSnappedRotation > Math.PI / 2 && modelSnappedRotation < (3 * Math.PI) / 2) {
-                  modelSnappedRotation = modelSnappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
-                }
+              const newRotation = applySnappedAxisRotation({
+                baseRotation: modelStartRotation,
+                axisKey: 'x',
+                deltaAngle: rotationDelta,
+                snapRadians: rotationSnapRadians,
+                rotationSnapDegrees: modelOptions.rotationDeg,
+                space: 'local',
+              });
+              if (newRotation) {
+                return {
+                  ...model,
+                  rotation: newRotation,
+                };
               }
-              
-              // Use start rotation for Y and Z to keep them unchanged, only update X
-              return {
-                ...model,
-                rotation: [modelSnappedRotation, modelStartRotation[1], modelStartRotation[2]]
-              };
             }
             return model;
           });
           setSelectedModels(updatedModels);
-        } else {
-          // Single model rotation
-          const startRotationX = dragStartRotation ? dragStartRotation[0] : rotation[0];
-          const totalRotation = startRotationX + rotationDelta;
-          let snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
-          snappedRotation = normalizeAngle(snappedRotation);
           
-          // Apply 90-degree constraint if needed
-          if (modelOptions.rotationDeg === 90) {
-            if (snappedRotation > Math.PI / 2 && snappedRotation < (3 * Math.PI) / 2) {
-              snappedRotation = snappedRotation < Math.PI ? Math.PI / 2 : (3 * Math.PI) / 2;
-            }
+          const currentModel = updatedModels.find(m => m.id === id);
+          if (currentModel && currentModel.rotation && clonedSceneState && !isAdjustingRef.current) {
+            const oldRotation = previousRotationDuringDragRef.current || rotation;
+            adjustHeightAfterRotation(currentModel.rotation, currentModel.position || position, oldRotation, 'x');
+            previousRotationDuringDragRef.current = currentModel.rotation;
           }
-          
-          const newRotation = [snappedRotation, rotation[1], rotation[2]];
-          updateModelRotation(id, newRotation);
+        } else {
+          const baseRotation = dragStartRotation || rotation;
+          const newRotation = applySnappedAxisRotation({
+            baseRotation,
+            axisKey: 'x',
+            deltaAngle: rotationDelta,
+            snapRadians: rotationSnapRadians,
+            rotationSnapDegrees: modelOptions.rotationDeg,
+            space: 'local',
+          });
+          if (newRotation) {
+            const oldRotation = previousRotationDuringDragRef.current || rotation;
+            updateModelRotation(id, newRotation);
+            if (clonedSceneState && !isAdjustingRef.current) {
+              adjustHeightAfterRotation(newRotation, position, oldRotation, 'x');
+            }
+            previousRotationDuringDragRef.current = newRotation;
+          }
         }
         return;
       }
@@ -876,43 +1303,55 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         
         // Check if multiple models are selected and rotate them together
         if (currentDragSelection === 'ALL' || (Array.isArray(currentDragSelection) && currentDragSelection.includes(id))) {
-          // Use stored start rotations if available, otherwise fall back to current rotations
           const startRotations = dragStartRotationsRef.current || {};
           const updatedModels = existingModels.map(model => {
-            const isSelected = currentDragSelection === 'ALL' || 
-                              (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
-            
+            const isSelected =
+              currentDragSelection === 'ALL' ||
+              (Array.isArray(currentDragSelection) && currentDragSelection.includes(model.id));
+
             if (isSelected) {
-              // Get start rotation for this model from stored rotations
               const modelStartRotation = startRotations[model.id];
               if (!modelStartRotation) {
-                // Fallback: use current rotation if start rotation not stored
                 return model;
               }
-              const modelStartZ = modelStartRotation[2];
-              
-              // Apply the same rotationDelta to this model's start rotation
-              const modelTotalRotation = modelStartZ + rotationDelta;
-              const modelSnappedRotation = snapRotation(modelTotalRotation, rotationSnapRadians);
-              const modelNewZ = normalizeAngle(modelSnappedRotation);
-              
-              // Use start rotation for X and Y to keep them unchanged, only update Z
+              const startZ = modelStartRotation[2] || 0;
+              const totalRotation = startZ + rotationDelta;
+              const snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
+              const normalizedRotation = normalizeAngle(snappedRotation);
+
               return {
                 ...model,
-                rotation: [modelStartRotation[0], modelStartRotation[1], modelNewZ]
+                rotation: [
+                  modelStartRotation[0],
+                  modelStartRotation[1],
+                  normalizedRotation,
+                ],
               };
             }
             return model;
           });
           setSelectedModels(updatedModels);
+          
+          const currentModel = updatedModels.find(m => m.id === id);
+          if (currentModel && currentModel.rotation && clonedSceneState && !isAdjustingRef.current) {
+            const oldRotation = previousRotationDuringDragRef.current || rotation;
+            adjustHeightAfterRotation(currentModel.rotation, currentModel.position || position, oldRotation, 'z');
+            previousRotationDuringDragRef.current = currentModel.rotation;
+          }
         } else {
-          // Single model rotation
-          const startRotationZ = dragStartRotation ? dragStartRotation[2] : rotation[2];
-          const totalRotation = startRotationZ + rotationDelta;
+          const baseRotation = dragStartRotation || rotation;
+          const startZ = baseRotation[2] || 0;
+          const totalRotation = startZ + rotationDelta;
           const snappedRotation = snapRotation(totalRotation, rotationSnapRadians);
           const normalizedRotation = normalizeAngle(snappedRotation);
-          const newRotation = [rotation[0], rotation[1], normalizedRotation];
+          const newRotation = [baseRotation[0], baseRotation[1], normalizedRotation];
+
+          const oldRotation = previousRotationDuringDragRef.current || rotation;
           updateModelRotation(id, newRotation);
+          if (clonedSceneState && !isAdjustingRef.current) {
+            adjustHeightAfterRotation(newRotation, position, oldRotation, 'z');
+          }
+          previousRotationDuringDragRef.current = newRotation;
         }
         return;
       }
@@ -955,12 +1394,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
 
         if (clonedSceneState) {
           // برای drag موقعیت افقی، ارتفاع فعلی را حفظ می‌کنیم
-          let targetY = position[1]; // ارتفاع فعلی را حفظ می‌کنیم
-          
-          if (constrainToGrid && activeControlMode !== 'height') {
-            targetY = 0;
-          } else if (position[1] < 0 && activeControlMode !== 'height') {
-            targetY = 0;
+          let targetY = position[1];
+          if (activeControlMode !== 'height') {
+            targetY = Math.max(0, targetY);
           }
 
           const tempGroup = new THREE.Group();
@@ -984,11 +1420,8 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
             adjustedPosition[1] = targetY;
           }
         } else {
-          if (constrainToGrid && activeControlMode !== 'height') {
-            adjustedPosition[1] = 0;
-          } else {
-            adjustedPosition[1] = position[1];
-          }
+          adjustedPosition[1] =
+            activeControlMode !== 'height' ? Math.max(0, position[1]) : position[1];
         }
 
         if (constrainToGrid) {
@@ -1004,8 +1437,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
 
         // Check if multiple models are selected and move them together
         if (currentDragSelection === 'ALL') {
-          // Move all models - but they each need their own collision check
-          // For simplicity, just move them relative to the current model's movement
+          // Move all models together (no stationary models to collide with)
           const deltaX = adjustedPosition[0] - position[0];
           const deltaZ = adjustedPosition[2] - position[2];
           const deltaY = adjustedPosition[1] - position[1];
@@ -1055,7 +1487,15 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
             return model;
           });
           
-          setSelectedModels(updatedModels);
+          const movingIds = new Set(currentDragSelection);
+          const hasCollision = updatedModels.some((model) => {
+            if (!movingIds.has(model.id)) return false;
+            if (!model.position) return false;
+            return hasOverlapWithOthers(model.position, model.dimensions, movingIds);
+          });
+          if (!hasCollision) {
+            setSelectedModels(updatedModels);
+          }
         } else {
           if (constrainToGrid) {
             adjustedPosition = clampPositionToGrid(
@@ -1064,7 +1504,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
               rotation
             );
           }
-          updateModelPosition(id, adjustedPosition);
+          if (!hasOverlapWithOthers(adjustedPosition)) {
+            updateModelPosition(id, adjustedPosition);
+          }
         }
       }
     };
@@ -1109,23 +1551,8 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
       position={position}
       rotation={rotation}
     >
-      {/* Invisible exact-size rotated collider for robust selection */}
-      <mesh
-        ref={selectionColliderRef}
-        visible={false}
-        onPointerDown={handlePointerDown}
-        onPointerUp={handlePointerUp}
-        onPointerMove={handlePointerMove}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      >
-        <boxGeometry args={[0.001, 0.001, 0.001]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-
       <primitive
         object={clonedSceneState}
-        onContextMenu={handleRightClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
@@ -1141,11 +1568,6 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         isDragging={isDragging}
       />
 
-      <ContextMenu
-        position={position}
-        isVisible={showContextMenu}
-        onClose={() => setShowContextMenu(false)}
-      />
     </group>
   );
 };

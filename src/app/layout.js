@@ -36,7 +36,7 @@ export default async function RootLayout({ children, params }) {
 
   return (
     <html lang="fa" dir="rtl" className="">
-      <body className="">
+      <body className="bg-white dark:bg-gray-900 transition-colors duration-300">
         <NextTopLoader color="#a600ff" showSpinner={false} />
         <CheckMaintenance maintenanceMode={setting?.maintenanceMode} />
         <AuthProvider userData={user} />

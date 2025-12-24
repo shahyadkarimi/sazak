@@ -43,6 +43,7 @@ const postData = async (
     const res = await servicesApi.post(param, data, {
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-auth-token": token,
         ...(headers === "multipart" && {
           "Content-Type": "multipart/form-data",
         }),
@@ -66,6 +67,7 @@ const getData = async (param, data, headers, withToken = true) => {
       params: data,
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-auth-token": token,
       },
     });
 
@@ -114,7 +116,10 @@ const deleteData = async (param, data, withToken = true) => {
     const token = getStoredToken();
 
     const res = await servicesApi.delete(param, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { 
+        Authorization: `Bearer ${token}`,
+        "x-auth-token": token,
+      },
       data: data,
     });
 

@@ -129,17 +129,17 @@ const Page = () => {
   }
 
   if (error) {
-    return <div className="text-red-600">{error}</div>;
+    return <div className="text-red-600 dark:text-red-400">{error}</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
             لیست پروژه‌ها
           </h1>
-          <p className="text-sm lg:text-base text-gray-600">
+          <p className="text-sm lg:text-base text-gray-600 dark:text-gray-400">
             لیست پروژه‌های ثبت شده
           </p>
         </div>
@@ -155,16 +155,16 @@ const Page = () => {
           startContent={
             <Icon
               icon="solar:minimalistic-magnifer-broken"
-              className="text-gray-600"
+              className="text-gray-600 dark:text-gray-400"
               width="20"
               height="20"
             />
           }
           classNames={{
-            input: "placeholder:font-light placeholder:text-gray-600",
+            input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
             inputWrapper:
-              "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-            label: "text-gray-700 font-medium",
+              "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+            label: "text-gray-700 dark:text-gray-300 font-medium",
           }}
           labelPlacement="outside"
         />
@@ -186,17 +186,17 @@ const Page = () => {
                     alt={item.name}
                     width={200}
                     height={100}
-                    className="w-16 h-12 lg:w-20 lg:h-fit rounded-xl bg-gray-100"
+                    className="w-16 h-12 lg:w-20 lg:h-fit rounded-xl bg-gray-100 dark:bg-gray-700"
                   />
                 </TableCell>
-                <TableCell className="font-medium text-sm">
+                <TableCell className="font-medium text-sm text-gray-900 dark:text-gray-100">
                   {item.name}
                 </TableCell>
-                <TableCell className="text-sm">{item.userName}</TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-sm text-gray-700 dark:text-gray-300">{item.userName}</TableCell>
+                <TableCell className="text-sm text-gray-700 dark:text-gray-300">
                   {toFarsiNumber(item.userPhoneNumber)}
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-sm text-gray-700 dark:text-gray-300">
                   {toFarsiNumber(item.objectsCount)}
                 </TableCell>
                 <TableCell>
@@ -208,7 +208,7 @@ const Page = () => {
                     {item.isPublic ? "عمومی" : "خصوصی"}
                   </Chip>
                 </TableCell>
-                <TableCell className="text-sm">
+                <TableCell className="text-sm text-gray-700 dark:text-gray-300">
                   {new Date(item.createdAt).toLocaleDateString("fa-IR")}
                 </TableCell>
                 <TableCell>

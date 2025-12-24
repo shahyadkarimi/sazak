@@ -20,7 +20,7 @@ const Layout = ({ children }) => {
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -41,7 +41,7 @@ const Layout = ({ children }) => {
       <div className="w-full flex flex-col lg:mr-0">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-        <div className="p-4 lg:p-6 bg-gray-50 min-h-[calc(100vh-64px)]">
+        <div className="p-4 lg:p-6 bg-gray-50 dark:bg-[#0c1320] min-h-[calc(100vh-64px)]">
           {children}
         </div>
       </div>

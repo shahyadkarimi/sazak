@@ -27,6 +27,10 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: "user",
     },
+    canEditUserProjects: {
+      type: Boolean,
+      default: false,
+    },
     profilePicture: {
       type: String,
       default: null,

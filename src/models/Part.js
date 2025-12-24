@@ -35,6 +35,10 @@ const partSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    color: {
+      type: String,
+      default: null,
+    },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

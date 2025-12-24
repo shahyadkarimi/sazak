@@ -63,8 +63,8 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
       className="w-full flex flex-col gap-8"
     >
       <div className="flex flex-col items-center gap-3 text-center">
-        <h1 className="text-2xl sm:text-3xl font-black">به آکادمی سازک خوش آمدید</h1>
-        <p className="text-sm sm:text-base font-semibold text-gray-500/90">
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100">به آکادمی سازک خوش آمدید</h1>
+        <p className="text-sm sm:text-base font-semibold text-gray-500/90 dark:text-gray-400">
           جهت ثبت نام یا ورود به حساب کاربری، شماره موبایل خود را وارد نمایید.
         </p>
       </div>
@@ -82,13 +82,13 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
             icon="solar:phone-linear"
             width="24"
             height="24"
-            className="text-gray-600"
+            className="text-gray-600 dark:text-gray-400"
           />
         }
         classNames={{
-          input: "placeholder:font-light placeholder:text-gray-600",
+          input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.phoneNumber ? true : false}
         errorMessage={errors?.phoneNumber?.message}
@@ -112,7 +112,7 @@ const PhoneNumber = ({ userInfo, setUserInfo, step, setStep }) => {
 
       <button
         onClick={() => setStep("passwordRecovery")}
-        className="text-right w-full flex justify-center items-center h-14 sm:h-16 bg-gray-100 border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+        className="text-right w-full flex justify-center items-center h-14 sm:h-16 bg-gray-100 dark:bg-gray-800 border dark:border-gray-700 border-primaryThemeColor/10 text-sm text-gray-500 dark:text-gray-400 font-semibold rounded-2xl"
       >
         آیا رمز عبور خود را فراموش کرده اید ؟
       </button>

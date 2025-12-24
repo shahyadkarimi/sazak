@@ -80,8 +80,8 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
       <Toaster />
 
       <div className="flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-black">رمز عبور جدید</h1>
-        <p className="text-sm text-center font-semibold text-gray-500/90">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100">رمز عبور جدید</h1>
+        <p className="text-sm text-center font-semibold text-gray-500/90 dark:text-gray-400">
           کد ۵ رقمی پیامک شده به شماره{" "}
           {toFarsiNumber(userInfo.phoneNumber || "9120000000")} را در کادر زیر
           وارد نمایید، سپس رمز عبور جدید خود را ثبت کنید
@@ -99,7 +99,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
             wrapper: "w-full",
             segmentWrapper: "w-full flex-row-reverse gap-4 pt-0 pb-2",
             segment:
-              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border w-full h-16 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             errorMessage: "font-normal",
           }}
           isInvalid={errors.vcode ? true : false}
@@ -131,14 +131,14 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
           variant="bordered"
           labelPlacement="outside"
           classNames={{
-            input: "placeholder:font-light placeholder:text-gray-600",
+            input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400",
             inputWrapper:
-              "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border h-16 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
           }}
           startContent={
             <Icon
               icon="solar:lock-password-linear"
-              className="text-gray-600"
+              className="text-gray-600 dark:text-gray-400"
               width="24"
               height="24"
             />
@@ -174,7 +174,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
           })}
         />
 
-        <p className="text-tiny text-warning">
+        <p className="text-tiny text-warning dark:text-yellow-400">
           رمز عبور باید حداقل شش رقم و شامل اعداد، حروف انگلیسی بزرگ و کوچک
           باشد.
         </p>
@@ -191,7 +191,7 @@ const PasswordRecoverySubmit = ({ userInfo, setUserInfo, step, setStep }) => {
 
         <button
           onClick={backPhoneStepHandler}
-          className="text-right w-1/4 flex justify-center items-center gap-2 h-16 bg-white border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+          className="text-right w-1/4 flex justify-center items-center gap-2 h-16 bg-white dark:bg-gray-800 border dark:border-gray-700 border-primaryThemeColor/10 text-sm text-gray-500 dark:text-gray-400 font-semibold rounded-2xl"
         >
           <span>بازگشت</span>
           <Icon

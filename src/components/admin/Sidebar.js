@@ -101,10 +101,10 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className={`w-64 lg:w-64 flex min-h-screen flex-col border-r bg-white transition-all duration-200 ease-in-out`}
+      className={`w-64 lg:w-64 flex min-h-screen flex-col border-r dark:border-gray-800 bg-white dark:bg-gray-900 transition-all duration-200 ease-in-out`}
     >
-      <div className="flex h-16 items-center justify-center border-b px-4">
-        <Link href={"admin"} className="flex items-center gap-4">
+      <div className="flex h-16 items-center justify-center border-b dark:border-gray-800 px-4">
+        <Link href={"/admin"} className="flex items-center gap-4">
           <Image
             src={settings.logo || "/assets/logo.png"}
             width={150}
@@ -115,7 +115,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
           <div className="flex flex-col">
             <h2 className="font-black text-primaryThemeColor">{settings.siteName || "سازک"}</h2>
-            <p className="text-xs text-gray-700">پنل مدیریت</p>
+            <p className="text-xs text-gray-700 dark:text-gray-300">پنل مدیریت</p>
           </div>
         </Link>
       </div>
@@ -125,11 +125,11 @@ const Sidebar = ({ isOpen, onClose }) => {
             <input
               type="text"
               placeholder="جستجو در هر چیزی"
-              className="flex h-8 w-full rounded-xl border outline-none px-3 py-2 placeholder:text-xs text-sm pl-8"
+              className="flex h-8 w-full rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 placeholder:text-gray-500 dark:placeholder:text-gray-400 outline-none px-3 py-2 placeholder:text-xs text-sm pl-8"
             />
             <Icon
               icon="solar:magnifer-line-duotone"
-              className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 dark:text-gray-400"
               width="20"
               height="20"
             />
@@ -137,7 +137,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </div>
 
         <div className="relative flex w-full min-w-0 flex-col p-2">
-          <div className="flex h-8 shrink-0 items-center rounded-xl px-2 text-xs font-medium text-gray-500">
+          <div className="flex h-8 shrink-0 items-center rounded-xl px-2 text-xs font-medium text-gray-500 dark:text-gray-400">
             منوی اصلی
           </div>
 
@@ -147,10 +147,10 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <Link
                   onClick={(e) => openMenuHandler(e, item)}
                   href={item.path ? item.path : "javascript:void(0)"}
-                  className={`flex w-full items-center justify-between gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 hover:text-gray-900 ${
+                  className={`flex w-full items-center justify-between gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 ${
                     pathname === item.path
-                      ? "bg-gray-100 font-medium text-gray-900"
-                      : "text-gray-700"
+                      ? "bg-gray-100 dark:bg-gray-800 font-medium text-gray-900 dark:text-gray-100"
+                      : "text-gray-700 dark:text-gray-300"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                   )}
 
                   {item.badge && (
-                    <span className="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 p-0 text-xs font-medium text-gray-700">
+                    <span className="ml-auto inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gray-200 dark:bg-gray-700 p-0 text-xs font-medium text-gray-700 dark:text-gray-200">
                       {toFarsiNumber(item.badge)}
                     </span>
                   )}
@@ -198,11 +198,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                           href={subMenu.path}
                           key={index}
                           className={cn(
-                            "text-[13px] flex items-center text-gray-600 gap-4 py-2 pr-4 rounded-xl group hover:text-gray-700 transition-all duration-300",
-                            isActive && "font-semibold text-gray-700"
+                            "text-[13px] flex items-center text-gray-600 dark:text-gray-400 gap-4 py-2 pr-4 rounded-xl group hover:text-gray-700 dark:hover:text-gray-200 transition-all duration-300",
+                            isActive && "font-semibold text-gray-700 dark:text-gray-200"
                           )}
                         >
-                          <div className="size-[6px] group-hover:bg-gray-700 rounded-full bg-gray-600 transition-all duration-300"></div>
+                          <div className="size-[6px] group-hover:bg-gray-700 dark:group-hover:bg-gray-500 rounded-full bg-gray-600 dark:bg-gray-500 transition-all duration-300"></div>
                           <span className="text-sm">{subMenu.title}</span>
                         </Link>
                       );
@@ -248,7 +248,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         <div className="group/menu-item relative">
           <Link
             href="/user"
-            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor text-gray-700"
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor text-gray-700 dark:text-gray-300"
           >
             <Icon icon="solar:user-circle-line-duotone" width="20" height="20" />
             <span className="truncate">
@@ -260,7 +260,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         <div className="group/menu-item relative">
           <Link
             href={"/user/profile"}
-            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 hover:text-gray-900 text-gray-700"
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 text-gray-700 dark:text-gray-300"
           >
             <Icon icon="solar:user-line-duotone" width="20" height="20" />
             <span className="truncate">
@@ -271,7 +271,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <div className="group/menu-item relative">
           <button
-            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-red-600/15 hover:text-red-600 text-gray-700"
+            className="flex w-full items-center gap-2 overflow-hidden rounded-xl p-2 text-left text-sm transition-all hover:bg-red-600/15 dark:hover:bg-red-600/20 hover:text-red-600 text-gray-700 dark:text-gray-300"
           >
             <Icon icon="solar:logout-3-line-duotone" width="20" height="20" />
             <span className="truncate">

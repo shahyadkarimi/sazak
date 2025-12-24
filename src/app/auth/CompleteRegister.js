@@ -74,8 +74,8 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
       <Toaster />
 
       <div className="flex flex-col items-center gap-4">
-        <h1 className="text-3xl font-black">اطلاعات کاربری</h1>
-        <p className="text-sm font-semibold text-gray-500/90">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-gray-100">اطلاعات کاربری</h1>
+        <p className="text-sm font-semibold text-gray-500/90 dark:text-gray-400">
           اطلاعات کاربری خود را وارد و ثبت نام خود را تکمیل کنید
         </p>
       </div>
@@ -88,15 +88,15 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
         startContent={
           <Icon
             icon="solar:user-outline"
-            className="text-gray-600"
+            className="text-gray-600 dark:text-gray-400"
             width="24"
             height="24"
           />
         }
         classNames={{
-          input: "placeholder:font-light placeholder:text-gray-600",
+          input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400",
           inputWrapper:
-            "border h-16 !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+            "border h-16 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
         }}
         isInvalid={errors.name ? true : false}
         errorMessage="نام الزامی است"
@@ -139,7 +139,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
           startContent={
             <Icon
               icon="solar:lock-password-linear"
-              className="text-gray-600"
+              className="text-gray-600 dark:text-gray-400"
               width="24"
               height="24"
             />
@@ -173,7 +173,7 @@ const CompleteRegister = ({ userInfo, setUserInfo, step, setStep }) => {
           })}
         />
 
-        <p className="text-tiny text-warning">
+        <p className="text-tiny text-warning dark:text-yellow-400">
           رمز عبور باید حداقل ۶ کاراکتر و شامل اعداد و حروف انگلیسی باشد.
         </p>
       </div>

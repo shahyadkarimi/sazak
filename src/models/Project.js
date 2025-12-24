@@ -21,6 +21,7 @@ const projectSchema = new mongoose.Schema(
     objects: [objectSchema],
     autoSave: { type: Boolean, default: false },
     isPublic: { type: Boolean, default: false },
+    isEditable: { type: Boolean, default: true },
     deletedAt: {
       type: mongoose.Schema.Types.Mixed,
       default: null,

@@ -2,8 +2,6 @@
 
 import { postData } from "@/services/API";
 import useModelStore from "@/store/useModelStore";
-import useBrowserWarning from "@/hooks/useBrowserWarning";
-import UnsavedChangesWarningModal from "./UnsavedChangesWarningModal";
 import { Spinner } from "@heroui/react";
 import {
   Button,
@@ -20,6 +18,8 @@ import { useParams, useRouter } from "next/navigation";
 import React, { useEffect, useState, useCallback } from "react";
 import { Controller, useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
+import useUnsavedChangesWarning from "@/hooks/useUnsavedChangesWarning";
+import UnsavedChangesWarningModal from "./UnsavedChangesWarningModal";
 
 const AutoSave = ({ project, onSaveSuccess }) => {
   const { selectedModels } = useModelStore();
@@ -56,7 +56,9 @@ const AutoSave = ({ project, onSaveSuccess }) => {
             onSaveSuccess();
           }
         } catch (e) {
-          toast.error("خطا هنگام ذخیره تغییرات", {
+          const errorMessage =
+            e?.response?.data?.message || "خطا هنگام ذخیره تغییرات";
+          toast.error(errorMessage, {
             duration: 3500,
             className: "text-sm rounded-2xl",
           });
@@ -65,7 +67,7 @@ const AutoSave = ({ project, onSaveSuccess }) => {
     }, 30000);
 
     return () => clearInterval(intervalId);
-  }, [id, selectedModels, onSaveSuccess]);
+  }, [id, selectedModels]);
 
   return null;
 };
@@ -86,6 +88,9 @@ const Toolbar = ({ project }) => {
     setConstrainToGrid,
     showColorPanel,
     setShowColorPanel,
+    markChangesAsSaved,
+    groupMode,
+    setGroupMode,
   } = useModelStore();
   const [loading, setLoading] = useState(false);
   const [confirmAutoSave, setConfirmAutoSave] = useState(0);
@@ -96,20 +101,14 @@ const Toolbar = ({ project }) => {
   const router = useRouter();
 
   const {
-    markAsSaved,
     showWarningModal,
     isRefreshWarning,
     handleCancel,
-    handleDiscardRefresh,
-  } = useBrowserWarning(project);
-
-  const handleDiscard = useCallback(() => {
-    if (isRefreshWarning) {
-      handleDiscardRefresh();
-    } else {
-      router.push("/user");
-    }
-  }, [router, isRefreshWarning, handleDiscardRefresh]);
+    handleDiscard,
+    triggerWarningModal,
+    checkForUnsavedChanges,
+    handleSaveAndNavigate,
+  } = useUnsavedChangesWarning();
 
   const {
     register,
@@ -133,7 +132,7 @@ const Toolbar = ({ project }) => {
       const { setProjectContext } = useModelStore.getState();
       setProjectContext(project?.id || id, project.objects);
     }
-  }, [project?.id]); // Only run when project ID changes (initial load)
+  }, [project?.id, id]); // Only run when project ID changes (initial load)
 
   const saveChangeHandler = useCallback(async () => {
     setLoading(true);
@@ -161,7 +160,7 @@ const Toolbar = ({ project }) => {
 
       await postData("/project/save-changes", form, undefined, "multipart");
 
-      markAsSaved();
+      markChangesAsSaved();
 
       setLoading(false);
       toast.success("تغییرات با موفقیت ذخیره شدند", {
@@ -170,26 +169,30 @@ const Toolbar = ({ project }) => {
       });
       return true;
     } catch (err) {
-      toast.error("خطا هنگام ذخیره تغییرات", {
+      const errorMessage =
+        err?.response?.data?.message || "خطا هنگام ذخیره تغییرات";
+      toast.error(errorMessage, {
         duration: 3500,
         className: "text-sm rounded-2xl",
       });
       setLoading(false);
       return false;
     }
-  }, [id, selectedModels, project?.name, markAsSaved]);
+  }, [id, selectedModels, project?.name, markChangesAsSaved]);
 
   const handleSaveAndExit = useCallback(async () => {
     const saved = await saveChangeHandler();
     if (saved) {
-      handleCancel();
-      if (isRefreshWarning) {
-        window.location.reload();
-      } else {
-        router.push("/user");
-      }
+      // Use handleSaveAndNavigate to properly handle navigation
+      handleSaveAndNavigate(() => {
+        if (isRefreshWarning) {
+          window.location.reload();
+        } else {
+          router.push("/user");
+        }
+      });
     }
-  }, [saveChangeHandler, handleCancel, router, isRefreshWarning]);
+  }, [saveChangeHandler, handleSaveAndNavigate, isRefreshWarning, router]);
 
   // Keyboard shortcut for Ctrl+S
   useEffect(() => {
@@ -239,6 +242,52 @@ const Toolbar = ({ project }) => {
       });
     };
   }, [loading, saveChangeHandler]); // Include saveChangeHandler in dependencies
+
+  // Keyboard shortcut for G key - Toggle group mode
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Check if the target is not an input field
+      if (
+        event.target.tagName === "INPUT" ||
+        event.target.tagName === "TEXTAREA"
+      ) {
+        return;
+      }
+
+      // Check if G key is pressed (without Ctrl, Meta, or Shift)
+      if (
+        (event.key === "g" || event.key === "G" || event.code === "KeyG") &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey
+      ) {
+        // Check if there's a valid selection for group mode
+        const hasMultipleSelection =
+          selectedModelId === "ALL" ||
+          (Array.isArray(selectedModelId) && selectedModelId.length > 1);
+
+        if (hasMultipleSelection) {
+          event.preventDefault();
+          event.stopPropagation();
+          setGroupMode(!groupMode);
+        }
+      }
+    };
+
+    // Add event listener
+    document.addEventListener("keydown", handleKeyDown, {
+      capture: true,
+      passive: false,
+    });
+
+    // Cleanup event listener on component unmount
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown, {
+        capture: true,
+        passive: false,
+      });
+    };
+  }, [selectedModelId, groupMode, setGroupMode]);
 
   const editProjectHandler = (data) => {
     setEditLoading(true);
@@ -424,8 +473,8 @@ const Toolbar = ({ project }) => {
   };
 
   return (
-    <div className="w-full flex items-center justify-center bg-gray-200/40">
-      <AutoSave project={project} onSaveSuccess={markAsSaved} />
+    <div className="w-full flex items-center justify-center bg-gray-200/40 dark:bg-gray-800/40">
+      <AutoSave project={project} />
 
       <Toaster />
 
@@ -441,7 +490,7 @@ const Toolbar = ({ project }) => {
             }}
             className="flex items-center gap-2"
           >
-            <h2 className="font-bold text-gray-700 text-lg">{project.name}</h2>
+            <h2 className="font-bold text-gray-700 dark:text-gray-200 text-lg">{project.name}</h2>
           </button>
         </div>
 
@@ -449,7 +498,7 @@ const Toolbar = ({ project }) => {
         <div className="flex flex-row-reverse items-center gap-3">
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="بارگذاری پروژه" placement="bottom" size="sm">
-              <div className="bg-gray-200/90 relative flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+              <div className="bg-gray-200/90 dark:bg-gray-700/90 relative flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
                 <i className="fi fi-rr-add-document size-4 block"></i>
 
                 <input
@@ -466,7 +515,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="خروجی پروژه" placement="bottom" size="sm">
               <button
                 onClick={exportProjectHandler}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi-rr-file-export size-4 block"></i>
               </button>
@@ -478,7 +527,7 @@ const Toolbar = ({ project }) => {
               <button
                 onClick={cutModelHandler}
                 disabled={!selectedModelId}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i className="fi fi-rr-scissors size-4 block"></i>
               </button>
@@ -490,7 +539,7 @@ const Toolbar = ({ project }) => {
               <button
                 onClick={copyModelHandler}
                 disabled={!selectedModelId}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <i className="fi fi-rr-copy size-4 block"></i>
               </button>
@@ -506,7 +555,7 @@ const Toolbar = ({ project }) => {
                 className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                   isPasteMode
                     ? "bg-primaryThemeColor text-white"
-                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                    : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
                 }`}
               >
                 <i className="fi fi-rr-paste size-4 block"></i>
@@ -520,7 +569,7 @@ const Toolbar = ({ project }) => {
                 title="ذخیره (Ctrl+S)"
                 onClick={saveChangeHandler}
                 disabled={loading}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 {loading ? (
                   <Spinner
@@ -541,7 +590,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="راهنما" placement="bottom" size="sm">
               <button
                 onClick={(e) => setShowHelp(true)}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi-rr-interrogation block size-4"></i>
               </button>
@@ -552,7 +601,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="واگرد" placement="bottom" size="sm">
               <button
                 onClick={undo}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi fi fi-rr-undo-alt size-4 block"></i>
               </button>
@@ -563,7 +612,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="از نو" placement="bottom" size="sm">
               <button
                 onClick={redo}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi-rr-redo-alt size-4 block"></i>
               </button>
@@ -582,7 +631,7 @@ const Toolbar = ({ project }) => {
                 className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                   showColorPanel && selectedModelId
                     ? "bg-primaryThemeColor text-white"
-                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                    : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
                 }`}
               >
                 <i className="fi fi-rr-palette size-4 block"></i>
@@ -601,7 +650,7 @@ const Toolbar = ({ project }) => {
                 className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
                   constrainToGrid
                     ? "bg-primaryThemeColor text-white"
-                    : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                    : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
                 }`}
               >
                 <i className="fi fi-rr-square-l -scale-y-100 size-4 block"></i>
@@ -610,8 +659,24 @@ const Toolbar = ({ project }) => {
           </div>
 
           <div className="flex flex-col items-center gap-1">
+            <Tooltip content="حالت گروهی (G)" placement="bottom" size="sm">
+              <button
+                onClick={() => setGroupMode(!groupMode)}
+                disabled={!selectedModelId || (selectedModelId !== 'ALL' && (!Array.isArray(selectedModelId) || selectedModelId.length < 2))}
+                className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  groupMode
+                    ? "bg-primaryThemeColor text-white"
+                    : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+                }`}
+              >
+                <i className="fi fi-rr-users size-4 block"></i>
+              </button>
+            </Tooltip>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
             <Tooltip content="یادداشت" placement="bottom" size="sm">
-              <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+              <button className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
                 <i className="fi fi-rr-journal-alt size-4 block"></i>
               </button>
             </Tooltip>
@@ -621,7 +686,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="اسکرین شات" placement="bottom" size="sm">
               <button
                 onClick={getScreenShotHandler}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi-sr-mode-landscape size-4 block"></i>
               </button>
@@ -630,7 +695,7 @@ const Toolbar = ({ project }) => {
 
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="اشتراک" placement="bottom" size="sm">
-              <button className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
+              <button className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300">
                 <i className="fi fi-rr-share-square size-4 block"></i>
               </button>
             </Tooltip>
@@ -640,7 +705,7 @@ const Toolbar = ({ project }) => {
             <Tooltip content="حذف" placement="bottom" size="sm">
               <button
                 onClick={deleteModelHandler}
-                className="bg-gray-200/90 flex justify-center items-center size-9 rounded-xl text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
+                className="bg-gray-200/90 dark:bg-gray-700/90 flex justify-center items-center size-9 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor transition-all duration-300"
               >
                 <i className="fi fi-rr-trash size-4 block"></i>
               </button>
@@ -650,8 +715,10 @@ const Toolbar = ({ project }) => {
           <div className="flex flex-col items-center gap-1">
             <Tooltip content="خروج از استودیو" placement="bottom" size="sm">
               <button
-                onClick={() => router.push("/user")}
-                className="bg-red-100 text-red-600 flex justify-center items-center size-9 rounded-xl hover:bg-red-200 transition-all duration-300"
+                onClick={() => {
+                  triggerWarningModal(() => router.push("/user"));
+                }}
+                className="bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex justify-center items-center size-9 rounded-xl hover:bg-red-200 dark:hover:bg-red-900/50 transition-all duration-300"
               >
                 <i className="fi fi-rr-exit size-4 block"></i>
               </button>
@@ -659,6 +726,15 @@ const Toolbar = ({ project }) => {
           </div>
         </div>
       </div>
+
+      <UnsavedChangesWarningModal
+        isOpen={showWarningModal}
+        onClose={handleCancel}
+        onDiscard={handleDiscard}
+        onSave={handleSaveAndExit}
+        isLoading={loading}
+        isRefreshWarning={isRefreshWarning}
+      />
 
       {/* Help Modal */}
       <Modal
@@ -668,50 +744,50 @@ const Toolbar = ({ project }) => {
         size="2xl"
       >
         <ModalContent>
-          <ModalHeader className="font-bold text-center">
+          <ModalHeader className="font-bold text-center text-gray-900 dark:text-gray-100">
             راهنمای شورت کات‌های کیبورد
           </ModalHeader>
           <ModalBody className="py-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Basic Operations */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2">
                   عملیات پایه
                 </h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>ذخیره پروژه</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+S
                     </kbd>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between text-gray-700 dark:text-gray-300">
                     <span>کپی مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+C
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>کات مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+X
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>پیست مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+V
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>تکثیر مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+D
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>حذف مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Delete
                     </kbd>
                   </div>
@@ -720,67 +796,73 @@ const Toolbar = ({ project }) => {
 
               {/* Selection & Movement */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2">
                   انتخاب و حرکت
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>انتخاب مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Left Click
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>انتخاب همه</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+A
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>انتخاب/لغو انتخاب چندتایی</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl + Left Click
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>کشیدن مدل</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Left Click + Drag
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>لغو انتخاب</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Escape
                     </kbd>
                   </div>
                   <div className="flex justify-between">
+                    <span>حالت گروهی</span>
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
+                      G
+                    </kbd>
+                  </div>
+                  <div className="flex justify-between">
                     <span>حرکت بالا</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       ↑
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>حرکت پایین</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       ↓
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>حرکت چپ</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       ←
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>حرکت راست</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       →
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>حرکت دقیق (با Shift)</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Shift + ↑↓←→
                     </kbd>
                   </div>
@@ -789,25 +871,25 @@ const Toolbar = ({ project }) => {
 
               {/* Camera Controls */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2">
                   کنترل دوربین
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>زوم این</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       +
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>زوم اوت</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       -
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>کنترل دوربین</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Space
                     </kbd>
                   </div>
@@ -816,19 +898,19 @@ const Toolbar = ({ project }) => {
 
               {/* Future Features */}
               <div className="space-y-3">
-                <h3 className="font-semibold text-gray-800 border-b pb-2">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-200 border-b dark:border-gray-700 pb-2">
                   ویرایش‌ها
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span>Undo</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+Z
                     </kbd>
                   </div>
                   <div className="flex justify-between">
                     <span>Redo</span>
-                    <kbd className="px-2 py-1 bg-gray-100 rounded text-xs">
+                    <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-800 dark:text-gray-200 rounded text-xs">
                       Ctrl+Shift+Z
                     </kbd>
                   </div>
@@ -850,7 +932,7 @@ const Toolbar = ({ project }) => {
         placement="center"
       >
         <ModalContent>
-          <ModalHeader className="font-bold">ویرایش پروژه</ModalHeader>
+          <ModalHeader className="font-bold text-gray-900 dark:text-gray-100">ویرایش پروژه</ModalHeader>
           <ModalBody className="flex flex-col gap-4">
             <Controller
               name="name"
@@ -916,13 +998,6 @@ const Toolbar = ({ project }) => {
         </ModalContent>
       </Modal>
 
-      <UnsavedChangesWarningModal
-        isOpen={showWarningModal}
-        onClose={handleCancel}
-        onDiscard={handleDiscard}
-        onSave={handleSaveAndExit}
-        isLoading={loading}
-      />
     </div>
   );
 };

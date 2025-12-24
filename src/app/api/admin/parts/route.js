@@ -8,6 +8,18 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import fs from "fs";
 
+const normalizeHexColor = (value) => {
+  if (!value) return null;
+  const trimmed = value.toString().trim();
+  if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) return null;
+  return trimmed.toLowerCase();
+};
+
+const resolveColorValue = (value, noColor) => {
+  if (noColor) return null;
+  return normalizeHexColor(value);
+};
+
 export async function GET(req) {
   try {
     await connectDB();
@@ -41,21 +53,25 @@ export async function GET(req) {
       .sort({ createdAt: -1 })
       .lean();
 
-    const mapped = parts.map((p) => ({
-      id: p._id,
-      name: p.name,
-      category: {
-        id: p.category?._id,
-        name: p.category?.name || "",
-      },
-      glbPath: p.glbPath,
-      thumbnailPath: p.thumbnailPath,
-      length: p.length,
-      width: p.width,
-      height: p.height,
-      noColor: p.noColor || false,
-      createdAt: p.createdAt,
-    }));
+    const mapped = parts.map((p) => {
+      const storedColor = p.color || p.previewColor || null;
+      return {
+        id: p._id,
+        name: p.name,
+        category: {
+          id: p.category?._id,
+          name: p.category?.name || "",
+        },
+        glbPath: p.glbPath,
+        thumbnailPath: p.thumbnailPath,
+        length: p.length,
+        width: p.width,
+        height: p.height,
+        noColor: p.noColor || false,
+        color: p.noColor ? null : storedColor,
+        createdAt: p.createdAt,
+      };
+    });
 
     return NextResponse.json(
       { success: true, parts: mapped },
@@ -97,6 +113,7 @@ export async function POST(req) {
     const width = formData.get("width");
     const height = formData.get("height");
     const noColor = formData.get("noColor") === "true";
+    const colorInput = formData.get("color");
     const file = formData.get("glbFile");
     const thumbnailFile = formData.get("thumbnailFile");
 
@@ -184,6 +201,7 @@ export async function POST(req) {
       width: width ? parseFloat(width) : null,
       height: height ? parseFloat(height) : null,
       noColor: noColor,
+      color: resolveColorValue(colorInput, noColor),
     });
 
     await newPart.save();
@@ -208,6 +226,9 @@ export async function POST(req) {
           width: partWithCategory.width,
           height: partWithCategory.height,
           noColor: partWithCategory.noColor || false,
+          color: partWithCategory.noColor
+            ? null
+            : partWithCategory.color || partWithCategory.previewColor || null,
           createdAt: partWithCategory.createdAt,
         },
       },

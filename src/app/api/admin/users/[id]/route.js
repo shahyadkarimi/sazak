@@ -103,12 +103,19 @@ export async function PUT(req, { params }) {
       user.password = await bcrypt.hash(body.password, 10);
       updatedFields.passwordChanged = true;
     }
+    if (typeof body.canEditUserProjects === "boolean") {
+      // Only allow canEditUserProjects for admin users
+      if (body.role === "admin" || user.role === "admin") {
+        user.canEditUserProjects = body.canEditUserProjects;
+        updatedFields.canEditUserProjects = body.canEditUserProjects;
+      }
+    }
 
     await user.save();
 
     const updatedUser = await User.findById(id)
       .select(
-        "_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture"
+        "_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture canEditUserProjects"
       )
       .lean();
 
@@ -143,6 +150,7 @@ export async function PUT(req, { params }) {
           phoneNumber: updatedUser.phoneNumber,
           role: updatedUser.role,
           isActive: updatedUser.isActive,
+          canEditUserProjects: updatedUser.role === "admin" ? (updatedUser.canEditUserProjects || false) : false,
           email: updatedUser.email ?? "",
           address: updatedUser.address ?? "",
           province: updatedUser.province ?? "",

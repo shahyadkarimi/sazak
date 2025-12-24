@@ -49,8 +49,42 @@ export async function POST(req) {
     }
 
     const requestUser = await User.findById(authUser.userId)
-      .select("role")
+      .select("role canEditUserProjects")
       .lean();
+
+    // Check if project exists and is editable (unless user is admin)
+    const projectCheckQuery = {
+      _id: projectId,
+      deletedAt: null,
+    };
+
+    if (requestUser?.role !== "admin") {
+      projectCheckQuery.user = authUser.userId;
+    }
+
+    const projectCheck = await Project.findOne(projectCheckQuery).select(
+      "name"
+    );
+
+    if (!projectCheck) {
+      return NextResponse.json(
+        { success: false, message: "پروژه یافت نشد" },
+        { status: 404 }
+      );
+    }
+
+    // Check if admin has permission to edit user projects
+    if (requestUser?.role === "admin") {
+      if (!requestUser.canEditUserProjects) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید",
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const updateData = {};
     if (typeof objects !== "undefined") {
@@ -66,24 +100,6 @@ export async function POST(req) {
       );
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
-      }
-
-      const projectCheckQuery = {
-        _id: projectId,
-        deletedAt: null,
-      };
-
-      if (requestUser?.role !== "admin") {
-        projectCheckQuery.user = authUser.userId;
-      }
-
-      const projectCheck = await Project.findOne(projectCheckQuery).select("name");
-
-      if (!projectCheck) {
-        return NextResponse.json(
-          { success: false, message: "پروژه یافت نشد" },
-          { status: 404 }
-        );
       }
 
       const originalName = projectCheck.name;

@@ -54,7 +54,7 @@ const NewProjectForm = () => {
     >
       <Toaster />
 
-      <p className="-mt-4 text-sm text-gray-600 self-center">
+      <p className="-mt-4 text-sm text-gray-600 dark:text-gray-300 self-center">
         پروژه جدید خود را ایجاد کنید و خلاقیت خود را شکوفا کنید
       </p>
 
@@ -73,16 +73,16 @@ const NewProjectForm = () => {
             startContent={
               <Icon
                 icon="solar:ruler-cross-pen-broken"
-                className="text-gray-600"
+                className="text-gray-600 dark:text-gray-300"
                 width="24"
                 height="24"
               />
             }
             classNames={{
               input:
-                "placeholder:font-light text-base placeholder:text-gray-600",
+                "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
               inputWrapper:
-                "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             }}
             isInvalid={errors?.name ? true : false}
             errorMessage={errors?.name?.message}
@@ -110,16 +110,16 @@ const NewProjectForm = () => {
             startContent={
               <Icon
                 icon="solar:ruler-cross-pen-broken"
-                className="text-gray-600"
+                className="text-gray-600 dark:text-gray-300"
                 width="24"
                 height="24"
               />
             }
             classNames={{
               input:
-                "placeholder:font-light text-base placeholder:text-gray-600",
+                "placeholder:font-light text-base placeholder:text-gray-600 dark:placeholder:text-gray-400",
               inputWrapper:
-                "border h-[50px] !text-sm border-gray-300 text-gray-600 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+                "border h-[50px] !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[hover=true]:border-primaryThemeColor focus-within:!border-primaryThemeColor focus-within:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             }}
             {...register("description")}
           />

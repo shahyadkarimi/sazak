@@ -8,6 +8,7 @@ import DuplicateIcon from "../icons/DuplicateIcon";
 const Settings = () => {
   const rotationOptions = [15, 30, 45, 90, 180];
   const gridSnapSize = [0.1, 0.5, 1];
+  const gridCellSizeOptions = [0.5, 1, 2, 5]; // سایز خانه‌های شطرنجی (متر)
 
   const [openSettings, setOpenSettings] = useState(false);
   const modelOptions = useModelStore((s) => s.modelOptions);
@@ -23,6 +24,10 @@ const Settings = () => {
 
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
+  };
+
+  const changeGridCellSizeHandler = (size) => {
+    setModelOptions({ gridCellSize: size });
   };
 
   const duplicateModelHandler = () => {
@@ -53,9 +58,9 @@ const Settings = () => {
       ],
     };
 
-    useModelStore.setState((state) => ({
-      selectedModels: [...state.selectedModels, newModel],
-    }));
+    const { setSelectedModels, pushHistory } = useModelStore.getState();
+    pushHistory();
+    setSelectedModels((models) => [...models, newModel]);
 
     setSelectedModelId(newId);
   };
@@ -143,6 +148,27 @@ const Settings = () => {
                 }`}
               >
                 {toFarsiNumber(angle)}°
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* grid cell size */}
+        <div className="flex flex-col gap-4 p-2 text-xs border rounded-2xl">
+          <span>سایز خانه‌های شطرنجی:</span>
+
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            {gridCellSizeOptions.map((size) => (
+              <button
+                key={size}
+                onClick={() => changeGridCellSizeHandler(size)}
+                className={`hover:text-primaryThemeColor text-xs transition-all duration-300 px-2 py-1 rounded-lg ${
+                  (modelOptions.gridCellSize || 1) === size
+                    ? "bg-primaryThemeColor/10 text-primaryThemeColor"
+                    : ""
+                }`}
+              >
+                {toFarsiNumber(size)} سانتی متر
               </button>
             ))}
           </div>

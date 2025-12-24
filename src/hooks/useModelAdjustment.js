@@ -57,8 +57,97 @@ export const calculateModelBoundingBox = (model, step = 1) => {
   );
 };
 
+const AXIS_VECTORS = {
+  x: new THREE.Vector3(1, 0, 0),
+  y: new THREE.Vector3(0, 1, 0),
+  z: new THREE.Vector3(0, 0, 1),
+};
+
+const AXIS_INDEX = { x: 0, y: 1, z: 2 };
+const TWO_PI = Math.PI * 2;
+
+const normalizeDelta = (delta) => {
+  if (Number.isNaN(delta)) return 0;
+  let result = delta;
+  while (result > Math.PI) {
+    result -= TWO_PI;
+  }
+  while (result < -Math.PI) {
+    result += TWO_PI;
+  }
+  return result;
+};
+
+const clampAxisAngle = (_, angle) => angle;
+
+export const applyAxisRotationHelper = (
+  startAngles,
+  axisKey,
+  deltaAngle,
+  space = "local"
+) => {
+  const safeAngles = ensureRotationArray(startAngles || [0, 0, 0]);
+  const startEuler = new THREE.Euler(
+    safeAngles[0],
+    safeAngles[1],
+    safeAngles[2],
+    "XYZ"
+  );
+  const startQuat = new THREE.Quaternion().setFromEuler(startEuler);
+  const axisVector = AXIS_VECTORS[axisKey]?.clone() || AXIS_VECTORS.x.clone();
+  if (space === "local") {
+    axisVector.applyQuaternion(startQuat);
+  }
+  const deltaQuat = new THREE.Quaternion().setFromAxisAngle(
+    axisVector,
+    deltaAngle
+  );
+  const resultQuat = deltaQuat.multiply(startQuat);
+  const resultEuler = new THREE.Euler().setFromQuaternion(resultQuat, "XYZ");
+  return [
+    normalizeAngle(resultEuler.x),
+    normalizeAngle(resultEuler.y),
+    normalizeAngle(resultEuler.z),
+  ];
+};
+
+export const applySnappedAxisRotation = ({
+  baseRotation,
+  axisKey,
+  deltaAngle,
+  snapRadians,
+  rotationSnapDegrees = 45,
+  space = "local",
+}) => {
+  const safeRotation = ensureRotationArray(baseRotation);
+  const axisIdx = AXIS_INDEX[axisKey] ?? 0;
+  const startAngle = safeRotation[axisIdx] || 0;
+  let desiredAngle = startAngle + deltaAngle;
+  if (snapRadians) {
+    desiredAngle = snapToGrid(desiredAngle, snapRadians);
+  }
+  desiredAngle = normalizeAngle(desiredAngle);
+  desiredAngle = clampAxisAngle(axisKey, desiredAngle, rotationSnapDegrees);
+  const deltaToApply = normalizeDelta(desiredAngle - startAngle);
+  if (Math.abs(deltaToApply) < 1e-6) {
+    return null;
+  }
+  return applyAxisRotationHelper(safeRotation, axisKey, deltaToApply, space);
+};
+
 // تابع بررسی و اصلاح برخورد بهبود یافته
-export const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1) => {
+export const adjustPositionToAvoidOverlap = (
+  newPos,
+  currentId,
+  models,
+  step = 1,
+  options = {}
+) => {
+  const { allowOverlap = false, lockedAxes = [] } = options;
+  if (allowOverlap) {
+    return [newPos[0], newPos[1], newPos[2]];
+  }
+
   let adjustedPos = new THREE.Vector3(...newPos);
   const currentModel = models.find(m => m.id === currentId);
   
@@ -91,25 +180,53 @@ export const adjustPositionToAvoidOverlap = (newPos, currentId, models, step = 1
         bottom: Math.abs(adjustedPos.y - modelBox.min.y)
       };
 
-      // انتخاب کوتاه‌ترین فاصله
-      const minDistance = Math.min(...Object.values(distances));
-      
-      if (minDistance === distances.left) {
-        adjustedPos.x = modelBox.max.x + (currentModelBox.max.x - currentModelBox.min.x) / 2 + safetyMargin;
-      } else if (minDistance === distances.right) {
-        adjustedPos.x = modelBox.min.x - (currentModelBox.max.x - currentModelBox.min.x) / 2 - safetyMargin;
-      } else if (minDistance === distances.front) {
-        adjustedPos.z = modelBox.max.z + (currentModelBox.max.z - currentModelBox.min.z) / 2 + safetyMargin;
-      } else if (minDistance === distances.back) {
-        adjustedPos.z = modelBox.min.z - (currentModelBox.max.z - currentModelBox.min.z) / 2 - safetyMargin;
-      } else if (minDistance === distances.top) {
-        adjustedPos.y = modelBox.max.y + (currentModelBox.max.y - currentModelBox.min.y) / 2 + safetyMargin;
-      } else if (minDistance === distances.bottom) {
-        adjustedPos.y = modelBox.min.y - (currentModelBox.max.y - currentModelBox.min.y) / 2 - safetyMargin;
+      const axisMap = {
+        left: "x",
+        right: "x",
+        front: "z",
+        back: "z",
+        top: "y",
+        bottom: "y",
+      };
+
+      const lockedAxisSet = new Set(
+        Array.isArray(lockedAxes) ? lockedAxes.map((axis) => axis.toLowerCase()) : []
+      );
+
+      const halfWidthX = (currentModelBox.max.x - currentModelBox.min.x) / 2;
+      const halfWidthZ = (currentModelBox.max.z - currentModelBox.min.z) / 2;
+      const halfHeightY = (currentModelBox.max.y - currentModelBox.min.y) / 2;
+
+      const eligibleEntries = Object.entries(distances).filter(
+        ([dir]) => !lockedAxisSet.has(axisMap[dir])
+      );
+
+      if (eligibleEntries.length === 0) {
+        continue;
       }
 
-      // اگر ارتفاع تغییر نکرده، ارتفاع اصلی را حفظ می‌کنیم
-      if (minDistance !== distances.top && minDistance !== distances.bottom) {
+      // انتخاب کوتاه‌ترین فاصله
+      const minDistance = Math.min(...eligibleEntries.map(([, dist]) => dist));
+      
+      if (!lockedAxisSet.has("x") && minDistance === distances.left) {
+        adjustedPos.x = modelBox.max.x + halfWidthX + safetyMargin;
+      } else if (!lockedAxisSet.has("x") && minDistance === distances.right) {
+        adjustedPos.x = modelBox.min.x - halfWidthX - safetyMargin;
+      } else if (!lockedAxisSet.has("z") && minDistance === distances.front) {
+        adjustedPos.z = modelBox.max.z + halfWidthZ + safetyMargin;
+      } else if (!lockedAxisSet.has("z") && minDistance === distances.back) {
+        adjustedPos.z = modelBox.min.z - halfWidthZ - safetyMargin;
+      } else if (!lockedAxisSet.has("y") && minDistance === distances.top) {
+        adjustedPos.y = modelBox.max.y + halfHeightY + safetyMargin;
+      } else if (!lockedAxisSet.has("y") && minDistance === distances.bottom) {
+        adjustedPos.y = modelBox.min.y - halfHeightY - safetyMargin;
+      }
+
+      // اگر ارتفاع تغییر نکرده یا محور قفل بوده، ارتفاع اصلی را حفظ می‌کنیم
+      if (
+        lockedAxisSet.has("y") ||
+        (minDistance !== distances.top && minDistance !== distances.bottom)
+      ) {
         adjustedPos.y = newPos[1];
       }
     }
@@ -130,6 +247,8 @@ export const useModelAdjustment = (
     heightSnapStep = 1,
     rotationSnapDegrees = 45,
     mouseSensitivity = 1,
+    allowOverlap = false,
+    checkOverlap = null,
   } = {}
 ) => {
   const [isAdjustingHeight, setIsAdjustingHeight] = useState(false);
@@ -145,43 +264,74 @@ export const useModelAdjustment = (
   const [lastRotation, setLastRotation] = useState({ x: null, y: null, z: null });
 
   const rotationSnapRadians = degToRad(rotationSnapDegrees);
-  const axisVectors = {
-    x: new THREE.Vector3(1, 0, 0),
-    y: new THREE.Vector3(0, 1, 0),
-    z: new THREE.Vector3(0, 0, 1),
-  };
-
-  const applyAxisRotation = useCallback(
-    (startAngles, axisKey, deltaAngle, space = "local") => {
-      const safeAngles = ensureRotationArray(startAngles || [0, 0, 0]);
-      const startEuler = new THREE.Euler(
-        safeAngles[0],
-        safeAngles[1],
-        safeAngles[2],
-        "XYZ"
-      );
-      const startQuat = new THREE.Quaternion().setFromEuler(startEuler);
-      const deltaQuat = new THREE.Quaternion().setFromAxisAngle(
-        axisVectors[axisKey],
-        deltaAngle
-      );
-      const resultQuat =
-        space === "world"
-          ? deltaQuat.clone().multiply(startQuat)
-          : startQuat.clone().multiply(deltaQuat);
-      const resultEuler = new THREE.Euler().setFromQuaternion(
-        resultQuat,
-        "XYZ"
-      );
-      return [
-        normalizeAngle(resultEuler.x),
-        normalizeAngle(resultEuler.y),
-        normalizeAngle(resultEuler.z),
-      ];
-    },
-    [axisVectors]
-  );
   const { raycaster, camera, gl } = useThree();
+
+  const clampHeightAgainstCollisions = useCallback(
+    (targetY) => {
+      if (allowOverlap || !Array.isArray(existingModels) || existingModels.length === 0) {
+        return targetY;
+      }
+
+      const currentModel = existingModels.find((m) => m.id === id);
+      if (!currentModel) return targetY;
+
+      let resolvedY = targetY;
+      const basePosition = Array.isArray(position) ? [...position] : [0, 0, 0];
+      const safetyMargin = Math.max(heightSnapStep * 0.1, 0.01);
+
+      for (const other of existingModels) {
+        if (!other || other.id === id) continue;
+
+        const otherBox = calculateModelBoundingBox(other, heightSnapStep);
+        if (!otherBox) continue;
+
+        let candidateModel = {
+          ...currentModel,
+          position: [basePosition[0], resolvedY, basePosition[2]],
+        };
+        let candidateBox = calculateModelBoundingBox(
+          candidateModel,
+          heightSnapStep
+        );
+        if (!candidateBox) continue;
+
+        if (!candidateBox.intersectsBox(otherBox)) {
+          continue;
+        }
+
+        if (resolvedY <= basePosition[1]) {
+          const delta = otherBox.max.y + safetyMargin - candidateBox.min.y;
+          if (delta > 0) {
+            resolvedY += delta;
+            candidateModel = {
+              ...candidateModel,
+              position: [basePosition[0], resolvedY, basePosition[2]],
+            };
+            candidateBox = calculateModelBoundingBox(
+              candidateModel,
+              heightSnapStep
+            );
+          }
+        } else {
+          const delta = candidateBox.max.y - (otherBox.min.y - safetyMargin);
+          if (delta > 0) {
+            resolvedY -= delta;
+            candidateModel = {
+              ...candidateModel,
+              position: [basePosition[0], resolvedY, basePosition[2]],
+            };
+            candidateBox = calculateModelBoundingBox(
+              candidateModel,
+              heightSnapStep
+            );
+          }
+        }
+      }
+
+      return resolvedY;
+    },
+    [allowOverlap, existingModels, heightSnapStep, id, position]
+  );
 
   // مدیریت تنظیم ارتفاع
   const startAdjustHeight = (event) => {
@@ -305,38 +455,66 @@ export const useModelAdjustment = (
   };
 
   const rotateModelZ = useCallback(() => {
-    const newRotation = applyAxisRotation(rotation, "z", rotationSnapRadians, "local");
-    updateModelRotation(id, newRotation);
-  }, [rotation, rotationSnapRadians, id, updateModelRotation, applyAxisRotation]);
-
-  const rotateModelY = useCallback(() => {
-    const newRotation = applyAxisRotation(
-      rotation,
-      "y",
-      rotationSnapRadians,
-      "world"
-    );
-    updateModelRotation(id, newRotation);
-  }, [rotation, rotationSnapRadians, id, updateModelRotation, applyAxisRotation]);
-
-  const rotateModelX = useCallback(() => {
-    const snapDelta =
-      rotationSnapDegrees === 90 ? Math.PI / 2 : rotationSnapRadians;
-    const newRotation = applyAxisRotation(rotation, "x", snapDelta, "local");
-    if (rotationSnapDegrees === 90) {
-      const snap = Math.PI / 2;
-      newRotation[0] = normalizeAngle(
-        Math.round(newRotation[0] / snap) * snap
-      );
+    const newRotation = applySnappedAxisRotation({
+      baseRotation: rotation,
+      axisKey: "z",
+      deltaAngle: rotationSnapRadians,
+      snapRadians: rotationSnapRadians,
+      rotationSnapDegrees,
+      space: "local",
+    });
+    if (newRotation) {
+      updateModelRotation(id, newRotation);
     }
-    updateModelRotation(id, newRotation);
   }, [
     rotation,
     rotationSnapRadians,
     rotationSnapDegrees,
     id,
     updateModelRotation,
-    applyAxisRotation,
+  ]);
+
+  const rotateModelY = useCallback(() => {
+    const newRotation = applySnappedAxisRotation({
+      baseRotation: rotation,
+      axisKey: "y",
+      deltaAngle: rotationSnapRadians,
+      snapRadians: rotationSnapRadians,
+      rotationSnapDegrees,
+      space: "world",
+    });
+    if (newRotation) {
+      updateModelRotation(id, newRotation);
+    }
+  }, [
+    rotation,
+    rotationSnapRadians,
+    rotationSnapDegrees,
+    id,
+    updateModelRotation,
+  ]);
+
+  const rotateModelX = useCallback(() => {
+    const snapDelta =
+      rotationSnapDegrees === 90 ? Math.PI / 2 : rotationSnapRadians;
+    const newRotation = applySnappedAxisRotation({
+      baseRotation: rotation,
+      axisKey: "x",
+      deltaAngle: snapDelta,
+      snapRadians: snapDelta,
+      rotationSnapDegrees,
+      space: "local",
+    });
+    if (newRotation) {
+      updateModelRotation(id, newRotation);
+    }
+  }, [
+    rotation,
+    rotationSnapRadians,
+    rotationSnapDegrees,
+    id,
+    updateModelRotation,
+    applySnappedAxisRotation,
   ]);
 
   // Effect برای تنظیم ارتفاع
@@ -355,20 +533,46 @@ export const useModelAdjustment = (
         Math.trunc(newAccumulated / threshold) * heightSnapStep;
 
       if (heightChange !== 0) {
-        const newHeight = snapToGrid(
+        let newHeight = snapToGrid(
           position[1] + heightChange,
           heightSnapStep
         );
+        if (!allowOverlap) {
+          newHeight = clampHeightAgainstCollisions(newHeight);
+        }
         // برای تنظیم ارتفاع، فقط ارتفاع را تغییر می‌دهیم و موقعیت افقی را حفظ می‌کنیم
         // ارتفاع را محدود نمی‌کنیم (می‌تواند هر مقداری داشته باشد)
-        const proposedPosition = [
+        let proposedPosition = [
           position[0],
           newHeight, // بدون محدودیت Math.max(0, ...) - کاربر می‌تواند ارتفاع را آزادانه تغییر دهد
           position[2],
         ];
 
-        // برای تنظیم ارتفاع، از adjustPositionToAvoidOverlap استفاده نمی‌کنیم
-        // چون می‌خواهیم کاربر بتواند آزادانه ارتفاع را تغییر دهد
+        if (
+          !allowOverlap &&
+          typeof checkOverlap === "function" &&
+          checkOverlap(proposedPosition)
+        ) {
+          setMouseAccumulated((prev) => ({
+            ...prev,
+            y: newAccumulated % threshold,
+          }));
+          setLastMouse((prev) => ({ ...prev, y: currentMouseY }));
+          return;
+        }
+
+        if (!allowOverlap) {
+          proposedPosition = adjustPositionToAvoidOverlap(
+            proposedPosition,
+            id,
+            existingModels,
+            heightSnapStep,
+            { allowOverlap, lockedAxes: ["x", "z"] }
+          );
+          proposedPosition[0] = position[0];
+          proposedPosition[2] = position[2];
+        }
+
         updateModelPosition(id, proposedPosition);
         setMouseAccumulated((prev) => ({
           ...prev,
@@ -460,13 +664,17 @@ export const useModelAdjustment = (
       const rotationDelta = (deltaX / 200) * (Math.PI / 2) * mouseSensitivity;
       const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
       if (snappedDelta === 0) return;
-      const newRotation = applyAxisRotation(
-        rotationStartAngles,
-        "y",
-        snappedDelta,
-        "world"
-      );
-      updateModelRotation(id, newRotation);
+      const newRotation = applySnappedAxisRotation({
+        baseRotation: rotationStartAngles,
+        axisKey: "y",
+        deltaAngle: snappedDelta,
+        snapRadians: rotationSnapRadians,
+        rotationSnapDegrees,
+        space: "world",
+      });
+      if (newRotation) {
+        updateModelRotation(id, newRotation);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -478,6 +686,7 @@ export const useModelAdjustment = (
     id,
     updateModelRotation,
     rotationSnapRadians,
+    rotationSnapDegrees,
     mouseSensitivity,
   ]);
 
@@ -489,21 +698,17 @@ export const useModelAdjustment = (
       const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
       const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
       if (snappedDelta === 0) return;
-      let newRotation = applyAxisRotation(
-        rotationStartAngles,
-        "x",
-        snappedDelta,
-        "local"
-      );
-
-      if (rotationSnapDegrees === 90) {
-        const snap = Math.PI / 2;
-        newRotation[0] = normalizeAngle(
-          Math.round(newRotation[0] / snap) * snap
-        );
+      const newRotation = applySnappedAxisRotation({
+        baseRotation: rotationStartAngles,
+        axisKey: "x",
+        deltaAngle: snappedDelta,
+        snapRadians: rotationSnapRadians,
+        rotationSnapDegrees,
+        space: "local",
+      });
+      if (newRotation) {
+        updateModelRotation(id, newRotation);
       }
-
-      updateModelRotation(id, newRotation);
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -527,13 +732,17 @@ export const useModelAdjustment = (
       const rotationDelta = (-deltaY / 200) * (Math.PI / 2) * mouseSensitivity;
       const snappedDelta = snapToGrid(rotationDelta, rotationSnapRadians);
       if (snappedDelta === 0) return;
-      const newRotation = applyAxisRotation(
-        rotationStartAngles,
-        "z",
-        snappedDelta,
-        "local"
-      );
-      updateModelRotation(id, newRotation);
+      const newRotation = applySnappedAxisRotation({
+        baseRotation: rotationStartAngles,
+        axisKey: "z",
+        deltaAngle: snappedDelta,
+        snapRadians: rotationSnapRadians,
+        rotationSnapDegrees,
+        space: "local",
+      });
+      if (newRotation) {
+        updateModelRotation(id, newRotation);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);

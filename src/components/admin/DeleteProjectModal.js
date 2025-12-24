@@ -47,36 +47,36 @@ const DeleteProjectModal = ({ isOpen, onClose, project, onSuccess }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
+      <ModalContent className="bg-white dark:bg-gray-800">
+        <ModalHeader className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
           <div className="flex items-center gap-2">
             <Icon
               icon="solar:trash-bin-minimalistic-line-duotone"
               width="24"
               height="24"
-              className="text-red-500"
+              className="text-red-500 dark:text-red-400"
             />
             <span>حذف پروژه</span>
           </div>
         </ModalHeader>
         <ModalBody>
           <div className="text-center py-4">
-            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
               <Icon
                 icon="solar:danger-triangle-line-duotone"
                 width="32"
                 height="32"
-                className="text-red-500"
+                className="text-red-500 dark:text-red-400"
               />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
               آیا مطمئن هستید؟
             </h3>
-            <p className="text-gray-600 mb-4">
+            <p className="text-gray-600 dark:text-gray-300 mb-4">
               آیا می‌خواهید پروژه{" "}
               <span className="font-semibold">{project?.name}</span> را حذف کنید؟
             </p>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-400">
               <Icon
                 icon="solar:info-circle-line-duotone"
                 width="16"

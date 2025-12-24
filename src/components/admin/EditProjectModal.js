@@ -72,9 +72,9 @@ const EditProjectModal = ({ isOpen, onClose, project, onSuccess }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalContent>
+      <ModalContent className="bg-white dark:bg-gray-800">
         <form onSubmit={handleSubmit}>
-          <ModalHeader className="flex flex-col gap-1">
+          <ModalHeader className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
             <div className="flex items-center gap-2">
               <Icon
                 icon="solar:folder-with-files-line-duotone"
@@ -93,9 +93,9 @@ const EditProjectModal = ({ isOpen, onClose, project, onSuccess }) => {
               onChange={(e) => handleChange("name", e.target.value)}
               isRequired
               classNames={{
-                input: "text-right placeholder:font-light placeholder:text-gray-600",
-                inputWrapper: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
+                inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
               labelPlacement="outside"
             />

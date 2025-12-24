@@ -13,7 +13,11 @@ const DesignPanel = ({ project }) => {
   const [isRightMobileOpen, setIsRightMobileOpen] = useState(false);
   const [isLeftMobileOpen, setIsLeftMobileOpen] = useState(false);
 
-  const [cameraView, setCameraView] = useState(null);
+  const [cameraView, setCameraView] = useState({
+    camera: [0, 22, 45],
+    fov: 45,
+    immediate: false,
+  });
   const mainCameraRef = useRef();
 
   const closeAll = () => {
@@ -39,7 +43,7 @@ const DesignPanel = ({ project }) => {
         ) : (
           <button
             onClick={() => setIsRightOpen(true)}
-            className="absolute top-1/2 -translate-y-1/2 -left-3 w-6 h-10 rounded-l-xl bg-white border shadow flex items-center justify-center text-gray-600 hover:text-primaryThemeColor z-10"
+            className="absolute top-1/2 -translate-y-1/2 -left-3 w-6 h-10 rounded-l-xl bg-white dark:bg-gray-800 border dark:border-gray-700 shadow flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primaryThemeColor z-10"
             title="باز کردن سایدبار راست"
           >
             <Icon
@@ -77,7 +81,7 @@ const DesignPanel = ({ project }) => {
         ) : (
           <button
             onClick={() => setIsLeftOpen(true)}
-            className="absolute top-1/2 -translate-y-1/2 -right-5 w-5 h-10 rounded-r-xl z-10 bg-white border border-l-0 flex items-center justify-center text-gray-600 hover:text-primaryThemeColor"
+            className="absolute top-1/2 -translate-y-1/2 -right-5 w-5 h-10 rounded-r-xl z-10 bg-white dark:bg-gray-800 border dark:border-gray-700 border-l-0 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-primaryThemeColor"
             title="باز کردن سایدبار چپ"
           >
             <Icon
@@ -93,7 +97,7 @@ const DesignPanel = ({ project }) => {
       <div className="md:hidden">
         <button
           onClick={() => setIsLeftMobileOpen(true)}
-          className="fixed bottom-14 left-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
+          className="fixed bottom-14 left-4 z-30 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border dark:border-gray-700 shadow-lg size-11 rounded-2xl text-gray-700 dark:text-gray-200 flex items-center justify-center"
           aria-label="open tools"
         >
           <i className="fi fi-rr-apps h-[18px] block text-lg"></i>
@@ -101,7 +105,7 @@ const DesignPanel = ({ project }) => {
 
         <button
           onClick={() => setIsRightMobileOpen(true)}
-          className="fixed bottom-14 right-4 z-30 bg-white/90 backdrop-blur-md border shadow-lg size-11 rounded-2xl text-gray-700 flex items-center justify-center"
+          className="fixed bottom-14 right-4 z-30 bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border dark:border-gray-700 shadow-lg size-11 rounded-2xl text-gray-700 dark:text-gray-200 flex items-center justify-center"
           aria-label="open models"
         >
           <i className="fi fi-rr-box-open h-[18px] block text-lg"></i>

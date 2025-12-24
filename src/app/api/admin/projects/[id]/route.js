@@ -17,10 +17,20 @@ export async function DELETE(req, { params }) {
       );
     }
 
-    const requester = await User.findById(authUser.userId).lean();
+    const requester = await User.findById(authUser.userId)
+      .select("role canEditUserProjects")
+      .lean();
     if (!requester || requester.role !== "admin") {
       return NextResponse.json(
         { success: false, message: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
+    // Check if admin has permission to edit user projects
+    if (!requester.canEditUserProjects) {
+      return NextResponse.json(
+        { success: false, message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید" },
         { status: 403 }
       );
     }
@@ -87,10 +97,20 @@ export async function PATCH(req, { params }) {
       );
     }
 
-    const requester = await User.findById(authUser.userId).lean();
+    const requester = await User.findById(authUser.userId)
+      .select("role canEditUserProjects")
+      .lean();
     if (!requester || requester.role !== "admin") {
       return NextResponse.json(
         { success: false, message: "دسترسی غیرمجاز" },
+        { status: 403 }
+      );
+    }
+
+    // Check if admin has permission to edit user projects
+    if (!requester.canEditUserProjects) {
+      return NextResponse.json(
+        { success: false, message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید" },
         { status: 403 }
       );
     }

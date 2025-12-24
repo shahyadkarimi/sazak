@@ -72,9 +72,9 @@ const EditCategoryModal = ({ isOpen, onClose, category, onSuccess }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalContent>
+      <ModalContent className="bg-white dark:bg-gray-800">
         <form onSubmit={handleSubmit}>
-          <ModalHeader className="flex flex-col gap-1">
+          <ModalHeader className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
             <div className="flex items-center gap-2">
               <Icon
                 icon="solar:pen-line-duotone"
@@ -94,10 +94,10 @@ const EditCategoryModal = ({ isOpen, onClose, category, onSuccess }) => {
               labelPlacement="outside"
               isRequired
               classNames={{
-                input: "text-right placeholder:font-light placeholder:text-gray-600",
+                input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                 inputWrapper:
-                  "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                  "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             />
             <Textarea
@@ -107,10 +107,10 @@ const EditCategoryModal = ({ isOpen, onClose, category, onSuccess }) => {
               onChange={(e) => handleChange("description", e.target.value)}
               labelPlacement="outside"
               classNames={{
-                input: "text-right placeholder:font-light placeholder:text-gray-600",
+                input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                 inputWrapper:
-                  "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-                label: "text-gray-700 font-medium",
+                  "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                label: "text-gray-700 dark:text-gray-300 font-medium",
               }}
             />
           </ModalBody>

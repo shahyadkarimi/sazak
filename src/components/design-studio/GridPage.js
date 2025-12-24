@@ -16,6 +16,7 @@ import { toFarsiNumber } from "@/helper/helper";
 import { clampPositionToGrid } from "@/helper/gridConstraints";
 import { getModelType, getModelDimensions } from "@/helper/snapDetection";
 import { calculateRotatedBoundingBox } from "@/helper/helper";
+import { applySnappedAxisRotation } from "@/hooks/useModelAdjustment";
 import HeightIcon from "../icons/HeightIcon";
 import RotateIcon from "../icons/RotateIcon";
 import { Tooltip } from "@heroui/react";
@@ -55,6 +56,8 @@ const KeyboardController = ({ onShowHelp }) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const selectedModelId = useModelStore((state) => state.selectedModelId);
   const setSelectedModelId = useModelStore((state) => state.setSelectedModelId);
+  const groupMode = useModelStore((state) => state.groupMode);
+  const setGroupMode = useModelStore((state) => state.setGroupMode);
   const setClipboardModels = useModelStore((state) => state.setClipboardModels);
   const setSelectedModels = useModelStore((state) => state.setSelectedModels);
   const clipboardModels = useModelStore((state) => state.clipboardModels);
@@ -64,6 +67,15 @@ const KeyboardController = ({ onShowHelp }) => {
   const undo = useModelStore((state) => state.undo);
   const redo = useModelStore((state) => state.redo);
   const activeControlMode = useModelStore((state) => state.activeControlMode);
+  const modelOptions = useModelStore((state) => state.modelOptions);
+  const setAllowOverlap = useModelStore((state) => state.setAllowOverlap);
+  const allowOverlap = useModelStore((state) => state.allowOverlap);
+  const allowOverlapRef = useRef(false);
+
+  useEffect(() => {
+    allowOverlapRef.current = allowOverlap;
+  }, [allowOverlap]);
+  const shiftModeStateRef = useRef({ active: false, previous: null });
   const setActiveControlMode = useModelStore(
     (state) => state.setActiveControlMode
   );
@@ -160,6 +172,131 @@ const KeyboardController = ({ onShowHelp }) => {
     }
   };
   useEffect(() => {
+    const bypassKey = "KeyB";
+    const handleKeyDown = (event) => {
+      if (
+        event.code === bypassKey &&
+        !(event.target.tagName === "INPUT" || event.target.tagName === "TEXTAREA")
+      ) {
+        if (!allowOverlapRef.current) {
+          setAllowOverlap(true);
+          toast.success("حالت عبور از برخورد فعال شد (نگه دارید)", {
+            id: "overlap-on",
+            duration: 1500,
+            className: "text-sm rounded-2xl",
+          });
+        }
+        event.preventDefault();
+      }
+    };
+    const handleKeyUp = (event) => {
+      if (event.code === bypassKey && allowOverlapRef.current) {
+        setAllowOverlap(false);
+        toast.success("حالت عبور از برخورد غیرفعال شد", {
+          id: "overlap-off",
+          duration: 1500,
+          className: "text-sm rounded-2xl",
+        });
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      setAllowOverlap(false);
+    };
+  }, [setAllowOverlap]);
+
+  useEffect(() => {
+    const modeKeyMap = {
+      KeyH: "height",
+      KeyY: "rotateY",
+      KeyX: "rotateX",
+      KeyZ: "rotateZ",
+    };
+
+    const selectionMatches = (modelId) => {
+      if (!selectedModelId) return false;
+      if (selectedModelId === "ALL") return true;
+      if (Array.isArray(selectedModelId)) {
+        return selectedModelId.includes(modelId);
+      }
+      return selectedModelId === modelId;
+    };
+
+    const applyToSelection = (updateFn) => {
+      if (!selectedModelId) return false;
+      let changed = false;
+      const updatedModels = selectedModels.map((model) => {
+        if (!selectionMatches(model.id)) {
+          return model;
+        }
+        const nextModel = updateFn(model);
+        if (!nextModel || nextModel === model) {
+          return model;
+        }
+        changed = true;
+        return nextModel;
+      });
+      if (changed) {
+        pushHistory();
+        setSelectedModels(updatedModels);
+      }
+      return changed;
+    };
+
+    const applyHeightStep = () => {
+      const step = Math.max(0.05, modelOptions?.snapSize ?? 0.5);
+      if (step === 0) return;
+      applyToSelection((model) => {
+        const basePosition = Array.isArray(model.position)
+          ? [...model.position]
+          : [0, 0, 0];
+        const nextY = Math.max(0, basePosition[1] + step);
+        if (nextY === basePosition[1]) {
+          return model;
+        }
+        return {
+          ...model,
+          position: [basePosition[0], nextY, basePosition[2]],
+        };
+      });
+    };
+
+    const rotateSelectionOnce = (axisKey) => {
+      const rotationStepDegrees = modelOptions?.rotationDeg || 45;
+      const rotationStepRadians = (rotationStepDegrees * Math.PI) / 180;
+      if (!rotationStepRadians) return;
+      applyToSelection((model) => {
+        const newRotation = applySnappedAxisRotation({
+          baseRotation: model.rotation || [0, 0, 0],
+          axisKey,
+          deltaAngle: rotationStepRadians,
+          snapRadians: rotationStepRadians,
+          rotationSnapDegrees: rotationStepDegrees,
+          space: axisKey === "y" ? "world" : "local",
+        });
+        if (!newRotation) {
+          return model;
+        }
+        return { ...model, rotation: newRotation };
+      });
+    };
+
+    const triggerModeAction = (mode) => {
+      if (!selectedModelId) return;
+      if (mode === "height") {
+        applyHeightStep();
+      } else if (mode === "rotateX") {
+        rotateSelectionOnce("x");
+      } else if (mode === "rotateY") {
+        rotateSelectionOnce("y");
+      } else if (mode === "rotateZ") {
+        rotateSelectionOnce("z");
+      }
+    };
+
     const handleKeyPress = (event) => {
       // Check if the target is not an input field
       if (
@@ -167,6 +304,27 @@ const KeyboardController = ({ onShowHelp }) => {
         event.target.tagName === "TEXTAREA"
       ) {
         return;
+      }
+      if (event.key === "Shift" && !event.repeat) {
+        if (!shiftModeStateRef.current.active) {
+          shiftModeStateRef.current = {
+            active: true,
+            previous: activeControlMode ?? null,
+          };
+          if (activeControlMode !== "height") {
+            setActiveControlMode("height");
+          }
+        }
+        return;
+      }
+
+      const modeFromKey = modeKeyMap[event.code];
+      if (modeFromKey && !event.ctrlKey && !event.metaKey) {
+        if (!event.shiftKey && !event.repeat) {
+          event.preventDefault();
+          triggerModeAction(modeFromKey);
+          return;
+        }
       }
       // Ctrl+C - Copy selected model (use code for layout-agnostic)
       if ((event.ctrlKey || event.metaKey) && event.code === "KeyC") {
@@ -182,6 +340,18 @@ const KeyboardController = ({ onShowHelp }) => {
       if ((event.ctrlKey || event.metaKey) && event.code === "KeyV") {
         event.preventDefault();
         togglePasteMode();
+      }
+      // G key - Toggle group mode
+      if (event.key === "g" || event.key === "G") {
+        if (!event.ctrlKey && !event.metaKey && !event.shiftKey) {
+          const hasMultipleSelection = 
+            selectedModelId === 'ALL' || 
+            (Array.isArray(selectedModelId) && selectedModelId.length > 1);
+          if (hasMultipleSelection) {
+            event.preventDefault();
+            setGroupMode(!groupMode);
+          }
+        }
       }
       // Delete key - delete selected model(s)
       if (event.key === "Delete" || event.key === "Backspace") {
@@ -361,8 +531,20 @@ const KeyboardController = ({ onShowHelp }) => {
         }
       }
     };
+    const handleKeyUp = (event) => {
+      if (event.key === "Shift" && shiftModeStateRef.current.active) {
+        const previousMode = shiftModeStateRef.current.previous ?? null;
+        setActiveControlMode(previousMode);
+        shiftModeStateRef.current = { active: false, previous: null };
+      }
+    };
+
     window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyPress);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
   }, [
     selectedModelId,
     selectedModels,
@@ -375,6 +557,8 @@ const KeyboardController = ({ onShowHelp }) => {
     activeControlMode,
     setActiveControlMode,
     onShowHelp,
+    modelOptions,
+    pushHistory,
   ]);
   return null;
 };
@@ -744,7 +928,18 @@ const SelectionBoxHandler = ({ canvasContainerRef, onSelectionBoxChange }) => {
         return;
       }
 
-      // Find models inside selection box
+      const groupMode = useModelStore.getState().groupMode;
+      const currentSelectedModelId = useModelStore.getState().selectedModelId;
+      
+      let currentSelection = [];
+      if (currentSelectedModelId === 'ALL') {
+        currentSelection = selectedModels.map((m) => m.id);
+      } else if (Array.isArray(currentSelectedModelId)) {
+        currentSelection = [...currentSelectedModelId];
+      } else if (currentSelectedModelId) {
+        currentSelection = [currentSelectedModelId];
+      }
+
       const selectedIds = [];
       selectedModels.forEach((model) => {
         if (isModelInSelection(model, selectionRect)) {
@@ -752,12 +947,17 @@ const SelectionBoxHandler = ({ canvasContainerRef, onSelectionBoxChange }) => {
         }
       });
 
-      // Update selection
       if (selectedIds.length > 0) {
-        setSelectedModelId(selectedIds.length === 1 ? selectedIds[0] : selectedIds);
+        if (groupMode && currentSelection.length > 0) {
+          const combinedSelection = [...new Set([...currentSelection, ...selectedIds])];
+          setSelectedModelId(combinedSelection.length === 1 ? combinedSelection[0] : combinedSelection);
+        } else {
+          setSelectedModelId(selectedIds.length === 1 ? selectedIds[0] : selectedIds);
+        }
       } else {
-        // Deselect if nothing in selection box
-        setSelectedModelId(null);
+        if (!groupMode) {
+          setSelectedModelId(null);
+        }
       }
     };
 
@@ -796,8 +996,10 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const clipboardModels = useModelStore((state) => state.clipboardModels);
   const modelOptions = useModelStore((state) => state.modelOptions);
   const setModelOptions = useModelStore((state) => state.setModelOptions);
+  const groupMode = useModelStore((state) => state.groupMode);
   const [showHelp, setShowHelp] = useState(false);
   const [showSnapGrid, setShowSnapGrid] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const [selectionBox, setSelectionBox] = useState({
     isSelecting: false,
     startPos: null,
@@ -805,13 +1007,35 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   });
   const controlsRef = useRef();
   const router = useRouter();
+
+  // Check for dark mode
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    };
+    
+    checkDarkMode();
+    
+    // Watch for changes in dark mode
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
   const gridSnapSize = [0.1, 0.5, 1, 2, 5];
   const rotationOptions = [15, 30, 45, 90, 180];
+  const gridCellSizeOptions = [0.5, 1, 2, 5]; // سایز خانه‌های شطرنجی (متر)
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
   };
   const changeRotationDegHandler = (angle) => {
     setModelOptions({ rotationDeg: angle });
+  };
+  const changeGridCellSizeHandler = (size) => {
+    setModelOptions({ gridCellSize: size });
   };
   useEffect(() => {
     const onReset = () => {
@@ -914,6 +1138,15 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
     const cleanup = setupCanvas();
     return cleanup;
   }, [canvasKey]);
+
+  // Update clear color when dark mode changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.designStudioGL) {
+      const gl = window.designStudioGL;
+      gl.setClearColor(isDark ? '#111827' : '#ffffff', isDark ? 1 : 0);
+    }
+  }, [isDark]);
+  
   return (
     <div className="w-full h-full relative" style={{
       position: 'relative',
@@ -962,13 +1195,14 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             premultipliedAlpha: true,
           }}
           dpr={dpr}
-          camera={{ position: [25, 45, 0], fov: 40 }}
+          camera={{ position: [0, 22, 45], fov: 45 }}
           onContextMenu={(e) => {
             e.preventDefault();
           }}
           onCreated={({ gl, scene }) => {
-            // Set clear color to light gray background
-            gl.setClearColor('#ffffff', 0);
+            // Set clear color based on dark mode
+            const isDarkMode = document.documentElement.classList.contains("dark");
+            gl.setClearColor(isDarkMode ? '#111827' : '#ffffff', isDarkMode ? 1 : 0);
             gl.setPixelRatio(window.devicePixelRatio);
             
             // Store gl context globally for screenshot functionality
@@ -1003,9 +1237,9 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
             }
           }}
           onPointerMissed={(event) => {
-            // وقتی روی فضای خالی کلیک می‌شود
             const isCtrlPressed = window.isCtrlKeyPressed || false;
-            if (!isCtrlPressed) {
+            const currentGroupMode = useModelStore.getState().groupMode;
+            if (!isCtrlPressed && !currentGroupMode) {
               setSelectedModelId(null);
             }
           }}
@@ -1078,8 +1312,10 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
         setShowSnapGrid={setShowSnapGrid}
         changeSnapSizeHandler={changeSnapSizeHandler}
         changeRotationDegHandler={changeRotationDegHandler}
+        changeGridCellSizeHandler={changeGridCellSizeHandler}
         gridSnapSize={gridSnapSize}
         rotationOptions={rotationOptions}
+        gridCellSizeOptions={gridCellSizeOptions}
       />
     </div>
   );
@@ -1103,10 +1339,10 @@ const ControlButtons = ({ disabled }) => {
           disabled={disabled}
           className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
             disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
               : activeControlMode === "height"
               ? "bg-primaryThemeColor text-white"
-              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+              : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
           }`}
         >
           <HeightIcon width={16} height={16} />
@@ -1123,10 +1359,10 @@ const ControlButtons = ({ disabled }) => {
           disabled={disabled}
           className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
             disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
               : activeControlMode === "rotateY"
               ? "bg-primaryThemeColor text-white"
-              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+              : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
           }`}
         >
           <RotateIcon />
@@ -1143,10 +1379,10 @@ const ControlButtons = ({ disabled }) => {
           disabled={disabled}
           className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
             disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
               : activeControlMode === "rotateX"
               ? "bg-primaryThemeColor text-white"
-              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+              : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
           }`}
         >
           <RotateIcon className="-scale-x-100" />
@@ -1163,10 +1399,10 @@ const ControlButtons = ({ disabled }) => {
           disabled={disabled}
           className={`flex justify-center items-center size-9 rounded-xl transition-all duration-300 ${
             disabled
-              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              ? "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
               : activeControlMode === "rotateZ"
               ? "bg-primaryThemeColor text-white"
-              : "bg-gray-200/90 text-gray-700 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
+              : "bg-gray-200/90 dark:bg-gray-700/90 text-gray-700 dark:text-gray-200 hover:bg-primaryThemeColor/15 hover:text-primaryThemeColor"
           }`}
         >
           <RotateIcon className="-rotate-90" />
@@ -1180,8 +1416,10 @@ const BottomBar = ({
   setShowSnapGrid,
   changeSnapSizeHandler,
   changeRotationDegHandler,
+  changeGridCellSizeHandler,
   gridSnapSize,
   rotationOptions,
+  gridCellSizeOptions,
 }) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const selectedModelId = useModelStore((state) => state.selectedModelId);
@@ -1265,13 +1503,13 @@ const BottomBar = ({
   };
   return (
     <div className="absolute bottom-0 left-0 right-0 z-40">
-      <div className="mx-4 mb-2 rounded-2xl bg-white/95 backdrop-blur shadow-lg shadow-gray-200/80 border border-gray-100 p-3">
+      <div className="mx-4 mb-2 rounded-2xl bg-white/95 dark:bg-gray-800/95 backdrop-blur shadow-lg shadow-gray-200/80 dark:shadow-gray-900/80 border border-gray-100 dark:border-gray-700 p-3">
         <div className="flex items-center justify-between gap-3 md:gap-4 flex-wrap">
           {/* Snap Grid Selector */}
           <div className="relative snap-grid-selector">
             <button
               onClick={() => setShowSnapGrid(!showSnapGrid)}
-              className="bg-gray-200/90 p-2 h-9 rounded-xl transition-all duration-300 flex items-center gap-2 text-gray-700 hover:text-primaryThemeColor"
+              className="bg-gray-200/90 dark:bg-gray-700/90 p-2 h-9 rounded-xl transition-all duration-300 flex items-center gap-2 text-gray-700 dark:text-gray-200 hover:text-primaryThemeColor"
               title="تنظیمات Snap Grid"
             >
               <i className="fi fi-rr-grid size-4"></i>
@@ -1281,7 +1519,7 @@ const BottomBar = ({
                     ? "آزاد"
                     : `${toFarsiNumber(modelOptions.snapSize)} میلی متر`}
                 </span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400">
                   چرخش: {toFarsiNumber(modelOptions.rotationDeg)}°
                 </span>
               </div>
@@ -1292,7 +1530,7 @@ const BottomBar = ({
               ></i>
             </button>
             {showSnapGrid && (
-              <div className="absolute bottom-full right-0 mb-2 w-56 bg-white rounded-xl shadow-lg shadow-gray-100 border border-gray-100 overflow-hidden max-h-[400px] flex flex-col">
+              <div className="absolute bottom-full right-0 mb-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg shadow-gray-100 dark:shadow-gray-900 border border-gray-100 dark:border-gray-700 overflow-hidden max-h-[400px] flex flex-col">
                 <div
                   className="p-3 space-y-4 overflow-y-auto"
                   style={{
@@ -1302,7 +1540,7 @@ const BottomBar = ({
                   }}
                 >
                   <div>
-                    <div className="text-sm text-gray-700 mb-3 text-center">
+                    <div className="text-sm text-gray-700 dark:text-gray-200 mb-3 text-center">
                       اندازه جا به جایی
                     </div>
                     <div className="space-y-2">
@@ -1312,10 +1550,10 @@ const BottomBar = ({
                           onClick={() => {
                             changeSnapSizeHandler(size);
                           }}
-                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${
                             modelOptions.snapSize === size
-                              ? "bg-primaryThemeColor/10 text-primaryThemeColor"
-                              : "text-gray-600 hover:text-gray-800"
+                              ? "bg-primaryThemeColor/10 dark:bg-primaryThemeColor dark:text-white text-primaryThemeColor"
+                              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
                           }`}
                         >
                           {`${toFarsiNumber(size)} سانتی متر`}
@@ -1323,8 +1561,8 @@ const BottomBar = ({
                       ))}
                     </div>
                   </div>
-                  <div className="border-t border-gray-200 pt-3">
-                    <div className="text-sm text-gray-700 mb-3 text-center">
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <div className="text-sm text-gray-700 dark:text-gray-200 mb-3 text-center">
                       درجه چرخش
                     </div>
                     <div className="space-y-2">
@@ -1334,13 +1572,35 @@ const BottomBar = ({
                           onClick={() => {
                             changeRotationDegHandler(angle);
                           }}
-                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 ${
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${
                             modelOptions.rotationDeg === angle
-                              ? "bg-primaryThemeColor/10 text-primaryThemeColor"
-                              : "text-gray-600 hover:text-gray-800"
+                              ? "bg-primaryThemeColor/10 dark:bg-primaryThemeColor dark:text-white text-primaryThemeColor"
+                              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
                           }`}
                         >
                           {toFarsiNumber(angle)}°
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <div className="text-sm text-gray-700 dark:text-gray-200 mb-3 text-center">
+                      سایز خانه‌های شطرنجی
+                    </div>
+                    <div className="space-y-2">
+                      {gridCellSizeOptions.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            changeGridCellSizeHandler(size);
+                          }}
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            (modelOptions.gridCellSize || 1) === size
+                              ? "bg-primaryThemeColor/10 dark:bg-primaryThemeColor dark:text-white text-primaryThemeColor"
+                              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                          }`}
+                        >
+                          {`${toFarsiNumber(size)} سانتی متر`}
                         </button>
                       ))}
                     </div>
@@ -1349,10 +1609,11 @@ const BottomBar = ({
               </div>
             )}
           </div>
+          
           {/* Stats */}
           <div
             dir="rtl"
-            className="flex items-center gap-3 md:gap-6 text-sm text-gray-700 flex-wrap"
+            className="flex items-center gap-3 md:gap-6 text-sm text-gray-700 dark:text-gray-200 flex-wrap"
           >
             <div className="flex items-center gap-2">
               <span className="font-semibold">ارتفاع:</span>

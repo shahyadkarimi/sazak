@@ -1,19 +1,41 @@
 "use client";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
+import useModelStore from "@/store/useModelStore";
 
 const CustomGrid = () => {
   const { scene } = useThree();
+  const gridCellSize = useModelStore((state) => state.modelOptions?.gridCellSize || 1);
+  const [isDark, setIsDark] = useState(false);
+
+  // Check for dark mode
+  useEffect(() => {
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    };
+    
+    checkDarkMode();
+    
+    // Watch for changes in dark mode
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const size = 40;
-    const divisions = 40;
+    const divisions = Math.round(40 / gridCellSize); // تعداد خانه‌ها بر اساس سایز خانه
 
-    const colorCenterLine = new THREE.Color("#9ca3af");
-    const colorGrid = new THREE.Color("#9ca3af");
-    const colorMillimeter = new THREE.Color("#d1d5db");
+    // رنگ‌ها بر اساس حالت دارک یا لایت
+    const colorCenterLine = new THREE.Color(isDark ? "#4b5563" : "#9ca3af");
+    const colorGrid = new THREE.Color(isDark ? "#4b5563" : "#9ca3af");
+    const colorMillimeter = new THREE.Color(isDark ? "#374151" : "#d1d5db");
 
     const gridHelper = new THREE.GridHelper(
       size,
@@ -23,7 +45,7 @@ const CustomGrid = () => {
     );
 
     gridHelper.material.transparent = true;
-    gridHelper.material.opacity = 0.3;
+    gridHelper.material.opacity = isDark ? 0.4 : 0.3;
     gridHelper.material.depthWrite = false;
     gridHelper.material.side = THREE.DoubleSide;
 
@@ -35,9 +57,12 @@ const CustomGrid = () => {
     );
 
     millimeterGridHelper.material.transparent = true;
-    millimeterGridHelper.material.opacity = 0.15;
+    millimeterGridHelper.material.opacity = isDark ? 0.25 : 0.15;
     millimeterGridHelper.material.depthWrite = false;
     millimeterGridHelper.material.side = THREE.DoubleSide;
+
+    // نمایش محورهای x, y, z
+    const axesHelper = new THREE.AxesHelper(20); // طول محورها: 20 واحد
 
     scene.add(gridHelper);
     scene.add(millimeterGridHelper);
@@ -46,21 +71,56 @@ const CustomGrid = () => {
       scene.remove(gridHelper);
       scene.remove(millimeterGridHelper);
     };
-  }, [scene]);
+  }, [scene, gridCellSize, isDark]);
 
   return (
     <>
       {/* Academy Sazak Text on Grid */}
       <Text
-        position={[-19, 0.121, 13.9]}
+        position={[-14, 0.121, 19]}
         fontSize={1.5}
-        color="#9ca3af"
+        color={isDark ? "#6b7280" : "#9ca3af"}
         anchorX="center"
         anchorY="middle"
-        rotation={[-Math.PI / 2, 0, 1.57]}
+        rotation={[-Math.PI / 2, 0, 0.01]}
         fontWeight={700}
       >
         Sazak Academy
+      </Text>
+      
+      {/* Labels for X, Y, Z axes */}
+      <Text
+        position={[21, 0.1, 0]}
+        fontSize={1.2}
+        color={isDark ? "#6b7280" : "#9ca3af"}
+        anchorX="center"
+        anchorY="middle"
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontWeight={700}
+      >
+        X
+      </Text>
+      <Text
+        position={[-21, 0.1, 0]}
+        fontSize={1.2}
+        color={isDark ? "#6b7280" : "#9ca3af"}
+        anchorX="center"
+        anchorY="middle"
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontWeight={700}
+      >
+        Y
+      </Text>
+      <Text
+        position={[0, 0.1, 21]}
+        fontSize={1.2}
+        color={isDark ? "#6b7280" : "#9ca3af"}
+        anchorX="center"
+        anchorY="middle"
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontWeight={700}
+      >
+        Z
       </Text>
     </>
   );

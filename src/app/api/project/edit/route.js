@@ -21,11 +21,11 @@ export async function POST(req) {
 
     const { id, name, description } = editProjectSchema.parse(body);
 
-    const project = await Project.findOneAndUpdate(
-      { _id: id, user: authUser.userId },
-      { $set: { name, description: description || "" } },
-      { new: true }
-    );
+    // Check if project exists
+    const project = await Project.findOne({
+      _id: id,
+      user: authUser.userId,
+    }).select("name description");
 
     if (!project) {
       return NextResponse.json(
@@ -34,13 +34,20 @@ export async function POST(req) {
       );
     }
 
+    // Update project
+    const updatedProject = await Project.findOneAndUpdate(
+      { _id: id, user: authUser.userId },
+      { $set: { name, description: description || "" } },
+      { new: true }
+    );
+
     await createLog(LogActions.PROJECT_UPDATE, {
       performedBy: {
         userId: authUser.userId,
       },
       target: {
         type: "project",
-        projectId: project._id.toString(),
+        projectId: updatedProject._id.toString(),
         ownerId: authUser.userId,
       },
       metadata: {
@@ -53,7 +60,7 @@ export async function POST(req) {
     });
 
     return NextResponse.json(
-      { success: true, message: "پروژه بروزرسانی شد", project },
+      { success: true, message: "پروژه بروزرسانی شد", project: updatedProject },
       { status: 200 }
     );
   } catch (error) {

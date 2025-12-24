@@ -35,6 +35,7 @@ export async function GET(req) {
       width: p.width,
       height: p.height,
       noColor: p.noColor || false,
+      color: p.noColor ? null : p.color || p.previewColor || null,
       category: {
         id: p.category?._id?.toString() || "",
         name: p.category?.name || "",

@@ -141,16 +141,16 @@ const Page = () => {
             <Icon icon="solar:minimalistic-magnifer-broken" width="20" height="20" />
           }
           classNames={{
-            input: "placeholder:font-light placeholder:text-gray-600",
+            input: "placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
             inputWrapper:
-              "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
-            label: "text-gray-700 font-medium",
+              "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+            label: "text-gray-700 dark:text-gray-300 font-medium",
           }}
           labelPlacement="outside"
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
         <Table aria-label="Categories table" removeWrapper>
           <TableHeader columns={columns}>
             {(column) => (
@@ -166,15 +166,15 @@ const Page = () => {
             {(category) => (
               <TableRow key={category.id}>
                 <TableCell>
-                  <div className="font-medium text-gray-900">{category.name}</div>
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{category.name}</div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-gray-600">
+                  <div className="text-gray-600 dark:text-gray-400">
                     {category.description || "-"}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     {new Date(category.createdAt).toLocaleDateString("fa-IR")}
                   </div>
                 </TableCell>

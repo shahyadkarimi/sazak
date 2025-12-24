@@ -112,10 +112,10 @@ const Page = () => {
 
     return (
       <div className="flex flex-col gap-1 text-right">
-        <span className="font-medium text-gray-900">
+        <span className="font-medium text-gray-900 dark:text-gray-100">
           {name || toFarsiNumber(performedBy.userId) || "کاربر"}
         </span>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-gray-400">
           {role}
           {role && phone ? " / " : ""}
           {phone}
@@ -140,7 +140,7 @@ const Page = () => {
         <Chip radius="sm" size="sm" className="self-start" color="secondary">
           {typeLabel}
         </Chip>
-        {name && <span className="text-xs text-gray-600">نام: {name}</span>}
+        {name && <span className="text-xs text-gray-600 dark:text-gray-400">نام: {name}</span>}
       </div>
     );
   };
@@ -149,11 +149,11 @@ const Page = () => {
     const phone = getPhoneNumberFromLog(log);
 
     if (!phone) {
-      return <span className="text-xs text-gray-500">بدون اطلاعات اضافی</span>;
+      return <span className="text-xs text-gray-500 dark:text-gray-400">بدون اطلاعات اضافی</span>;
     }
 
     return (
-      <span className="text-xs text-gray-600">
+      <span className="text-xs text-gray-600 dark:text-gray-400">
         شماره تلفن: {toFarsiNumber(phone)}
       </span>
     );
@@ -164,19 +164,19 @@ const Page = () => {
     return (
       <div className="flex flex-col gap-1 text-right">
         {context.ip && (
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-400">
             <Icon
               icon="solar:map-point-wave-line-duotone"
-              className="inline-block h-4 w-4 text-gray-500 ml-1 align-middle"
+              className="inline-block h-4 w-4 text-gray-500 dark:text-gray-400 ml-1 align-middle"
             />
             IP: {context.ip}
           </span>
         )}
         {context.userAgent && (
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-400">
             <Icon
               icon="solar:monitor-line-duotone"
-              className="inline-block h-4 w-4 text-gray-500 ml-1 align-middle"
+              className="inline-block h-4 w-4 text-gray-500 dark:text-gray-400 ml-1 align-middle"
             />
             {context.userAgent}
           </span>
@@ -226,7 +226,7 @@ const Page = () => {
       return (
         <TableBody
           emptyContent={
-            <div className="py-10 text-center text-gray-500">
+            <div className="py-10 text-center text-gray-500 dark:text-gray-400">
               فعالیتی برای نمایش وجود ندارد.
             </div>
           }
@@ -240,7 +240,7 @@ const Page = () => {
           <TableRow key={log.id}>
             <TableCell>
               <div className="flex flex-col gap-1 text-right">
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-gray-900 dark:text-gray-100">
                   {getActionLabel(log.action)}
                 </span>
               </div>
@@ -260,14 +260,14 @@ const Page = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+          <h1 className="text-xl lg:text-2xl font-bold text-gray-900 dark:text-gray-100">
             فعالیت‌های اخیر
           </h1>
-          <p className="text-sm lg:text-base text-gray-600">
+          <p className="text-sm lg:text-base text-gray-600 dark:text-gray-400">
             نظارت بر فعالیت‌های کلیدی کاربران و ادمین‌ها
           </p>
         </div>
-        <div className="flex items-center gap-3 text-xs lg:text-sm text-gray-500">
+        <div className="flex items-center gap-3 text-xs lg:text-sm text-gray-500 dark:text-gray-400">
           <Chip color="secondary" variant="flat">
             مجموع فعالیت‌ها: {toFarsiNumber(totalItems)}
           </Chip>
@@ -277,13 +277,13 @@ const Page = () => {
         </div>
       </div>
 
-      <Card className="!shadow-none border hover:!shadow-lg hover:!shadow-gray-200 transition-all">
+      <Card className="!shadow-none border dark:border-gray-700 hover:!shadow-lg hover:!shadow-gray-200 dark:hover:!shadow-gray-800 transition-all bg-white dark:bg-gray-800">
         <CardHeader className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               لیست فعالیت‌ها
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               آخرین فعالیت‌ها به ترتیب زمان
             </p>
           </div>

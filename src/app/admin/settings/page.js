@@ -149,7 +149,7 @@ const Page = () => {
     if (logoPreview) {
       return (
         <div className="flex flex-col items-center gap-4">
-          <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-dashed border-gray-300 bg-gray-50">
+          <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
             <Image
               src={
                 logoPreview.startsWith("blob:")
@@ -175,7 +175,7 @@ const Page = () => {
       );
     }
     return (
-      <div className="flex h-24 w-full items-center justify-center rounded-xl border border-dashed border-gray-300 bg-gray-50 text-sm text-gray-500">
+      <div className="flex h-24 w-full items-center justify-center rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-500 dark:text-gray-400">
         لوگو انتخاب نشده است
       </div>
     );
@@ -198,13 +198,13 @@ const Page = () => {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex flex-col gap-2">
-        <h1 className="text-xl font-bold text-gray-900">تنظیمات وب‌سایت</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">تنظیمات وب‌سایت</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           اطلاعات کلی سایت، لوگو و حالت تعمیر را مدیریت کنید
         </p>
       </div>
 
-      <Card className="border !shadow-none hover:!shadow-lg hover:!shadow-gray-200 transition-all">
+      <Card className="border dark:border-gray-700 !shadow-none hover:!shadow-lg hover:!shadow-gray-200 dark:hover:!shadow-gray-800 transition-all bg-white dark:bg-gray-800">
         <CardHeader className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Icon
@@ -212,16 +212,16 @@ const Page = () => {
               className="h-6 w-6 text-primaryThemeColor"
             />
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 اطلاعات عمومی
               </h2>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 اطلاعات نمایش داده شده به کاربران
               </span>
             </div>
           </div>
         </CardHeader>
-        <div className="border-b border-gray-200" />
+        <div className="border-b border-gray-200 dark:border-gray-700" />
         <CardBody className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 text-right">
             <Input
@@ -281,7 +281,7 @@ const Page = () => {
         </CardBody>
       </Card>
 
-      <Card className="border !shadow-none hover:!shadow-lg hover:!shadow-gray-200 transition-all">
+      <Card className="border dark:border-gray-700 !shadow-none hover:!shadow-lg hover:!shadow-gray-200 dark:hover:!shadow-gray-800 transition-all bg-white dark:bg-gray-800">
         <CardHeader className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Icon
@@ -289,18 +289,18 @@ const Page = () => {
               className="h-6 w-6 text-primaryThemeColor"
             />
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold text-gray-900">لوگو</h2>
-              <span className="text-xs text-gray-500">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">لوگو</h2>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 لوگوی اصلی سایت را بارگذاری کنید
               </span>
             </div>
           </div>
         </CardHeader>
-        <div className="border-b border-gray-200" />
+        <div className="border-b border-gray-200 dark:border-gray-700" />
         <CardBody className="space-y-4">
           {logoContent}
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-sm text-gray-600 transition-all hover:border-primaryThemeColor md:w-auto">
+            <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-3 text-sm text-gray-600 dark:text-gray-400 transition-all hover:border-primaryThemeColor md:w-auto">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -317,7 +317,7 @@ const Page = () => {
               انتخاب لوگو جدید
             </label>
             {uploading && (
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
                 <Spinner
                   size="sm"
                   classNames={{
@@ -332,7 +332,7 @@ const Page = () => {
         </CardBody>
       </Card>
 
-      <Card className="border !shadow-none hover:!shadow-lg hover:!shadow-gray-200 transition-all">
+      <Card className="border dark:border-gray-700 !shadow-none hover:!shadow-lg hover:!shadow-gray-200 dark:hover:!shadow-gray-800 transition-all bg-white dark:bg-gray-800">
         <CardHeader className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Icon
@@ -340,10 +340,10 @@ const Page = () => {
               className="h-6 w-6 text-primaryThemeColor"
             />
             <div className="flex flex-col gap-1">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 حالت تعمیر
               </h2>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
                 نمایش صفحه تعمیر برای کاربران عادی
               </span>
             </div>
@@ -361,7 +361,7 @@ const Page = () => {
             {formData.maintenanceMode ? "فعال" : "غیرفعال"}
           </Switch>
         </CardHeader>
-        <div className="border-b border-gray-200" />
+        <div className="border-b border-gray-200 dark:border-gray-700" />
         <CardBody>
           <Textarea
             label="پیام حالت تعمیر"

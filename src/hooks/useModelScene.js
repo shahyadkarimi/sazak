@@ -6,7 +6,6 @@ export const useModelScene = (path) => {
   // Always call useModelLoader to maintain hook order
   const scene = useModelLoader(path);
   
-  // تنظیم مرکز مدل و قرار دادن پایین مدل روی زمین
   const adjustedScene = useMemo(() => {
     if (!scene) return null;
     

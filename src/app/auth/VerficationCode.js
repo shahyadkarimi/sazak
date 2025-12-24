@@ -75,8 +75,8 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
       <Toaster />
 
       <div className="flex flex-col items-center gap-3 text-center">
-        <h1 className="text-2xl sm:text-3xl font-black">تایید شماره موبایل</h1>
-        <p className="text-sm sm:text-base font-semibold text-gray-500/90">
+        <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-gray-100">تایید شماره موبایل</h1>
+        <p className="text-sm sm:text-base font-semibold text-gray-500/90 dark:text-gray-400">
           کد ۵ رقمی پیامک شده به شماره{" "}
           {toFarsiNumber(userInfo.phoneNumber || "9120000000")} را در کادر زیر
           وارد نمایید
@@ -94,7 +94,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
             wrapper: "w-full",
             segmentWrapper: "w-full flex-row-reverse gap-4 pt-0 pb-2",
             segment:
-              "border w-full h-16 !text-sm border-gray-300 text-gray-600 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
+              "border w-full h-16 !text-sm border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-200 bg-white dark:bg-gray-800 data-[active=true]:border-primaryThemeColor data-[active=true]:ring-4 ring-primaryThemeColor/15 !shadow-none rounded-2xl !transition-all",
             errorMessage: "font-normal",
           }}
           isInvalid={errors.code ? true : false}
@@ -128,7 +128,7 @@ const VeficationCode = ({ userInfo, setUserInfo, step, setStep }) => {
 
         <button
           onClick={backPhoneStepHandler}
-          className="text-right w-1/4 flex justify-center items-center gap-2 h-14 sm:h-16 bg-white border border-primaryThemeColor/10 text-sm text-gray-500 font-semibold rounded-2xl"
+          className="text-right w-1/4 flex justify-center items-center gap-2 h-14 sm:h-16 bg-white dark:bg-gray-800 border dark:border-gray-700 border-primaryThemeColor/10 text-sm text-gray-500 dark:text-gray-400 font-semibold rounded-2xl"
         >
           <span>بازگشت</span>
           <Icon

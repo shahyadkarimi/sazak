@@ -54,10 +54,10 @@ const AuthSlider = () => {
                 alt={slide.title}
               />
 
-              <h3 className="text-xl font-semibold mt-10">
+              <h3 className="text-xl font-semibold mt-10 text-gray-900 dark:text-gray-100">
                 {toFarsiNumber(slide.title)}
               </h3>
-              <p className="mt-2 text-sm font-light text-gray-400">
+              <p className="mt-2 text-sm font-light text-gray-400 dark:text-gray-500">
                 {toFarsiNumber(slide.description)}
               </p>
             </div>
@@ -71,7 +71,7 @@ const AuthSlider = () => {
           onClick={() => {
             if (swiperRef.current) swiperRef.current.slidePrev();
           }}
-          className="size-10 bg-white text-primaryThemeColor border-2 border-primaryThemeColor/15 rounded-full flex items-center justify-center"
+          className="size-10 bg-white dark:bg-gray-800 text-primaryThemeColor border-2 dark:border-gray-700 border-primaryThemeColor/15 rounded-full flex items-center justify-center"
         >
           <Icon icon="solar:arrow-right-linear" width="24" height="24" />
         </button>
@@ -97,7 +97,7 @@ const AuthSlider = () => {
           onClick={() => {
             if (swiperRef.current) swiperRef.current.slideNext();
           }}
-          className="size-10 bg-white text-primaryThemeColor border-2 border-primaryThemeColor/15 rounded-full flex items-center justify-center"
+          className="size-10 bg-white dark:bg-gray-800 text-primaryThemeColor border-2 dark:border-gray-700 border-primaryThemeColor/15 rounded-full flex items-center justify-center"
         >
           <Icon icon="solar:arrow-left-linear" width="24" height="24" />
         </button>

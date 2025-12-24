@@ -47,23 +47,23 @@ const DeletePartModal = ({ isOpen, onClose, part, onSuccess }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md">
-      <ModalContent>
-        <ModalHeader className="flex flex-col gap-1">
+      <ModalContent className="bg-white dark:bg-gray-800">
+        <ModalHeader className="flex flex-col gap-1 text-gray-900 dark:text-gray-100">
           <div className="flex items-center gap-2">
             <Icon
               icon="solar:trash-bin-trash-line-duotone"
               width="24"
               height="24"
-              className="text-red-600"
+              className="text-red-600 dark:text-red-400"
             />
             <span>حذف قطعه</span>
           </div>
         </ModalHeader>
         <ModalBody>
-          <p className="text-gray-700">
+          <p className="text-gray-700 dark:text-gray-300">
             آیا از حذف قطعه <strong>{part?.name}</strong> اطمینان دارید؟
           </p>
-          <p className="text-sm text-gray-500 mt-2">
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
             این عملیات غیرقابل بازگشت است و فایل GLB نیز حذف خواهد شد.
           </p>
         </ModalBody>
