@@ -27,9 +27,10 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: "user",
     },
-    canEditUserProjects: {
-      type: Boolean,
-      default: false,
+    coach: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     profilePicture: {
       type: String,

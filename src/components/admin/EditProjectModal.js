@@ -15,7 +15,7 @@ import {
 import { Icon } from "@iconify/react";
 import toast from "react-hot-toast";
 
-const EditProjectModal = ({ isOpen, onClose, project, onSuccess }) => {
+const EditProjectModal = ({ isOpen, onClose, project, onSuccess, apiPath = "/api/admin/projects" }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -37,7 +37,7 @@ const EditProjectModal = ({ isOpen, onClose, project, onSuccess }) => {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/admin/projects/${project.id}`, {
+      const response = await fetch(`${apiPath}/${project.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

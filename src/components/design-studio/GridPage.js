@@ -465,10 +465,13 @@ const KeyboardController = ({ onShowHelp }) => {
                 break;
             }
             if (useModelStore.getState().constrainToGrid) {
+              const gridSize = useModelStore.getState().modelOptions?.gridSize || 40;
+              const gridHalfSize = gridSize / 2;
               return clampPositionToGrid(
                 np,
                 model?.dimensions,
-                model?.rotation
+                model?.rotation,
+                gridHalfSize
               );
             }
             return np;
@@ -1028,6 +1031,7 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   const gridSnapSize = [0.1, 0.5, 1, 2, 5];
   const rotationOptions = [15, 30, 45, 90, 180];
   const gridCellSizeOptions = [0.5, 1, 2, 5]; // سایز خانه‌های شطرنجی (متر)
+  const gridSizeOptions = [30, 40, 50, 60]; // سایز کلی صفحه شطرنجی
   const changeSnapSizeHandler = (size) => {
     setModelOptions({ snapSize: size });
   };
@@ -1036,6 +1040,9 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
   };
   const changeGridCellSizeHandler = (size) => {
     setModelOptions({ gridCellSize: size });
+  };
+  const changeGridSizeHandler = (size) => {
+    setModelOptions({ gridSize: size });
   };
   useEffect(() => {
     const onReset = () => {
@@ -1313,9 +1320,11 @@ const GridPage = ({ project, cameraView, onViewChange, mainCameraRef }) => {
         changeSnapSizeHandler={changeSnapSizeHandler}
         changeRotationDegHandler={changeRotationDegHandler}
         changeGridCellSizeHandler={changeGridCellSizeHandler}
+        changeGridSizeHandler={changeGridSizeHandler}
         gridSnapSize={gridSnapSize}
         rotationOptions={rotationOptions}
         gridCellSizeOptions={gridCellSizeOptions}
+        gridSizeOptions={gridSizeOptions}
       />
     </div>
   );
@@ -1417,9 +1426,11 @@ const BottomBar = ({
   changeSnapSizeHandler,
   changeRotationDegHandler,
   changeGridCellSizeHandler,
+  changeGridSizeHandler,
   gridSnapSize,
   rotationOptions,
   gridCellSizeOptions,
+  gridSizeOptions,
 }) => {
   const selectedModels = useModelStore((state) => state.selectedModels);
   const selectedModelId = useModelStore((state) => state.selectedModelId);
@@ -1601,6 +1612,28 @@ const BottomBar = ({
                           }`}
                         >
                           {`${toFarsiNumber(size)} سانتی متر`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                    <div className="text-sm text-gray-700 dark:text-gray-200 mb-3 text-center">
+                      سایز کلی صفحه
+                    </div>
+                    <div className="space-y-2">
+                      {gridSizeOptions.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => {
+                            changeGridSizeHandler(size);
+                          }}
+                          className={`w-full text-right px-3 py-1.5 rounded-lg text-xs transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            (modelOptions.gridSize || 40) === size
+                              ? "bg-primaryThemeColor/10 dark:bg-primaryThemeColor dark:text-white text-primaryThemeColor"
+                              : "text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100"
+                          }`}
+                        >
+                          {`${toFarsiNumber(size)}×${toFarsiNumber(size)}`}
                         </button>
                       ))}
                     </div>

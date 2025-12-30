@@ -8,6 +8,7 @@ import useModelStore from "@/store/useModelStore";
 const CustomGrid = () => {
   const { scene } = useThree();
   const gridCellSize = useModelStore((state) => state.modelOptions?.gridCellSize || 1);
+  const gridSize = useModelStore((state) => state.modelOptions?.gridSize || 40);
   const [isDark, setIsDark] = useState(false);
 
   // Check for dark mode
@@ -29,8 +30,8 @@ const CustomGrid = () => {
   }, []);
 
   useEffect(() => {
-    const size = 40;
-    const divisions = Math.round(40 / gridCellSize); // تعداد خانه‌ها بر اساس سایز خانه
+    const size = gridSize;
+    const divisions = Math.round(gridSize / gridCellSize); // تعداد خانه‌ها بر اساس سایز خانه
 
     // رنگ‌ها بر اساس حالت دارک یا لایت
     const colorCenterLine = new THREE.Color(isDark ? "#4b5563" : "#9ca3af");
@@ -71,13 +72,13 @@ const CustomGrid = () => {
       scene.remove(gridHelper);
       scene.remove(millimeterGridHelper);
     };
-  }, [scene, gridCellSize, isDark]);
+  }, [scene, gridCellSize, gridSize, isDark]);
 
   return (
     <>
       {/* Academy Sazak Text on Grid */}
       <Text
-        position={[-14, 0.121, 19]}
+        position={[-(gridSize * 0.35), 0.121, gridSize * 0.475]}
         fontSize={1.5}
         color={isDark ? "#6b7280" : "#9ca3af"}
         anchorX="center"
@@ -90,7 +91,7 @@ const CustomGrid = () => {
       
       {/* Labels for X, Y, Z axes */}
       <Text
-        position={[21, 0.1, 0]}
+        position={[gridSize * 0.525, 0.1, 0]}
         fontSize={1.2}
         color={isDark ? "#6b7280" : "#9ca3af"}
         anchorX="center"
@@ -101,7 +102,7 @@ const CustomGrid = () => {
         X
       </Text>
       <Text
-        position={[-21, 0.1, 0]}
+        position={[-gridSize * 0.525, 0.1, 0]}
         fontSize={1.2}
         color={isDark ? "#6b7280" : "#9ca3af"}
         anchorX="center"
@@ -112,7 +113,7 @@ const CustomGrid = () => {
         Y
       </Text>
       <Text
-        position={[0, 0.1, 21]}
+        position={[0, 0.1, gridSize * 0.525]}
         fontSize={1.2}
         color={isDark ? "#6b7280" : "#9ca3af"}
         anchorX="center"

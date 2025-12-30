@@ -21,20 +21,33 @@ const Page = async ({ params }) => {
         cache: "no-store",
       });
 
-      const project = await projectRes.json();
+      const data = await projectRes.json();
 
-      return project.project;
+      if (!data.success || !data.project) {
+        return { error: true, message: data.message || "پروژه یافت نشد" };
+      }
+
+      return { error: false, project: data.project };
     } catch (error) {
       console.log(error);
-      return "error";
+      return { error: true, message: "خطا هنگام دریافت پروژه" };
     }
   };
 
-  const project = await fetchData();
+  const result = await fetchData();
 
-  if (project === "error") {
-    return <p className="text-danger">خطا هنگام پردازش پروژه</p>;
+  if (result.error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-danger text-lg font-bold">{result.message}</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">لطفاً دوباره تلاش کنید</p>
+        </div>
+      </div>
+    );
   }
+
+  const project = result.project;
 
   console.log(project);
 

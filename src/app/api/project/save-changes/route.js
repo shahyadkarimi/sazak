@@ -49,22 +49,17 @@ export async function POST(req) {
     }
 
     const requestUser = await User.findById(authUser.userId)
-      .select("role canEditUserProjects")
+      .select("role _id")
       .lean();
 
-    // Check if project exists and is editable (unless user is admin)
-    const projectCheckQuery = {
+    // Check if project exists
+    const projectCheck = await Project.findOne({
       _id: projectId,
       deletedAt: null,
-    };
-
-    if (requestUser?.role !== "admin") {
-      projectCheckQuery.user = authUser.userId;
-    }
-
-    const projectCheck = await Project.findOne(projectCheckQuery).select(
-      "name"
-    );
+    })
+      .populate({ path: "user", select: "coach" })
+      .select("name user")
+      .lean();
 
     if (!projectCheck) {
       return NextResponse.json(
@@ -73,17 +68,29 @@ export async function POST(req) {
       );
     }
 
-    // Check if admin has permission to edit user projects
+    // Check permissions: user can edit own projects, admin can edit all, coach can edit their users' projects
+    let hasPermission = false;
     if (requestUser?.role === "admin") {
-      if (!requestUser.canEditUserProjects) {
-        return NextResponse.json(
-          {
-            success: false,
-            message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید",
-          },
-          { status: 403 }
-        );
+      hasPermission = true;
+    } else if (requestUser?.role === "coach") {
+      // Check if the project owner has this coach assigned
+      const projectOwner = projectCheck.user;
+      if (projectOwner && projectOwner.coach && projectOwner.coach.toString() === requestUser._id.toString()) {
+        hasPermission = true;
       }
+    } else if (projectCheck.user && projectCheck.user._id?.toString() === authUser.userId) {
+      // User owns the project
+      hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "شما دسترسی ویرایش این پروژه را ندارید",
+        },
+        { status: 403 }
+      );
     }
 
     const updateData = {};
@@ -123,7 +130,8 @@ export async function POST(req) {
       deletedAt: null,
     };
 
-    if (requestUser?.role !== "admin") {
+    // For non-admin users, ensure they can only update their own projects
+    if (requestUser?.role !== "admin" && requestUser?.role !== "coach") {
       projectUpdateQuery.user = authUser.userId;
     }
 

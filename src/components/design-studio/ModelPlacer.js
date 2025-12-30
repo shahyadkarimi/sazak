@@ -69,8 +69,9 @@ const ModelPlacer = () => {
 
     const mouse = new THREE.Vector2();
     if (gl && gl.domElement) {
-      mouse.x = (gl.domElement.mouseX / gl.domElement.clientWidth) * 2 - 1;
-      mouse.y = -(gl.domElement.mouseY / gl.domElement.clientHeight) * 2 + 1;
+      const rect = gl.domElement.getBoundingClientRect();
+      mouse.x = ((gl.domElement.mouseX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((gl.domElement.mouseY - rect.top) / rect.height) * 2 + 1;
     }
 
     raycaster.setFromCamera(mouse, camera);
@@ -88,7 +89,8 @@ const ModelPlacer = () => {
       let adjusted = baseSnapped;
 
       if (constrainToGrid) {
-        const limit = 20; // match CustomGrid size/2 (size=40)
+        const gridSize = modelOptions.gridSize || 40;
+        const limit = gridSize / 2; // نصف سایز کلی صفحه
         adjusted[0] = Math.max(-limit, Math.min(limit, adjusted[0]));
         adjusted[2] = Math.max(-limit, Math.min(limit, adjusted[2]));
       }
@@ -107,7 +109,8 @@ const ModelPlacer = () => {
           position: (function(){
             const p = [...hoverPos];
             if (constrainToGrid) {
-              const limit = 20;
+              const gridSize = modelOptions.gridSize || 40;
+              const limit = gridSize / 2;
               p[0] = Math.max(-limit, Math.min(limit, p[0]));
               p[2] = Math.max(-limit, Math.min(limit, p[2]));
             }
@@ -121,10 +124,11 @@ const ModelPlacer = () => {
       setCurrentPlacingModel(null);
     } else {
       raycaster.layers.set(0);
+      const rect = gl.domElement.getBoundingClientRect();
       raycaster.setFromCamera(
         {
-          x: (gl.domElement.mouseX / gl.domElement.clientWidth) * 2 - 1,
-          y: -(gl.domElement.mouseY / gl.domElement.clientHeight) * 2 + 1,
+          x: ((gl.domElement.mouseX - rect.left) / rect.width) * 2 - 1,
+          y: -((gl.domElement.mouseY - rect.top) / rect.height) * 2 + 1,
         },
         camera
       );

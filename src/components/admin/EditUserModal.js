@@ -30,8 +30,11 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
     city: "",
     birthDate: "",
     password: "",
-    canEditUserProjects: false,
+    coach: "",
   });
+  const [coaches, setCoaches] = useState([]);
+  const [loadingCoaches, setLoadingCoaches] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (user) {
@@ -47,10 +50,34 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
         city: user.city || "",
         birthDate: user.birthDate || "",
         password: "",
-        canEditUserProjects: user.canEditUserProjects || false,
+        coach: user.coach?.id || "",
       });
+      setErrors({});
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchCoaches = async () => {
+      if (!isOpen) return;
+      setLoadingCoaches(true);
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch("/api/admin/users", {
+          headers: { "x-auth-token": token ?? "" },
+        });
+        const data = await response.json();
+        if (data.success) {
+          const coachList = data.users.filter((u) => u.role === "coach" && u.isActive);
+          setCoaches(coachList);
+        }
+      } catch (error) {
+        console.error("Error fetching coaches:", error);
+      } finally {
+        setLoadingCoaches(false);
+      }
+    };
+    fetchCoaches();
+  }, [isOpen]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,9 +98,15 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
 
       if (data.success) {
         onSuccess(data.user);
+        setErrors({});
         onClose();
         toast.success('کاربر با موفقیت به‌روزرسانی شد');
       } else {
+        if (data.errors) {
+          setErrors(data.errors);
+        } else {
+          setErrors({});
+        }
         toast.error(data.message || "خطا در به‌روزرسانی کاربر");
       }
     } catch (error) {
@@ -126,9 +159,14 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
                 label="نام"
                 placeholder="نام کاربر را وارد کنید"
                 value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
+                onChange={(e) => {
+                  handleChange("name", e.target.value);
+                  if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+                }}
                 labelPlacement="outside"
                 isRequired
+                errorMessage={errors.name}
+                isInvalid={!!errors.name}
                 classNames={{
                   input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
@@ -139,9 +177,14 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
                 label="نام خانوادگی"
                 placeholder="نام خانوادگی کاربر را وارد کنید"
                 value={formData.familyName}
-                onChange={(e) => handleChange("familyName", e.target.value)}
+                onChange={(e) => {
+                  handleChange("familyName", e.target.value);
+                  if (errors.familyName) setErrors((prev) => ({ ...prev, familyName: undefined }));
+                }}
                 labelPlacement="outside"
                 isRequired
+                errorMessage={errors.familyName}
+                isInvalid={!!errors.familyName}
                 classNames={{
                   input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
@@ -153,8 +196,13 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
                 placeholder="ایمیل کاربر را وارد کنید"
                 type="email"
                 value={formData.email}
-                onChange={(e) => handleChange("email", e.target.value)}
+                onChange={(e) => {
+                  handleChange("email", e.target.value);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                }}
                 labelPlacement="outside"
+                errorMessage={errors.email}
+                isInvalid={!!errors.email}
                 classNames={{
                   input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
@@ -165,9 +213,14 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
                 label="شماره موبایل"
                 placeholder="شماره موبایل کاربر را وارد کنید"
                 value={formData.phoneNumber}
-                onChange={(e) => handleChange("phoneNumber", e.target.value)}
+                onChange={(e) => {
+                  handleChange("phoneNumber", e.target.value);
+                  if (errors.phoneNumber) setErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                }}
                 labelPlacement="outside"
                 isRequired
+                errorMessage={errors.phoneNumber}
+                isInvalid={!!errors.phoneNumber}
                 classNames={{
                   input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
@@ -220,8 +273,13 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
                 placeholder="تاریخ تولد را وارد کنید"
                 type="date"
                 value={formData.birthDate || ""}
-                onChange={(e) => handleChange("birthDate", e.target.value)}
+                onChange={(e) => {
+                  handleChange("birthDate", e.target.value);
+                  if (errors.birthDate) setErrors((prev) => ({ ...prev, birthDate: undefined }));
+                }}
                 labelPlacement="outside"
+                errorMessage={errors.birthDate}
+                isInvalid={!!errors.birthDate}
                 classNames={{
                   input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                   inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
@@ -233,50 +291,80 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
               label="آدرس"
               placeholder="آدرس محل سکونت را وارد کنید"
               value={formData.address}
-              onChange={(e) => handleChange("address", e.target.value)}
+              onChange={(e) => {
+                handleChange("address", e.target.value);
+                if (errors.address) setErrors((prev) => ({ ...prev, address: undefined }));
+              }}
               labelPlacement="outside"
+              errorMessage={errors.address}
+              isInvalid={!!errors.address}
               classNames={{
                 input: "text-right placeholder:font-light placeholder:text-gray-600",
                 inputWrapper: "!shadow-none rounded-xl border border-gray-200 hover:border-gray-300 focus-within:border-primaryThemeColor",
                 label: "text-gray-700 font-medium",
               }}
             />
-            <Select
-              label="نقش کاربر"
-              selectedKeys={formData.role ? new Set([formData.role]) : new Set()}
-              onSelectionChange={(keys) => {
-                const value = Array.from(keys)[0] ?? "user";
-                handleChange("role", value);
-                // Reset canEditUserProjects when role changes
-                if (value !== "admin") {
-                  handleChange("canEditUserProjects", false);
-                }
-              }}
-              labelPlacement="outside"
+            <div>
+              <Select
+                label="نقش کاربر"
+                selectedKeys={formData.role ? new Set([formData.role]) : new Set()}
+                onSelectionChange={(keys) => {
+                  const value = Array.from(keys)[0] ?? "user";
+                  handleChange("role", value);
+                  if (errors.role) setErrors((prev) => ({ ...prev, role: undefined }));
+                }}
+                labelPlacement="outside"
+                isInvalid={!!errors.role}
                 classNames={{
                   trigger: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
                   label: "text-gray-700 dark:text-gray-300 font-medium",
                 }}
-            >
-              <SelectItem key="user" value="user">
-                کاربر
-              </SelectItem>
-              <SelectItem key="admin" value="admin">
-                ادمین
-              </SelectItem>
-            </Select>
-            {formData.role === "admin" && (
-              <div className="flex items-center gap-2 p-3 rounded-xl border border-gray-200 bg-gray-50">
-                <input
-                  type="checkbox"
-                  id="canEditUserProjects"
-                  checked={formData.canEditUserProjects}
-                  onChange={(e) => handleChange("canEditUserProjects", e.target.checked)}
-                  className="w-4 h-4 text-primaryThemeColor rounded focus:ring-primaryThemeColor"
-                />
-                <label htmlFor="canEditUserProjects" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                  دسترسی ویرایش پروژه‌های کاربران
-                </label>
+              >
+                <SelectItem key="user" value="user">
+                  کاربر
+                </SelectItem>
+                <SelectItem key="coach" value="coach">
+                  مربی
+                </SelectItem>
+                <SelectItem key="admin" value="admin">
+                  ادمین
+                </SelectItem>
+              </Select>
+              {errors.role && (
+                <p className="text-sm text-danger mt-1">{errors.role}</p>
+              )}
+            </div>
+            {formData.role === "user" && (
+              <div>
+                <Select
+                  label="مربی"
+                  placeholder="مربی را انتخاب کنید (اختیاری)"
+                  selectedKeys={formData.coach ? new Set([formData.coach]) : new Set()}
+                  onSelectionChange={(keys) => {
+                    const value = Array.from(keys)[0] ?? "";
+                    handleChange("coach", value);
+                    if (errors.coach) setErrors((prev) => ({ ...prev, coach: undefined }));
+                  }}
+                  labelPlacement="outside"
+                  isLoading={loadingCoaches}
+                  isInvalid={!!errors.coach}
+                  classNames={{
+                    trigger: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",
+                    label: "text-gray-700 dark:text-gray-300 font-medium",
+                  }}
+                >
+                  <SelectItem key="" value="">
+                    بدون مربی
+                  </SelectItem>
+                  {coaches.map((coach) => (
+                    <SelectItem key={coach.id} value={coach.id}>
+                      {coach.fullName || `${coach.name} ${coach.familyName}`}
+                    </SelectItem>
+                  ))}
+                </Select>
+                {errors.coach && (
+                  <p className="text-sm text-danger mt-1">{errors.coach}</p>
+                )}
               </div>
             )}
             <Input
@@ -284,8 +372,13 @@ const EditUserModal = ({ isOpen, onClose, user, onSuccess }) => {
               placeholder="رمز عبور جدید (اختیاری)"
               type="password"
               value={formData.password}
-              onChange={(e) => handleChange("password", e.target.value)}
+              onChange={(e) => {
+                handleChange("password", e.target.value);
+                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+              }}
               labelPlacement="outside"
+              errorMessage={errors.password}
+              isInvalid={!!errors.password}
               classNames={{
                 input: "text-right placeholder:font-light placeholder:text-gray-600 dark:placeholder:text-gray-400 dark:text-gray-200",
                 inputWrapper: "!shadow-none rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus-within:border-primaryThemeColor bg-white dark:bg-gray-700",

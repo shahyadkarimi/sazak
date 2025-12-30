@@ -43,6 +43,8 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
   const pushHistory = useModelStore((s) => s.pushHistory);
   const updateModelDimensions = useModelStore((s) => s.updateModelDimensions);
   const setDraggedModelId = useModelStore((s) => s.setDraggedModelId);
+  const setDragStartPositions = useModelStore((s) => s.setDragStartPositions);
+  const dragStartPositions = useModelStore((s) => s.dragStartPositions);
   const activeControlMode = useModelStore((s) => s.activeControlMode);
 
   const zoomLevel = useModelStore((s) => s.zoomLevel);
@@ -288,7 +290,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
 
   useEffect(() => {
     if (!constrainToGrid || !modelDimensions) return;
-    const clampedPosition = clampPositionToGrid(position, modelDimensions, rotation);
+    const gridSize = modelOptions.gridSize || 40;
+    const gridHalfSize = gridSize / 2;
+    const clampedPosition = clampPositionToGrid(position, modelDimensions, rotation, gridHalfSize);
 
     if (
       clampedPosition[0] !== position[0] ||
@@ -452,7 +456,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
     if (!constrainToGrid || !modelDimensions || isAdjustingRef.current) return;
     if (isDragging && activeControlMode === 'height') return;
     
-    const clampedPosition = clampPositionToGrid(modelPosition, modelDimensions, newRotation);
+    const gridSize = modelOptions.gridSize || 40;
+    const gridHalfSize = gridSize / 2;
+    const clampedPosition = clampPositionToGrid(modelPosition, modelDimensions, newRotation, gridHalfSize);
     
     if (
       clampedPosition[0] !== modelPosition[0] ||
@@ -523,7 +529,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         
         const currentPos = currentModel.position || position;
         const currentRot = currentModel.rotation || currentRotation;
-        const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot);
+        const gridSize = modelOptions.gridSize || 40;
+        const gridHalfSize = gridSize / 2;
+        const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot, gridHalfSize);
         
         if (
           clampedPosition[0] !== currentPos[0] ||
@@ -990,6 +998,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         setDragStartMouse(null);
         dragSelectionRef.current = null; // Reset drag selection
         dragStartRotationsRef.current = null; // Reset start rotations
+        setDragStartPositions(null); // Reset start positions in store
         previousRotationDuringDragRef.current = null; // Reset previous rotation during drag
       }
       setIsPointerDown(false);
@@ -1026,6 +1035,27 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         // Store current selection at drag start to ensure consistency during drag
         const currentSel = useModelStore.getState().selectedModelId;
         dragSelectionRef.current = currentSel;
+        
+        // Store start positions for all selected models
+        const models = useModelStore.getState().selectedModels;
+        const positionsMap = {};
+        
+        if (currentSel === 'ALL') {
+          models.forEach(model => {
+            positionsMap[model.id] = [...(model.position || [0, 0, 0])];
+          });
+        } else if (Array.isArray(currentSel)) {
+          currentSel.forEach(modelId => {
+            const model = models.find(m => m.id === modelId);
+            if (model) {
+              positionsMap[modelId] = [...(model.position || [0, 0, 0])];
+            }
+          });
+        } else if (currentSel === id) {
+          positionsMap[id] = [...position];
+        }
+        
+        setDragStartPositions(positionsMap);
         
         // Store start rotations for all selected models when rotating
         const currentActiveControlMode = useModelStore.getState().activeControlMode;
@@ -1079,15 +1109,24 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
     if (!isDragging || !dragStartPosition || !dragStartMouse) return;
 
     const handleGlobalMouseMove = (event) => {
+      // Only the model being dragged should process movement
+      // This ensures all selected models move together with the same delta
+      const currentDraggedModelId = useModelStore.getState().draggedModelId;
+      if (currentDraggedModelId !== id) return;
+
       // Use stored selection from drag start to ensure consistency
       const dragSelection = dragSelectionRef.current !== null ? dragSelectionRef.current : selectedModelId;
       
       if (activeControlMode === 'height') {
+        // Get stored start positions for all selected models from store
+        const startPositions = dragStartPositions || {};
+        const draggedModelStartPos = startPositions[id] || dragStartPosition;
+        
         const deltaY = dragStartMouse.clientY - event.clientY;
         const sensitivity = 0.02;
         const heightChange = deltaY * sensitivity;
         const snapSize = modelOptions.snapSize === 'free' ? 0.1 : modelOptions.snapSize;
-        const newY = Math.max(0, dragStartPosition[1] + heightChange);
+        const newY = Math.max(0, draggedModelStartPos[1] + heightChange);
         const snappedY = snapSize > 0 ? Math.round(newY / snapSize) * snapSize : newY;
         
         let finalY = snappedY;
@@ -1096,7 +1135,7 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         if (clonedSceneState) {
           const tempClone = clonedSceneState.clone(true);
           tempGroup.add(tempClone);
-          tempGroup.position.set(position[0], finalY, position[2]);
+          tempGroup.position.set(draggedModelStartPos[0], finalY, draggedModelStartPos[2]);
           tempGroup.rotation.set(rotation[0], rotation[1], rotation[2]);
           tempGroup.updateMatrixWorld(true);
           const box = new THREE.Box3().setFromObject(tempGroup);
@@ -1108,25 +1147,33 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         }
         
         baseHeightRef.current = finalY;
-        const proposedPosition = [position[0], finalY, position[2]];
+        const proposedPosition = [draggedModelStartPos[0], finalY, draggedModelStartPos[2]];
         
         // Use dragSelection for consistency
         const currentDragSelection = dragSelection || selectedModelId;
         
+        // Calculate delta based on start position
+        const deltaYHeight = finalY - draggedModelStartPos[1];
+        
         if (currentDragSelection === 'ALL') {
-          const deltaY = finalY - position[1];
-          const updatedModels = existingModels.map(model => ({
-            ...model,
-            position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]]
-          }));
+          const updatedModels = existingModels.map(model => {
+            const modelStartPos = startPositions[model.id];
+            if (!modelStartPos) return model; // Skip if start position not found
+            return {
+              ...model,
+              position: [modelStartPos[0], Math.max(0, modelStartPos[1] + deltaYHeight), modelStartPos[2]]
+            };
+          });
           setSelectedModels(updatedModels);
         } else if (Array.isArray(currentDragSelection) && currentDragSelection.includes(id)) {
-          const deltaY = finalY - position[1];
-          const updatedModels = existingModels.map(model => 
-            currentDragSelection.includes(model.id)
-              ? { ...model, position: [model.position[0], Math.max(0, model.position[1] + deltaY), model.position[2]] }
-              : model
-          );
+          const updatedModels = existingModels.map(model => {
+            if (currentDragSelection.includes(model.id)) {
+              const modelStartPos = startPositions[model.id];
+              if (!modelStartPos) return model; // Skip if start position not found
+              return { ...model, position: [modelStartPos[0], Math.max(0, modelStartPos[1] + deltaYHeight), modelStartPos[2]] };
+            }
+            return model;
+          });
           setSelectedModels(updatedModels);
         } else {
           updateModelPosition(id, proposedPosition);
@@ -1182,7 +1229,9 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
             if (constrainToGrid && modelDimensions) {
               const currentPos = currentModel.position || position;
               const currentRot = currentModel.rotation;
-              const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot);
+              const gridSize = modelOptions.gridSize || 40;
+              const gridHalfSize = gridSize / 2;
+              const clampedPosition = clampPositionToGrid(currentPos, modelDimensions, currentRot, gridHalfSize);
               
               if (
                 clampedPosition[0] !== currentPos[0] ||
@@ -1356,45 +1405,52 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
         return;
       }
 
+      // Get stored start positions for all selected models from store
+      const startPositions = dragStartPositions || {};
+      const draggedModelStartPos = startPositions[id] || dragStartPosition;
+
       const mouse = new THREE.Vector2();
       mouse.x = (event.clientX / gl.domElement.clientWidth) * 2 - 1;
       mouse.y = -(event.clientY / gl.domElement.clientHeight) * 2 + 1;
 
-      const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -position[1]);
+      // Use start Y position for drag plane to ensure consistent calculation
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -draggedModelStartPos[1]);
       const currentIntersection = new THREE.Vector3();
       raycaster.setFromCamera(mouse, camera);
       raycaster.ray.intersectPlane(dragPlane, currentIntersection);
 
       if (currentIntersection) {
-        const deltaX = currentIntersection.x - dragStartMouse.x;
-        const deltaZ = currentIntersection.z - dragStartMouse.y;
+        
+        const intersectionDeltaX = currentIntersection.x - dragStartMouse.x;
+        const intersectionDeltaZ = currentIntersection.z - dragStartMouse.y;
 
-        const newX = dragStartPosition[0] + deltaX;
-        const newZ = dragStartPosition[2] + deltaZ;
+        // Calculate new position based on START position, not current position
+        const newX = draggedModelStartPos[0] + intersectionDeltaX;
+        const newZ = draggedModelStartPos[2] + intersectionDeltaZ;
 
         const snapSize = modelOptions.snapSize;
         const snappedX = snapSize > 0 ? Math.round(newX / snapSize) * snapSize : newX;
         const snappedZ = snapSize > 0 ? Math.round(newZ / snapSize) * snapSize : newZ;
 
-        let proposedPosition = [snappedX, position[1], snappedZ];
+        // Use START Y position, not current position
+        let proposedPosition = [snappedX, draggedModelStartPos[1], snappedZ];
 
         if (constrainToGrid) {
+          const gridSize = modelOptions.gridSize || 40;
+          const gridHalfSize = gridSize / 2;
           proposedPosition = clampPositionToGrid(
             proposedPosition,
             modelDimensions,
-            rotation
+            rotation,
+            gridHalfSize
           );
         }
 
         let adjustedPosition = [...proposedPosition];
-        
-        if (!constrainToGrid) {
-          adjustedPosition[1] = position[1];
-        }
 
         if (clonedSceneState) {
-          // برای drag موقعیت افقی، ارتفاع فعلی را حفظ می‌کنیم
-          let targetY = position[1];
+          // برای drag موقعیت افقی، ارتفاع شروع را حفظ می‌کنیم
+          let targetY = draggedModelStartPos[1];
           if (activeControlMode !== 'height') {
             targetY = Math.max(0, targetY);
           }
@@ -1421,38 +1477,48 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
           }
         } else {
           adjustedPosition[1] =
-            activeControlMode !== 'height' ? Math.max(0, position[1]) : position[1];
+            activeControlMode !== 'height' ? Math.max(0, draggedModelStartPos[1]) : draggedModelStartPos[1];
         }
 
         if (constrainToGrid) {
+          const gridSize = modelOptions.gridSize || 40;
+          const gridHalfSize = gridSize / 2;
           adjustedPosition = clampPositionToGrid(
             adjustedPosition,
             modelDimensions,
-            rotation
+            rotation,
+            gridHalfSize
           );
         }
 
         // Use dragSelection for consistency
         const currentDragSelection = dragSelection || selectedModelId;
+        
+        // Calculate delta based on the dragged model's stored start position
+        // This ensures all models move together with the same delta
+        const deltaX = adjustedPosition[0] - draggedModelStartPos[0];
+        const deltaZ = adjustedPosition[2] - draggedModelStartPos[2];
+        const deltaY = adjustedPosition[1] - draggedModelStartPos[1];
 
         // Check if multiple models are selected and move them together
         if (currentDragSelection === 'ALL') {
-          // Move all models together (no stationary models to collide with)
-          const deltaX = adjustedPosition[0] - position[0];
-          const deltaZ = adjustedPosition[2] - position[2];
-          const deltaY = adjustedPosition[1] - position[1];
-          
+          // Move all models together using stored start positions
           const updatedModels = existingModels.map(model => {
-            const nextX = model.position[0] + deltaX;
-            const nextZ = model.position[2] + deltaZ;
-            const nextY = Math.max(0, model.position[1] + deltaY);
+            const modelStartPos = startPositions[model.id];
+            if (!modelStartPos) return model; // Skip if start position not found
+            const nextX = modelStartPos[0] + deltaX;
+            const nextZ = modelStartPos[2] + deltaZ;
+            const nextY = Math.max(0, modelStartPos[1] + deltaY);
             let nextPosition = [nextX, nextY, nextZ];
             
             if (constrainToGrid) {
+              const gridSize = modelOptions.gridSize || 40;
+              const gridHalfSize = gridSize / 2;
               nextPosition = clampPositionToGrid(
                 nextPosition,
                 model.dimensions,
-                model.rotation
+                model.rotation,
+                gridHalfSize
               );
             }
             return {
@@ -1463,23 +1529,24 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
           
           setSelectedModels(updatedModels);
         } else if (Array.isArray(currentDragSelection) && currentDragSelection.includes(id)) {
-          // Move multiple selected models
-          const deltaX = adjustedPosition[0] - position[0];
-          const deltaZ = adjustedPosition[2] - position[2];
-          const deltaY = adjustedPosition[1] - position[1];
-          
+          // Move multiple selected models using stored start positions
           const updatedModels = existingModels.map(model => {
             if (currentDragSelection.includes(model.id)) {
-              const nextX = model.position[0] + deltaX;
-              const nextZ = model.position[2] + deltaZ;
-              const nextY = Math.max(0, model.position[1] + deltaY);
+              const modelStartPos = startPositions[model.id];
+              if (!modelStartPos) return model; // Skip if start position not found
+              const nextX = modelStartPos[0] + deltaX;
+              const nextZ = modelStartPos[2] + deltaZ;
+              const nextY = Math.max(0, modelStartPos[1] + deltaY);
               let nextPosition = [nextX, nextY, nextZ];
               
               if (constrainToGrid) {
+                const gridSize = modelOptions.gridSize || 40;
+                const gridHalfSize = gridSize / 2;
                 nextPosition = clampPositionToGrid(
                   nextPosition,
                   model.dimensions,
-                  model.rotation
+                  model.rotation,
+                  gridHalfSize
                 );
               }
               return { ...model, position: nextPosition };
@@ -1498,10 +1565,13 @@ const Model = ({ path, position, id, rotation, color, noColor = false }) => {
           }
         } else {
           if (constrainToGrid) {
+            const gridSize = modelOptions.gridSize || 40;
+            const gridHalfSize = gridSize / 2;
             adjustedPosition = clampPositionToGrid(
               adjustedPosition,
               modelDimensions,
-              rotation
+              rotation,
+              gridHalfSize
             );
           }
           if (!hasOverlapWithOthers(adjustedPosition)) {

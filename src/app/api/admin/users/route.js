@@ -30,11 +30,12 @@ export async function GET(req) {
       deletedAt: null,
       isDeleted: { $ne: true }
     })
-      .select("_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture canEditUserProjects")
+      .select("_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture coach")
+      .populate({ path: "coach", select: "name familyName phoneNumber" })
       .sort({ createdAt: -1 })
       .lean();
 
-    const [totalUsers, activeUsers, adminUsers, totalProjects] =
+    const [totalUsers, activeUsers, adminUsers, coachUsers, totalProjects] =
       await Promise.all([
         User.countDocuments({ 
           deletedAt: null,
@@ -50,6 +51,11 @@ export async function GET(req) {
           deletedAt: null,
           isDeleted: { $ne: true }
         }),
+        User.countDocuments({ 
+          role: "coach",
+          deletedAt: null,
+          isDeleted: { $ne: true }
+        }),
         Project.countDocuments({ deletedAt: null }),
       ]);
 
@@ -61,7 +67,13 @@ export async function GET(req) {
       phoneNumber: u.phoneNumber,
       role: u.role,
       isActive: u.isActive,
-      canEditUserProjects: u.role === "admin" ? (u.canEditUserProjects || false) : false,
+      coach: u.coach ? {
+        id: u.coach._id,
+        name: u.coach.name,
+        familyName: u.coach.familyName,
+        fullName: `${u.coach.name} ${u.coach.familyName}`,
+        phoneNumber: u.coach.phoneNumber,
+      } : null,
       email: u.email ?? "",
       address: u.address ?? "",
       province: u.province ?? "",
@@ -74,7 +86,7 @@ export async function GET(req) {
     return NextResponse.json(
       {
         success: true,
-        stats: { totalUsers, activeUsers, adminUsers, totalProjects },
+        stats: { totalUsers, activeUsers, adminUsers, coachUsers, totalProjects },
         users: mapped,
       },
       { status: 200 }

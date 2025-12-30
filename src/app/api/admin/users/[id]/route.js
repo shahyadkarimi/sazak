@@ -35,7 +35,11 @@ export async function PUT(req, { params }) {
     const validation = validateUserUpdate(body);
     if (!validation.isValid) {
       return NextResponse.json(
-        { success: false, message: validation.message },
+        { 
+          success: false, 
+          message: validation.message,
+          errors: validation.errors || {}
+        },
         { status: 400 }
       );
     }
@@ -103,11 +107,28 @@ export async function PUT(req, { params }) {
       user.password = await bcrypt.hash(body.password, 10);
       updatedFields.passwordChanged = true;
     }
-    if (typeof body.canEditUserProjects === "boolean") {
-      // Only allow canEditUserProjects for admin users
-      if (body.role === "admin" || user.role === "admin") {
-        user.canEditUserProjects = body.canEditUserProjects;
-        updatedFields.canEditUserProjects = body.canEditUserProjects;
+    if (body.coach !== undefined) {
+      // Allow setting coach to null or a valid coach user ID
+      if (body.coach === null || body.coach === "") {
+        user.coach = null;
+        updatedFields.coach = null;
+      } else {
+        // Validate that the coach exists and has coach role
+        const coachUser = await User.findOne({
+          _id: body.coach,
+          role: "coach",
+          deletedAt: null,
+          isDeleted: { $ne: true }
+        });
+        if (coachUser) {
+          user.coach = body.coach;
+          updatedFields.coach = body.coach;
+        } else {
+          return NextResponse.json(
+            { success: false, message: "مربی انتخاب شده معتبر نیست" },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -115,8 +136,9 @@ export async function PUT(req, { params }) {
 
     const updatedUser = await User.findById(id)
       .select(
-        "_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture canEditUserProjects"
+        "_id name familyName phoneNumber role isActive createdAt email address province city birthDate profilePicture coach"
       )
+      .populate({ path: "coach", select: "name familyName phoneNumber" })
       .lean();
 
     await createLog(LogActions.ADMIN_USER_UPDATE, {
@@ -150,7 +172,13 @@ export async function PUT(req, { params }) {
           phoneNumber: updatedUser.phoneNumber,
           role: updatedUser.role,
           isActive: updatedUser.isActive,
-          canEditUserProjects: updatedUser.role === "admin" ? (updatedUser.canEditUserProjects || false) : false,
+          coach: updatedUser.coach ? {
+            id: updatedUser.coach._id,
+            name: updatedUser.coach.name,
+            familyName: updatedUser.coach.familyName,
+            fullName: `${updatedUser.coach.name} ${updatedUser.coach.familyName}`,
+            phoneNumber: updatedUser.coach.phoneNumber,
+          } : null,
           email: updatedUser.email ?? "",
           address: updatedUser.address ?? "",
           province: updatedUser.province ?? "",

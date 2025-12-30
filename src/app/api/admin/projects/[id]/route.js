@@ -18,32 +18,41 @@ export async function DELETE(req, { params }) {
     }
 
     const requester = await User.findById(authUser.userId)
-      .select("role canEditUserProjects")
+      .select("role _id")
       .lean();
-    if (!requester || requester.role !== "admin") {
+    
+    if (!requester) {
       return NextResponse.json(
-        { success: false, message: "دسترسی غیرمجاز" },
-        { status: 403 }
-      );
-    }
-
-    // Check if admin has permission to edit user projects
-    if (!requester.canEditUserProjects) {
-      return NextResponse.json(
-        { success: false, message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید" },
+        { success: false, message: "کاربر یافت نشد" },
         { status: 403 }
       );
     }
 
     const { id } = params;
 
-    const project = await Project.findById(id);
+    const project = await Project.findById(id)
+      .populate({ path: "user", select: "coach" })
+      .lean();
+    
     if (!project) {
       return NextResponse.json(
         { success: false, message: "پروژه یافت نشد" },
         { status: 404 }
       );
     }
+
+    // Check permissions: only admin can delete projects
+    if (requester.role !== "admin") {
+      return NextResponse.json(
+        { success: false, message: "فقط ادمین می‌تواند پروژه‌ها را حذف کند" },
+        { status: 403 }
+      );
+    }
+
+    // Get full requester info for logging
+    const requesterFull = await User.findById(authUser.userId)
+      .select("name familyName phoneNumber role")
+      .lean();
 
     // Soft delete by setting deletedAt
     const deletedAt = new Date();
@@ -54,11 +63,11 @@ export async function DELETE(req, { params }) {
 
     await createLog(LogActions.ADMIN_PROJECT_DELETE, {
       performedBy: {
-        userId: requester._id,
-        name: requester.name,
-        familyName: requester.familyName,
-        phoneNumber: requester.phoneNumber,
-        role: requester.role,
+        userId: requesterFull._id,
+        name: requesterFull.name,
+        familyName: requesterFull.familyName,
+        phoneNumber: requesterFull.phoneNumber,
+        role: requesterFull.role,
       },
       target: {
         type: "project",
@@ -98,19 +107,12 @@ export async function PATCH(req, { params }) {
     }
 
     const requester = await User.findById(authUser.userId)
-      .select("role canEditUserProjects")
+      .select("role _id")
       .lean();
-    if (!requester || requester.role !== "admin") {
+    
+    if (!requester) {
       return NextResponse.json(
-        { success: false, message: "دسترسی غیرمجاز" },
-        { status: 403 }
-      );
-    }
-
-    // Check if admin has permission to edit user projects
-    if (!requester.canEditUserProjects) {
-      return NextResponse.json(
-        { success: false, message: "شما دسترسی ویرایش پروژه‌های کاربران را ندارید" },
+        { success: false, message: "کاربر یافت نشد" },
         { status: 403 }
       );
     }
@@ -119,11 +121,33 @@ export async function PATCH(req, { params }) {
     const body = await req.json();
     const { name, isPublic } = body;
 
-    const project = await Project.findById(id);
+    const project = await Project.findById(id)
+      .populate({ path: "user", select: "coach" })
+      .lean();
+    
     if (!project) {
       return NextResponse.json(
         { success: false, message: "پروژه یافت نشد" },
         { status: 404 }
+      );
+    }
+
+    // Check permissions: admin can edit all, coach can edit their users' projects
+    let hasPermission = false;
+    if (requester.role === "admin") {
+      hasPermission = true;
+    } else if (requester.role === "coach") {
+      // Check if the project owner has this coach assigned
+      const projectOwner = project.user;
+      if (projectOwner && projectOwner.coach && projectOwner.coach.toString() === requester._id.toString()) {
+        hasPermission = true;
+      }
+    }
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: "شما دسترسی ویرایش این پروژه را ندارید" },
+        { status: 403 }
       );
     }
 
@@ -132,6 +156,9 @@ export async function PATCH(req, { params }) {
     if (typeof isPublic === "boolean") updateData.isPublic = isPublic;
 
     await Project.findByIdAndUpdate(id, updateData);
+    
+    // Convert project to regular object for logging
+    const projectObj = await Project.findById(id).lean();
 
     await createLog(LogActions.PROJECT_UPDATE, {
       performedBy: {
@@ -143,8 +170,8 @@ export async function PATCH(req, { params }) {
       },
       target: {
         type: "project",
-        projectId: project._id.toString(),
-        ownerId: project.user?.toString?.(),
+        projectId: projectObj._id.toString(),
+        ownerId: projectObj.user?.toString?.() || project.user?._id?.toString() || project.user?.toString(),
       },
       metadata: {
         updatedFields: updateData,

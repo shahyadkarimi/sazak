@@ -154,11 +154,13 @@ const useModelStore = create((set, get) => ({
     snapSize: 0.5,
     rotationDeg: 90,
     gridCellSize: 1, // سایز خانه‌های شطرنجی (واحد: متر)
+    gridSize: 40, // سایز کلی صفحه شطرنجی (30, 40, 50, 60)
   },
   modelsRef: {},
   zoomLevel: 50, // FOV value for camera zoom
   constrainToGrid: false,
   draggedModelId: null, // ID of model currently being dragged
+  dragStartPositions: null, // Map of modelId -> start position when dragging multiple models
   activeControlMode: null, // 'height' | 'rotateY' | 'rotateX' | 'rotateZ' | null
   showColorPanel: false, // Show color picker panel
   allowOverlap: false,
@@ -491,6 +493,7 @@ const useModelStore = create((set, get) => ({
   setConstrainToGrid: (value) => set({ constrainToGrid: !!value }),
   
   setDraggedModelId: (id) => set({ draggedModelId: id }),
+  setDragStartPositions: (positions) => set({ dragStartPositions: positions }),
   setActiveControlMode: (mode) => set({ activeControlMode: mode }),
   setShowColorPanel: (value) => set({ showColorPanel: !!value }),
   

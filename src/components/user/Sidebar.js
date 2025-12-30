@@ -85,6 +85,20 @@ const Sidebar = () => {
               </Link>
             );
           })}
+          
+          {user.role === "coach" && (
+            <Link
+              href="/user/coach/projects"
+              className={cn(
+                "flex items-center gap-2 text-gray-700 dark:text-gray-200 rounded-2xl h-12 hover:bg-gray-100/70 dark:hover:bg-gray-800/70 hover:text-primaryThemeColor px-4 transition-all duration-300",
+                pathname === "/user/coach/projects" &&
+                  "bg-primaryThemeColor/5 dark:bg-primaryThemeColor/10 hover:bg-primaryThemeColor/5 dark:hover:bg-primaryThemeColor/10 text-primaryThemeColor dark:text-primaryThemeColor font-bold"
+              )}
+            >
+              <Icon icon="solar:folder-with-files-line-duotone" width="20" hanging="20" />
+              <span>پروژه‌های دانشجویان</span>
+            </Link>
+          )}
 
           <button
             onClick={logoutHandler}
@@ -123,7 +137,9 @@ const Sidebar = () => {
             <span className="text-sm text-gray-600 dark:text-gray-300 font-bold">
               {user.fullName}
             </span>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{user.role === "user" ? "دانشجو" : "ادمین"}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {user.role === "user" ? "دانشجو" : user.role === "coach" ? "مربی" : "ادمین"}
+            </span>
           </div>
         </div>
 

@@ -173,6 +173,9 @@ const AddUserModal = ({ isOpen, onClose, onSuccess }) => {
               <SelectItem key="user" value="user">
                 کاربر
               </SelectItem>
+              <SelectItem key="coach" value="coach">
+                مربی
+              </SelectItem>
               <SelectItem key="admin" value="admin">
                 ادمین
               </SelectItem>

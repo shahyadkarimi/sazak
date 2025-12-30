@@ -70,33 +70,36 @@ export const userUpdateSchema = z.object({
   name: z.string().min(1, "نام الزامی است").optional(),
   familyName: z.string().min(1, "نام خانوادگی الزامی است").optional(),
   email: z
-    .string()
-    .trim()
-    .email("ایمیل نامعتبر است")
-    .optional()
-    .or(z.literal("")),
+    .union([
+      z.string().email("ایمیل نامعتبر است"),
+      z.literal(""),
+    ])
+    .optional(),
   address: z.string().trim().max(500, "آدرس نباید بیشتر از ۵۰۰ کاراکتر باشد").optional().or(z.literal("")),
   province: z.string().trim().max(100, "استان نامعتبر است").optional().or(z.literal("")),
   city: z.string().trim().max(100, "شهر نامعتبر است").optional().or(z.literal("")),
   birthDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "تاریخ تولد نامعتبر است")
-    .optional()
-    .or(z.literal("")),
+    .union([
+      z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "تاریخ تولد نامعتبر است"),
+      z.literal(""),
+    ])
+    .optional(),
   phoneNumber: z
     .string()
     .min(1, "شماره موبایل الزامی است")
     .regex(/^09\d{9}$/, "شماره موبایل نامعتبر است")
     .optional(),
-  role: z.enum(["user", "admin"]).optional(),
+  role: z.enum(["user", "admin", "coach"]).optional(),
   isActive: z.boolean().optional(),
+  coach: z.union([z.string(), z.literal(""), z.null()]).optional(),
   password: z
-    .string()
-    .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
-    .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
-    .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد")
-    .optional()
-    .or(z.literal("")),
+    .union([
+      z.string().min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
+        .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
+        .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد"),
+      z.literal(""),
+    ])
+    .optional(),
 });
 
 export const addUserSchema = z.object({
@@ -111,17 +114,25 @@ export const addUserSchema = z.object({
     .min(6, "رمز عبور باید حداقل ۶ کاراکتر باشد")
     .regex(/[A-Za-z]/, "رمز عبور باید حداقل شامل یک حرف باشد")
     .regex(/\d/, "رمز عبور باید حداقل شامل یک عدد باشد"),
-  role: z.enum(["user", "admin"]).default("user"),
+  role: z.enum(["user", "admin", "coach"]).default("user"),
 });
 
 export const validateUserUpdate = (data) => {
   try {
     userUpdateSchema.parse(data);
-    return { isValid: true };
+    return { isValid: true, errors: {} };
   } catch (error) {
+    const errors = {};
+    if (error.errors) {
+      error.errors.forEach((err) => {
+        const path = err.path.join(".");
+        errors[path] = err.message;
+      });
+    }
     return {
       isValid: false,
       message: error.errors?.[0]?.message || "داده‌های ورودی نامعتبر است",
+      errors,
     };
   }
 };

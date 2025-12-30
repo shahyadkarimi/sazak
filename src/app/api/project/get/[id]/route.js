@@ -21,27 +21,49 @@ export async function GET(req, { params }) {
     const { id } = params;
 
     const requestUser = await User.findById(authUser.userId)
-      .select("role")
+      .select("role _id")
       .lean();
 
-    const projectQuery = { _id: id };
+    // First, get the project to check ownership/coach relationship
+    let project = await Project.findById(id)
+      .populate({ path: "user", select: "coach" })
+      .lean();
 
-    if (requestUser?.role !== "admin") {
-      projectQuery.user = authUser.userId;
-    }
-
-    const project = await Project.findOne(projectQuery).select("-__v -user");
-
-    if (!project) {
+    if (!project || project.deletedAt) {
       return NextResponse.json(
         { success: false, message: "پروژه یافت نشد" },
         { status: 404 }
       );
     }
 
+    // Check permissions: admin can see all, coach can see their users' projects, user can see only their own
+    let hasPermission = false;
+    if (requestUser?.role === "admin") {
+      hasPermission = true;
+    } else if (requestUser?.role === "coach") {
+      // Check if the project owner has this coach assigned
+      const projectOwner = project.user;
+      if (projectOwner && projectOwner.coach && projectOwner.coach.toString() === requestUser._id.toString()) {
+        hasPermission = true;
+      }
+    } else if (project.user && project.user._id?.toString() === authUser.userId) {
+      // User owns the project
+      hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, message: "شما دسترسی مشاهده این پروژه را ندارید" },
+        { status: 403 }
+      );
+    }
+
+    // Remove user field from response and prepare project object
+    const projectObj = { ...project };
+    delete projectObj.user;
+
     // Attach part dimensions (length, width, height) to project objects when available
     try {
-      const projectObj = project.toObject ? project.toObject() : project;
 
       // Use object `path` to find matching Part documents (match against Part.glbPath)
       const partPaths = (projectObj.objects || [])
@@ -77,7 +99,9 @@ export async function GET(req, { params }) {
     } catch (e) {
       console.error("Attach parts dimensions error:", e);
       // Fallback to returning original project if augmentation fails
-      return NextResponse.json({ success: true, project }, { status: 200 });
+      const fallbackProject = { ...project };
+      delete fallbackProject.user;
+      return NextResponse.json({ success: true, project: fallbackProject }, { status: 200 });
     }
   } catch (error) {
     console.error("Get project error:", error);

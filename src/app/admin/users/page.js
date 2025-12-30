@@ -33,8 +33,8 @@ const columns = [
   { name: "نام خانوادگی", uid: "familyName" },
   { name: "شماره موبایل", uid: "phoneNumber" },
   { name: "نقش", uid: "role" },
+  { name: "مربی", uid: "coach" },
   { name: "وضعیت", uid: "isActive" },
-  { name: "دسترسی ویرایش پروژه‌ها", uid: "canEditUserProjects" },
   { name: "تاریخ ثبت‌نام", uid: "createdAt" },
   { name: "عملیات", uid: "actions" },
 ];
@@ -58,7 +58,6 @@ const Page = () => {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [impersonatingId, setImpersonatingId] = useState(null);
-  const [togglingEditPermission, setTogglingEditPermission] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -237,45 +236,6 @@ const Page = () => {
     setUsers((prevUsers) => [newUser, ...prevUsers]);
   };
 
-  const handleToggleEditPermission = async (user) => {
-    if (user.role !== "admin") return;
-    
-    try {
-      setTogglingEditPermission(user.id);
-      const token = localStorage.getItem("token");
-      const response = await fetch(
-        `/api/admin/users/${user.id}/toggle-edit-permission`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            "x-auth-token": token,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (data.success) {
-        setUsers((prevUsers) =>
-          prevUsers.map((u) =>
-            u.id === user.id
-              ? { ...u, canEditUserProjects: data.canEditUserProjects }
-              : u
-          )
-        );
-        toast.success(data.message);
-      } else {
-        toast.error(data.message || "خطا در تغییر دسترسی ویرایش");
-      }
-    } catch (error) {
-      console.error("Error toggling edit permission:", error);
-      toast.error("خطا در تغییر دسترسی ویرایش");
-    } finally {
-      setTogglingEditPermission(null);
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex h-[60vh] w-full items-center justify-center">
@@ -357,6 +317,9 @@ const Page = () => {
               <SelectItem key="user" value="user">
                 کاربر
               </SelectItem>
+              <SelectItem key="coach" value="coach">
+                مربی
+              </SelectItem>
               <SelectItem key="admin" value="admin">
                 ادمین
               </SelectItem>
@@ -402,7 +365,12 @@ const Page = () => {
                 <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.name}</TableCell>
                 <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.familyName}</TableCell>
                 <TableCell className="text-sm text-gray-900 dark:text-gray-100">{toFarsiNumber(item.phoneNumber)}</TableCell>
-                <TableCell className="text-sm text-gray-900 dark:text-gray-100">{item.role === "admin" ? "ادمین" : "کاربر"}</TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">
+                  {item.role === "admin" ? "ادمین" : item.role === "coach" ? "مربی" : "کاربر"}
+                </TableCell>
+                <TableCell className="text-sm text-gray-900 dark:text-gray-100">
+                  {item.coach ? item.coach.fullName || `${item.coach.name} ${item.coach.familyName}` : "-"}
+                </TableCell>
                 <TableCell>
                   <button onClick={() => handleToggleStatus(item)}>
                     <Chip
@@ -413,28 +381,6 @@ const Page = () => {
                       {item.isActive ? "فعال" : "غیرفعال"}
                     </Chip>
                   </button>
-                </TableCell>
-                <TableCell>
-                  {item.role === "admin" ? (
-                    <button
-                      onClick={() => handleToggleEditPermission(item)}
-                      disabled={togglingEditPermission === item.id}
-                    >
-                      <Chip
-                        size="sm"
-                        color={item.canEditUserProjects ? "success" : "danger"}
-                        variant="flat"
-                      >
-                        {togglingEditPermission === item.id
-                          ? "در حال تغییر..."
-                          : item.canEditUserProjects
-                          ? "دارد"
-                          : "ندارد"}
-                      </Chip>
-                    </button>
-                  ) : (
-                    <span className="text-sm text-gray-400 dark:text-gray-500">-</span>
-                  )}
                 </TableCell>
                 <TableCell className="text-sm text-gray-900 dark:text-gray-100">
                   {new Date(item.createdAt).toLocaleDateString("fa-IR")}
